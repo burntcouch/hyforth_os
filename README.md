@@ -18,3 +18,7 @@ The root folder of the repos has the basic OS code, (I am excluding the hardware
 
 <p> Hydra-16 v1.8C README:  https://github.com/burntcouch/hyforth_os/blob/main/README_H16.md </p>
 <p> HyForth v0.91 README:  https://github.com/burntcouch/hy_millif/blob/main/README.md </p>
+
+<h1> Building</h1>
+
+This project uses the cc65 ( https://cc65.github.io/ ) assembler and linker to do the dirty work.  Look at the 'makeC02.bat' file to have a guess of how to customize for your installation of cc65.  The .bat script also expects a 'version' string so that backups of code are automatically created during the build (handy for backtracking, if you aren't actually using Git for versioning).  Sloppy but enough for a simply project like this.
