@@ -14,7 +14,7 @@ I wanted to preserve the original primitive nature of the BIOS at that point so 
 
 ..but it will be ROM resident only.  'ehybasic' is not entirely stable and there are major issues (ferinstance, some really sticky self-modifying ZP code for IO handling) that need to be addressed before it would really be a reliable 'beginning' language for the Hydra-16.  More when.
 
-This repo will have an 'os_rom' section (I am excluding the hardware-specific section of Dan's repo), as well as subfolders for ehybasic and hyforth itself.
+The root folder of the repos has the basic OS code, (I am excluding the hardware-specific section of Dan's repo), with subfolders for ehybasic and hyforth itself.
 
 <p> Hydra-16 v1.8C README:  https://github.com/burntcouch/hyforth_os/blob/main/README_H16.md </p>
 <p> HyForth v0.91 README:  https://github.com/burntcouch/hy_millif/blob/main/README.md </p>
