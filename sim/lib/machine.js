@@ -83,7 +83,7 @@ function createMachine(opt) {
     if (a < 0x8000) return rtc && a >= RTC_REGS && tsel(a) === RTC_TASK ? rtc.read(a - RTC_REGS) : taskRam[tsel(a)][a];
     if (a < 0xA000) { const b = taskRam[tsel(0)][0]; return bankInstalled(b) ? bankMem(b)[ramOfs(b, a)] : (a >> 8); }  // floating bus
     if (a < 0xE000) {
-      if (opt.promnostg === false) { const off = romBank(taskRam[tsel(1)][1]) * 0x4000 + (a - 0xA000); return off < pagedrom.length ? pagedrom[off] : 0xFF; }  
+      if (opt.promnostg) { const off = romBank(taskRam[tsel(1)][1]) * 0x4000 + (a - 0xA000); return off < pagedrom.length ? pagedrom[off] : 0xFF; }  
       else { const off = romBank(taskRam[tsel(1)][1]) * 0x4000 + ((a - 0xA000) ^ 0x2000); return off < pagedrom.length ? pagedrom[off] : 0xFF; }      
     }
     if (a >= 0xFF00 && a < 0xFFF0) {
