@@ -19,6 +19,13 @@ The root folder of the repos has the basic OS code, (I am excluding the hardware
 <p> Hydra-16 v1.8C README:  https://github.com/burntcouch/hyforth_os/blob/main/README_H16.md </p>
 <p> HyForth v0.91 README:  https://github.com/burntcouch/hy_millif/blob/main/README.md </p>
 
+<p>Lastly...I've included (as of 10/15) Dan's Hydra-16 simulator:   (in the ./sim folder).  This is an 'older' copy that I was able to tweak in order to use my generated paged ROM binaries.  Original version is here:  https://github.com/danstruthers/hydra-16/tree/main/old/sim </p>
+  
+<p>Read the header section at the start of 'hydrasim.js' in order to figure out the command line options.</p>
+<p>  My usual usage of the simulator (after installing Node.js):</p>
+<pre> >node hydrasim.js -i --rom ./tmp --prom-no-stagger </pre>
+
+<p>...which assumes that your 'os_rom_C02.bin' and 'paged_rom_C02.bin' files are in '/tmp'.  You've been warned.</p>
 <h1> Building and running</h1>
 
 This project uses the cc65 ( https://cc65.github.io/ ) assembler and linker to do the dirty work.  Look at the 'makeC02.bat' file to have a guess of how to customize for your installation of cc65.  The .bat script also expects a 'version' string so that backups of code are automatically created during the build (handy for backtracking, if you aren't actually using Git for versioning).  Sloppy but enough for a simple project like this.
