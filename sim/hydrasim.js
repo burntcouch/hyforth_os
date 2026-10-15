@@ -114,13 +114,13 @@ const path = require('path');
 const { createMachine } = require('./lib/machine.js');
 
 // ---- options
-const opt = { rom: path.join(__dirname, '..', 'os_rom', 'bin'), cycles: 20000000, input: '', modules: 3, promnostg: true,
+const opt = { rom: path.join(__dirname, '..', 'os_rom', 'bin'), cycles: 20000000, input: '', modules: 3, promnostg: false,
   aciaLine: 1, stuckIrq: -1, model: '', raw: false, trace: 25, dumps: [], watches: [], pcWatches: [], sharedU: 16, ramFault: null, sds: [], sdsc: [], spiEcho: [], interactive: false, speed: 1, acia: 'rockwell', marks: [], profile: -1, seed: -1, ymLog: false, clock: 3.579545 };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], next = () => argv[++i];
   switch (a) {
-    case '--prom-no-stagger': opt.promnostg = false; break;
+    case '--prom-no-stagger': opt.promnostg = true; break;
     case '--rom': opt.rom = next(); break;
     case '--cycles': opt.cycles = +next(); opt.cyclesSet = true; break;
     case '-i': case '--interactive': opt.interactive = true; break;
