@@ -1,3 +1,9 @@
+.debuginfo
+.segment "SOUND"
+
+;
+; usually ends up at $E400 (see os_rom_C02.cfg)
+;
 ; zero out all YM-2151 registers $28-$FF
 SOUND_INIT:
                 pha

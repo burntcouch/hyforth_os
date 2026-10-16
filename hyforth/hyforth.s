@@ -810,19 +810,22 @@ copyfrom:
  ;
  ;  FALL THROUGH
 ;---------------------------------------------------------------------
-; increment a word in page zero. offset by X
+; increment a word in page zero, identified by X and offset to it from $00.
 ;
 ;   Usage: ldx #<pointer name> and then jsr incwx/addwx
 ;
 ;   THESE functions are SOLELY intended to increment/decrement
-;   zeropage pointers, and nothing else.  Offsets indexed by
+;   zeropage pointers.  Offsets indexed by
 ;   X are INTO the zeropage space, not relative to a specific
-;   pointer location.
+;   pointer location; X IDENTIFIES the 16-bit pointer in 
+;   question, period.
 ;
 incwx:
     lda #01
 ;---------------------------------------------------------------------
-; add a byte in A to a word in page zero. offset by X
+; add a byte in A to a word in page zero. X identifies the pointer
+; being incremented, and is not itself dec'd or inc'd.
+;
 addwx:
     clc
     adc 0, x
@@ -837,14 +840,15 @@ addwx_end:
 
 ;---------------------------------------------------------------------
 ;          decwx, heap moves
-; decrement a word in page zero. offset by X
+; decrement a word in page zero, identified by X and offset to it from $00.
 ;
 ;   Usage: ldx #<pointer name> and then jsr decwx
 ;
 ;   THESE functions are SOLELY intended to increment/decrement
-;   zeropage pointers, and nothing else.  Offsets indexed by
+;   zeropage pointers.  Offsets indexed by
 ;   X are INTO the zeropage space, not relative to a specific
-;   pointer location.
+;   pointer location; X IDENTIFIES the 16-bit pointer in 
+;   question, period.
 ;
 decwx:
     lda 0, x
@@ -909,6 +913,7 @@ primitives:
 ;
 ;
 ;------------ CRITICAL CORE PRIMITIVES (AGSB and PGS) ----------------
+;   (the 'primitive' primitives)
 ;
 ;   COMPILE (:), FINISH (;), FETCH (@), STORE (!)
 ;      including:  keeps, this, next, finish
@@ -950,12 +955,28 @@ fetchw:
     ldy #TEMP2
     jsr copyfrom            ; copies data from [TEMP1] => TEMP2
 ;---------------------------------------------------------------------
-;            NEXT entry point for many AGSB primitives
+;            NEXT entry point for many AGSB primitives, and
+;            almost all other hard-coded words.
 ;---------------------------------------------------------------------
+                            ; in fall through, this copies TEMP2 (in y) to TEMP1,
+                            ; overwriting the address that was pulled from the stack.
+                            ;
+                            ; in theory, one could load y with any TEMPx and
+                            ; call jump to 'copys' to finish off to 'next'.
+                            ; in PRACTICE, AGSB didn't reuse this much.
+                            ;
 copys:                      ; copy from cell at y (zp) to TEMP1
     lda 0, y
     sta TEMP1
     lda 1, y
+                            ; 'keeps' is a shortcut to the 'second half' of the
+                            ; (sta TEMP1) routine to return results; to push another
+                            ; variable on the stack, do it explicitly.
+                            ;
+                            ; 'this' assumes 'keeps' has already been done.
+                            ;  Almost every hard-coded word uses keeps, this, or next
+                            ;  to end a word; 'next' ends with 'exit' of course.
+                            ; 
 keeps:                      ; saves bytes since have to get here anyway
     sta TEMP1+1
 this:                       ; same as above
@@ -993,9 +1014,10 @@ def_word "]", "rtbrack", 0               ; switch back to 'compile'
                                          ; NOTE: 'lit' or similar will have pushed a value
                                          ; or address onto stack; 'comma' stores it inline in word
                                          ;
-def_word ",", "xcomma", 0                ; pull data from top of stack, store at 'here', adjust
-    jsr spull_0                          ; 'here' to point at next cell
-    ldy #0
+def_word ",", "xcomma", 0                ; pull data from top of stack, store at 'here' (NEXTHEAP)
+                                         ; , increment 'here' to point to next cell.
+    jsr spull_0                          ;
+    ldy #0                               ; 
     lda TEMP1
     sta (NEXTHEAP),y                     ; POP DS TO TEMP1, [here] = TEMP1
     iny

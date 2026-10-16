@@ -1,6 +1,9 @@
 .debuginfo
 
 .segment "BIOS_THUNKS"
+;
+; usually ends up at $F800 (see os_rom_C02.cfg)
+;
 TH_READ_CHAR:
                 jmp             READ_CHAR           ; $F800
 TH_WRITE_CHAR:
