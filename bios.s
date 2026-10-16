@@ -9,7 +9,9 @@ INPUT_BUFFER:
                 .res            $100
 
 .segment "BIOS"
-
+;
+; usually ends up at $F840  (see os_rom_C02.cfg)
+;
 HEX_MAP: .byte "0123456789ABCDEF"
 
 SERIAL_INIT:
@@ -679,7 +681,157 @@ VIA_IRQ_HANDLER:
 :
             pla
             rti
+;
+;  BIOS stuff that was in tasks.s, math.s, mmu.s
+;  Dummy/substitute subroutines to obviate math.s, tasks.s, mmu.s
+;
 
+SPAWN_TASK:   rts
+;
+;
+;
+; MATH
+MOD_10:
+            ldx             #0
+            cmp             #0
+            bmi             @negative
+            cmp             #100
+            bmi             @pos_loop
+            ldx             #10
+            sec
+            sbc             #100
+
+@pos_loop:
+            cmp             #10
+            bmi             @pos_end
+            inx
+            sec
+            sbc             #10
+            bpl             @pos_loop
+
+@pos_end:
+            rts
+
+@negative:
+            cmp             #$A6            ; -90
+            bpl             @neg_start
+            adc             #$A6
+
+@neg_start:
+            clc
+
+@neg_loop:
+            adc             #10
+            bmi             @neg_loop
+            rts
+
+REM_10:
+            ldx             #0
+            cmp             #0
+            bmi             @negative
+            cmp             #100
+            bmi             @positive
+            sbc             #100
+            ldx             #10
+
+@positive:
+            sec
+
+@pos_loop:
+            inx
+            sbc             #10
+            beq             @pos_end
+            bpl             @pos_loop
+            dex
+            adc             #10
+
+@pos_end:
+            rts
+
+@negative:
+            cmp             #$9B            ; -99
+            bpl             @neg_start
+            adc             #$9B
+            ldx             #$F6            ; -10
+
+@neg_start:
+            clc
+
+@neg_loop:
+            dex
+            adc             #10
+            bmi             @neg_loop
+            beq             @neg_end
+            inx
+            sec
+            sbc             #10
+
+@neg_end:
+            rts
+
+DIV_10:
+            jsr             REM_10
+            SWAP_AX
+            rts
+
+ABS:
+            cmp             #0
+            bcs             NEG_DONE
+
+NEGATE:
+            eor             #$FF
+            inc
+
+NEG_DONE:
+            rts
+;
+;
+;
+; Memory Copy
+; ZP_TEMP_VEC: From, ZP_TEMP_VEC2: To, .A.Y: Size
+MEM_COPY:
+            phx
+            tax
+            bne         :+
+            tya
+            beq         @done                               ; copy zero bytes?  Done!
+:
+            PRINT_CRLF
+            PRINT_BYTE  ZP_TEMP_VEC + 1
+            PRINT_BYTE  ZP_TEMP_VEC
+            PRINT_CHAR  #ASCII_DASH, #ASCII_GT
+            PRINT_BYTE  ZP_TEMP_VEC2 + 1
+            PRINT_BYTE  ZP_TEMP_VEC2
+
+@loop:
+            lda         (ZP_TEMP_VEC)
+            sta         (ZP_TEMP_VEC2)
+            PRINT_CHAR  #ASCII_PERIOD
+            dex
+            bne         :+
+            tya
+            beq         @done
+            dey
+:
+            inc         ZP_TEMP_VEC
+            bne         :+
+            inc         ZP_TEMP_VEC + 1
+:
+            inc         ZP_TEMP_VEC2
+            bne         :+
+            inc         ZP_TEMP_VEC2 + 1
+:
+            bra         @loop
+
+@done:
+            plx
+            rts            
+;
+; Non-maskable interrupt handler (same as maskable interrupt handler for now)
+NMI_HANDLER:
+            rti
+;
+;          
 
 .segment "IO_PORTS"
 IO_PORT_0:      .tag IO_Port

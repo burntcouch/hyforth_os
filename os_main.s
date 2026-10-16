@@ -1,6 +1,9 @@
 .debuginfo
 
 .segment "BIOS_P0"
+;
+; usually ends up at $E000 (see os_rom_C02.cfg)
+;
 RESET_VECTOR_START:
             lda     #0                    ; ZERO the W register
             sta     W_REGISTER
@@ -10,10 +13,11 @@ RESET_VECTOR_START:
             sta                 $01                                 ; Init ROM Bank selector
             ldx                 #$FF                                ; Init stack pointer
             txs
-            ; MOV                 ZP_READ_PTR, ZP_WRITE_PTR           ; remove when tasks_init is used
+            lda                 ZP_READ_PTR
+            sta                 ZP_WRITE_PTR           ; remove when tasks_init is used
 
             jsr                 IRQ_VECTOR_INIT
-            jsr                 TASKS_INIT                          ; Must be called before SERIAL_INIT and MMU_INIT
+            ;jsr                 TASKS_INIT                          ; Must be called before SERIAL_INIT and MMU_INIT
             ;jsr                 MMU_INIT
             jsr                 VIA_INIT
             ;jsr                 SPI_INIT
@@ -52,10 +56,10 @@ SPI_TEST:
             jsr                 SPI_INIT_DELAY
             SPI_SEND_CMD        0, 0, 0, 0,   0, $4A                ; CMD0
             SPI_SEND_CMD        8, 0, 0, 1, $AA, $43                ; CMD8
-@loop:
+SPI_T_LOOP:
             SPI_SEND_CMD        58, 0, 0, 0,   0                    ; CMD58
             SPI_SEND_CMD        41, $40, 0, 0,   0                  ; ACMD41
-            bne                 @loop
+            bne                 SPI_T_LOOP
             rts
 
 ; A: S/W interrupt number

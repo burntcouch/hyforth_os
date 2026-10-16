@@ -806,29 +806,23 @@ Current file: all.s
 000000r 2                               PULL_YA
 000000r 2               .endmacro
 000000r 2               
-000000r 1                                                          ; I want these HERE so I can easily change the banner to reflect the
-000000r 1                                                          ; latest version.
-000000r 1               .segment "BIOS"
-000000r 1  12 48 59 44  NamedHString HYDRA_WELCOME, "HYDRA-16 v1.8Cz.02"          ; 10/08/26 <- update the date!
-000004r 1  52 41 2D 31  
-000008r 1  36 20 76 31  
-000013r 1               
-000013r 1               .include "zero.s"                          ; this should always be after defines.s
-000013r 2               .debuginfo
-000013r 2               
-000013r 2               .zeropage
+000000r 1               .include "zero.s"                          ; this should always be after defines.s
+000000r 2               .debuginfo
+000000r 2               
+000000r 2               .zeropage
 000000r 2               RAM_BANK_REG:
 000000r 2  xx               .res  1
 000001r 2               ROM_BANK_REG:
 000001r 2  xx               .res  1
-000002r 2               STACK_SAVE_REG:
-000002r 2  xx               .res  1
-000003r 2               TASK_STATUS_REG:
-000003r 2  xx               .res  1
-000004r 2               TASK_PARENT:
-000004r 2  xx               .res  1
-000005r 2               TASK_SAVE_REG:
-000005r 2  xx               .res  1
+000002r 2               ;
+000002r 2               ; reserved, but not used
+000002r 2               ;
+000002r 2               ZP_RSRV:
+000002r 2  xx               .res  1  ; STACK_SAVE_REG:
+000003r 2  xx               .res  1  ; TASK_STATUS_REG:
+000004r 2  xx               .res  1  ; TASK_PARENT:
+000005r 2  xx               .res  1  ; TASK_SAVE_REG:
+000006r 2               ;
 000006r 2               ZP_READ_PTR:
 000006r 2  xx               .res  1
 000007r 2               ZP_WRITE_PTR:
@@ -870,7 +864,7 @@ Current file: all.s
 00001Cr 2               ZP_HS_TEMP:
 00001Cr 2  xx xx            .res  2
 00001Er 2               
-00001Er 2               ;  WAZMON
+00001Er 2               ;  WOZMON
 00001Er 2               ZP_WM_ST:
 00001Er 2  xx xx            .res  2      ; STore address
 000020r 2               ZP_WM_XAM:
@@ -880,74 +874,48 @@ Current file: all.s
 000024r 2               ZP_WM_MODE:
 000024r 2  xx               .res  1      ; $00=ZP_D_XAM, $7F=STOR, $AE=BLOCK ZP_D_XAM
 000025r 2               
-000025r 2               ; MMU
-000025r 2               ZP_M_BI_START:
-000025r 2  xx xx            .res  2
-000027r 2               ZP_M_SP1:
-000027r 2               ZP_M_SP1_L:
-000027r 2  xx               .res  1
-000028r 2               ZP_M_SP1_H:
-000028r 2  xx               .res  1
-000029r 2               ZP_M_SP2:
-000029r 2               ZP_M_SP2_L:
-000029r 2  xx               .res  1
-00002Ar 2               ZP_M_SP2_H:
-00002Ar 2  xx               .res  1
-00002Br 2               ZP_M_SZ1:
-00002Br 2  xx               .res  1
-00002Cr 2               ZP_M_TEMP:
-00002Cr 2  xx               .res  1
-00002Dr 2               ZP_M_TEMP2:
-00002Dr 2  xx               .res  1
-00002Er 2               ZP_M_SV:
-00002Er 2  xx               .res  1
-00002Fr 2               
-00002Fr 2               ; MATH
-00002Fr 2               ZP_MATH_TEMP:           ; temp space, parse output base
-00002Fr 2  xx xx xx xx      .res  4
-000033r 2               ;ZP_MATH_TEMP2:          ; temp space, parse output base
-000033r 2               ;    .res  4
-000033r 2               ;ZP_MATH_PST:            ; parse state
-000033r 2               ;    .res  1
-000033r 2               ;ZP_MATH_PB:             ; parse base
-000033r 2               ;    .res  1
-000033r 2               ;ZP_MATH_PNS:            ; parse number size
-000033r 2               ;    .res  1
-000033r 2               ;ZP_MATH_OA:             ; parse output address
-000033r 2               ;    .res  2
-000033r 2               
-000033r 2               ; DISASM
-000033r 2               ZP_D_STATE:
-000033r 2  xx               .res    1
-000034r 2               ZP_D_EXBYTES:
-000034r 2  xx               .res    1
-000035r 2               ZP_D_INST:
-000035r 2  xx xx xx         .res    3
-000038r 2               ZP_D_MODE:
-000038r 2  xx               .res   1
-000039r 2               ZP_D_XAM:
-000039r 2  xx xx            .res    2       ; eXAMine address
-00003Br 2               ZP_D_ICOUNT:
-00003Br 2  xx               .res    1
-00003Cr 2               
-00003Cr 2               .feature org_per_seg
-00003Cr 2               .segment "STACK"
+000025r 2               ; DISASM
+000025r 2               ZP_D_STATE:
+000025r 2  xx               .res    1
+000026r 2               ZP_D_EXBYTES:
+000026r 2  xx               .res    1
+000027r 2               ZP_D_INST:
+000027r 2  xx xx xx         .res    3
+00002Ar 2               ZP_D_MODE:
+00002Ar 2  xx               .res   1
+00002Br 2               ZP_D_XAM:
+00002Br 2  xx xx            .res    2       ; eXAMine address
+00002Dr 2               ZP_D_ICOUNT:
+00002Dr 2  xx               .res    1
+00002Er 2               
+00002Er 2               .feature org_per_seg
+00002Er 2               .segment "STACK"
 000000r 2               
-000000r 1               .include "bios.s"
-000000r 2               .debuginfo
-000000r 2               
-000000r 2               SER_SEND_STATUS_READY = 0
-000000r 2               SER_SEND_STATUS_BUSY  = 1
-000000r 2               SER_SEND_STATUS_ERROR = $FF
-000000r 2               
-000000r 2               .segment "BUFFERS"
+000000r 1                                                          ;
+000000r 1                                                          ; I want these HERE so I can easily change the banner to reflect the
+000000r 1                                                          ; latest version.
+000000r 1               .segment "BIOS"
+000000r 1  12 48 59 44  NamedHString HYDRA_WELCOME, "HYDRA-16 v1.8Da.00"          ; 10/10/26 <- update the date!
+000004r 1  52 41 2D 31  
+000008r 1  36 20 76 31  
+000013r 1               
+000013r 1               .include "bios.s"
+000013r 2               .debuginfo
+000013r 2               
+000013r 2               SER_SEND_STATUS_READY = 0
+000013r 2               SER_SEND_STATUS_BUSY  = 1
+000013r 2               SER_SEND_STATUS_ERROR = $FF
+000013r 2               
+000013r 2               .segment "BUFFERS"
 000000r 2               INPUT_BUFFER:
 000000r 2  xx xx xx xx                  .res            $100
 000004r 2  xx xx xx xx  
 000008r 2  xx xx xx xx  
 000100r 2               
 000100r 2               .segment "BIOS"
-000013r 2               
+000013r 2               ;
+000013r 2               ; usually ends up at $F840  (see os_rom_C02.cfg)
+000013r 2               ;
 000013r 2  30 31 32 33  HEX_MAP: .byte "0123456789ABCDEF"
 000017r 2  34 35 36 37  
 00001Br 2  38 39 41 42  
@@ -1647,9 +1615,166 @@ Current file: all.s
 0002CCr 2               :
 0002CCr 2  68                       pla
 0002CDr 2  40                       rti
+0002CEr 2               ;
+0002CEr 2               ;  BIOS stuff that was in tasks.s, math.s, mmu.s
+0002CEr 2               ;  Dummy/substitute subroutines to obviate math.s, tasks.s, mmu.s
+0002CEr 2               ;
 0002CEr 2               
-0002CEr 2               
-0002CEr 2               .segment "IO_PORTS"
+0002CEr 2  60           SPAWN_TASK:   rts
+0002CFr 2               ;
+0002CFr 2               ;
+0002CFr 2               ;
+0002CFr 2               ; MATH
+0002CFr 2               MOD_10:
+0002CFr 2  A2 00                    ldx             #0
+0002D1r 2  C9 00                    cmp             #0
+0002D3r 2  30 14                    bmi             @negative
+0002D5r 2  C9 64                    cmp             #100
+0002D7r 2  30 05                    bmi             @pos_loop
+0002D9r 2  A2 0A                    ldx             #10
+0002DBr 2  38                       sec
+0002DCr 2  E9 64                    sbc             #100
+0002DEr 2               
+0002DEr 2               @pos_loop:
+0002DEr 2  C9 0A                    cmp             #10
+0002E0r 2  30 06                    bmi             @pos_end
+0002E2r 2  E8                       inx
+0002E3r 2  38                       sec
+0002E4r 2  E9 0A                    sbc             #10
+0002E6r 2  10 F6                    bpl             @pos_loop
+0002E8r 2               
+0002E8r 2               @pos_end:
+0002E8r 2  60                       rts
+0002E9r 2               
+0002E9r 2               @negative:
+0002E9r 2  C9 A6                    cmp             #$A6            ; -90
+0002EBr 2  10 02                    bpl             @neg_start
+0002EDr 2  69 A6                    adc             #$A6
+0002EFr 2               
+0002EFr 2               @neg_start:
+0002EFr 2  18                       clc
+0002F0r 2               
+0002F0r 2               @neg_loop:
+0002F0r 2  69 0A                    adc             #10
+0002F2r 2  30 FC                    bmi             @neg_loop
+0002F4r 2  60                       rts
+0002F5r 2               
+0002F5r 2               REM_10:
+0002F5r 2  A2 00                    ldx             #0
+0002F7r 2  C9 00                    cmp             #0
+0002F9r 2  30 14                    bmi             @negative
+0002FBr 2  C9 64                    cmp             #100
+0002FDr 2  30 04                    bmi             @positive
+0002FFr 2  E9 64                    sbc             #100
+000301r 2  A2 0A                    ldx             #10
+000303r 2               
+000303r 2               @positive:
+000303r 2  38                       sec
+000304r 2               
+000304r 2               @pos_loop:
+000304r 2  E8                       inx
+000305r 2  E9 0A                    sbc             #10
+000307r 2  F0 05                    beq             @pos_end
+000309r 2  10 F9                    bpl             @pos_loop
+00030Br 2  CA                       dex
+00030Cr 2  69 0A                    adc             #10
+00030Er 2               
+00030Er 2               @pos_end:
+00030Er 2  60                       rts
+00030Fr 2               
+00030Fr 2               @negative:
+00030Fr 2  C9 9B                    cmp             #$9B            ; -99
+000311r 2  10 04                    bpl             @neg_start
+000313r 2  69 9B                    adc             #$9B
+000315r 2  A2 F6                    ldx             #$F6            ; -10
+000317r 2               
+000317r 2               @neg_start:
+000317r 2  18                       clc
+000318r 2               
+000318r 2               @neg_loop:
+000318r 2  CA                       dex
+000319r 2  69 0A                    adc             #10
+00031Br 2  30 FB                    bmi             @neg_loop
+00031Dr 2  F0 04                    beq             @neg_end
+00031Fr 2  E8                       inx
+000320r 2  38                       sec
+000321r 2  E9 0A                    sbc             #10
+000323r 2               
+000323r 2               @neg_end:
+000323r 2  60                       rts
+000324r 2               
+000324r 2               DIV_10:
+000324r 2  20 rr rr                 jsr             REM_10
+000327r 2  48 8A FA                 SWAP_AX
+00032Ar 2  60                       rts
+00032Br 2               
+00032Br 2               ABS:
+00032Br 2  C9 00                    cmp             #0
+00032Dr 2  B0 03                    bcs             NEG_DONE
+00032Fr 2               
+00032Fr 2               NEGATE:
+00032Fr 2  49 FF                    eor             #$FF
+000331r 2  1A                       inc
+000332r 2               
+000332r 2               NEG_DONE:
+000332r 2  60                       rts
+000333r 2               ;
+000333r 2               ;
+000333r 2               ;
+000333r 2               ; Memory Copy
+000333r 2               ; ZP_TEMP_VEC: From, ZP_TEMP_VEC2: To, .A.Y: Size
+000333r 2               MEM_COPY:
+000333r 2  DA                       phx
+000334r 2  AA                       tax
+000335r 2  D0 03                    bne         :+
+000337r 2  98                       tya
+000338r 2  F0 3F                    beq         @done                               ; copy zero bytes?  Done!
+00033Ar 2               :
+00033Ar 2  20 rr rr                 PRINT_CRLF
+00033Dr 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC + 1
+000341r 2  rr           
+000342r 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC
+000346r 2  rr           
+000347r 2  A9 2D 20 rr              PRINT_CHAR  #ASCII_DASH, #ASCII_GT
+00034Br 2  rr A9 3E 20  
+00034Fr 2  rr rr        
+000351r 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC2 + 1
+000355r 2  rr           
+000356r 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC2
+00035Ar 2  rr           
+00035Br 2               
+00035Br 2               @loop:
+00035Br 2  B2 rr                    lda         (ZP_TEMP_VEC)
+00035Dr 2  92 rr                    sta         (ZP_TEMP_VEC2)
+00035Fr 2  A9 2E 20 rr              PRINT_CHAR  #ASCII_PERIOD
+000363r 2  rr           
+000364r 2  CA                       dex
+000365r 2  D0 04                    bne         :+
+000367r 2  98                       tya
+000368r 2  F0 0F                    beq         @done
+00036Ar 2  88                       dey
+00036Br 2               :
+00036Br 2  E6 rr                    inc         ZP_TEMP_VEC
+00036Dr 2  D0 02                    bne         :+
+00036Fr 2  E6 rr                    inc         ZP_TEMP_VEC + 1
+000371r 2               :
+000371r 2  E6 rr                    inc         ZP_TEMP_VEC2
+000373r 2  D0 02                    bne         :+
+000375r 2  E6 rr                    inc         ZP_TEMP_VEC2 + 1
+000377r 2               :
+000377r 2  80 E2                    bra         @loop
+000379r 2               
+000379r 2               @done:
+000379r 2  FA                       plx
+00037Ar 2  60                       rts
+00037Br 2               ;
+00037Br 2               ; Non-maskable interrupt handler (same as maskable interrupt handler for now)
+00037Br 2               NMI_HANDLER:
+00037Br 2  40                       rti
+00037Cr 2               ;
+00037Cr 2               ;
+00037Cr 2               
+00037Cr 2               .segment "IO_PORTS"
 000000r 2  xx xx xx xx  IO_PORT_0:      .tag IO_Port
 000004r 2  xx xx xx xx  
 000008r 2  xx xx xx xx  
@@ -1777,6 +1902,9 @@ Current file: all.s
 000006r 2               .debuginfo
 000006r 2               
 000006r 2               .segment "BIOS_THUNKS"
+000000r 2               ;
+000000r 2               ; usually ends up at $F800 (see os_rom_C02.cfg)
+000000r 2               ;
 000000r 2               TH_READ_CHAR:
 000000r 2  4C rr rr                     jmp             READ_CHAR           ; $F800
 000003r 2               TH_WRITE_CHAR:
@@ -1800,538 +1928,11 @@ Current file: all.s
 00001Er 2               TH_MEM_COPY:
 00001Er 2  4C rr rr                     jmp             MEM_COPY            ; $F81E
 000021r 2               
-000021r 1               .include "math.s"
+000021r 1               ;.include "math.s"
+000021r 1               ;.include "tasks.s"
+000021r 1               .include "disasm.s"
 000021r 2               .debuginfo
-000021r 2               
-000021r 2               .segment "BIOS"
-0002CEr 2               ; MATH
-0002CEr 2               MOD_10:
-0002CEr 2  A2 00                    ldx             #0
-0002D0r 2  C9 00                    cmp             #0
-0002D2r 2  30 14                    bmi             @negative
-0002D4r 2  C9 64                    cmp             #100
-0002D6r 2  30 05                    bmi             @pos_loop
-0002D8r 2  A2 0A                    ldx             #10
-0002DAr 2  38                       sec
-0002DBr 2  E9 64                    sbc             #100
-0002DDr 2               
-0002DDr 2               @pos_loop:
-0002DDr 2  C9 0A                    cmp             #10
-0002DFr 2  30 06                    bmi             @pos_end
-0002E1r 2  E8                       inx
-0002E2r 2  38                       sec
-0002E3r 2  E9 0A                    sbc             #10
-0002E5r 2  10 F6                    bpl             @pos_loop
-0002E7r 2               
-0002E7r 2               @pos_end:
-0002E7r 2  60                       rts
-0002E8r 2               
-0002E8r 2               @negative:
-0002E8r 2  C9 A6                    cmp             #$A6            ; -90
-0002EAr 2  10 02                    bpl             @neg_start
-0002ECr 2  69 A6                    adc             #$A6
-0002EEr 2               
-0002EEr 2               @neg_start:
-0002EEr 2  18                       clc
-0002EFr 2               
-0002EFr 2               @neg_loop:
-0002EFr 2  69 0A                    adc             #10
-0002F1r 2  30 FC                    bmi             @neg_loop
-0002F3r 2  60                       rts
-0002F4r 2               
-0002F4r 2               REM_10:
-0002F4r 2  A2 00                    ldx             #0
-0002F6r 2  C9 00                    cmp             #0
-0002F8r 2  30 14                    bmi             @negative
-0002FAr 2  C9 64                    cmp             #100
-0002FCr 2  30 04                    bmi             @positive
-0002FEr 2  E9 64                    sbc             #100
-000300r 2  A2 0A                    ldx             #10
-000302r 2               
-000302r 2               @positive:
-000302r 2  38                       sec
-000303r 2               
-000303r 2               @pos_loop:
-000303r 2  E8                       inx
-000304r 2  E9 0A                    sbc             #10
-000306r 2  F0 05                    beq             @pos_end
-000308r 2  10 F9                    bpl             @pos_loop
-00030Ar 2  CA                       dex
-00030Br 2  69 0A                    adc             #10
-00030Dr 2               
-00030Dr 2               @pos_end:
-00030Dr 2  60                       rts
-00030Er 2               
-00030Er 2               @negative:
-00030Er 2  C9 9B                    cmp             #$9B            ; -99
-000310r 2  10 04                    bpl             @neg_start
-000312r 2  69 9B                    adc             #$9B
-000314r 2  A2 F6                    ldx             #$F6            ; -10
-000316r 2               
-000316r 2               @neg_start:
-000316r 2  18                       clc
-000317r 2               
-000317r 2               @neg_loop:
-000317r 2  CA                       dex
-000318r 2  69 0A                    adc             #10
-00031Ar 2  30 FB                    bmi             @neg_loop
-00031Cr 2  F0 04                    beq             @neg_end
-00031Er 2  E8                       inx
-00031Fr 2  38                       sec
-000320r 2  E9 0A                    sbc             #10
-000322r 2               
-000322r 2               @neg_end:
-000322r 2  60                       rts
-000323r 2               
-000323r 2               DIV_10:
-000323r 2  20 rr rr                 jsr             REM_10
-000326r 2  48 8A FA                 SWAP_AX
-000329r 2  60                       rts
-00032Ar 2               
-00032Ar 2               ABS:
-00032Ar 2  C9 00                    cmp             #0
-00032Cr 2  B0 03                    bcs             NEG_DONE
-00032Er 2               
-00032Er 2               .macro INVERT_A
-00032Er 2                           eor             #$FF
-00032Er 2               .endmacro
-00032Er 2               
-00032Er 2               NEGATE:
-00032Er 2  49 FF                    INVERT_A
-000330r 2  1A                       inc
-000331r 2               
-000331r 2               NEG_DONE:
-000331r 2  60                       rts
-000332r 2               
-000332r 2               ; .A, .Y hold ADDR of LOB to increment, .X holds the length of the value in bytes
-000332r 2               ; Incremets an x-byte value at addr, addr + 1 and sets Z, N properly based on HOB
-000332r 2               .macro _M_ADD_BYTE_X           byteVal
-000332r 2                           sta             ZP_MATH_TEMP
-000332r 2                           sty             ZP_MATH_TEMP + 1
-000332r 2               .ifblank    byteVal
-000332r 2                           pha
-000332r 2               .else
-000332r 2                           lda             #byteVal
-000332r 2               .endif
-000332r 2                           ldy             #0
-000332r 2                           dex
-000332r 2                           phx
-000332r 2                           bra             ADD_X_LOOP
-000332r 2               .endmacro
-000332r 2               
-000332r 2               ADD_X_LOOP:
-000332r 2  71 rr                    adc             (ZP_MATH_TEMP),Y
-000334r 2  91 rr                    sta             (ZP_MATH_TEMP),Y
-000336r 2  CA                       dex
-000337r 2  30 05                    bmi             :+
-000339r 2  A2 00                    ldx             #0
-00033Br 2  C8                       iny
-00033Cr 2  B0 F4                    bcs             ADD_X_LOOP
-00033Er 2               :
-00033Er 2  7A                       ply
-00033Fr 2  B1 rr                    lda             (ZP_MATH_TEMP),Y  ; set Z and N from HOB
-000341r 2  90 02                    bcc             :+
-000343r 2  09 01                    ora             #1                ; reset Z since LOB is not zero, but preserve other flags
-000345r 2               :
-000345r 2  60                       rts
-000346r 2               
-000346r 2               ;  Adds a byte passed on the stack to a .X-byte long integer where the LOB address is in .A, .Y
-000346r 2               ADD_STACK_BYTE_X:
-000346r 2  85 rr 84 rr              _M_ADD_BYTE_X
-00034Ar 2  48 A0 00 CA  
-00034Er 2  DA 80 E1     
-000351r 2               
-000351r 2               INC_X:
-000351r 2  85 rr 84 rr              _M_ADD_BYTE_X   1
-000355r 2  A9 01 A0 00  
-000359r 2  CA DA 80 D5  
-00035Dr 2               .macro  _M_INCX_C  xval
-00035Dr 2                           phx
-00035Dr 2                           ldx             #xval
-00035Dr 2               .endmacro
-00035Dr 2               
-00035Dr 2               .macro  _M_INCX  xval
-00035Dr 2                           _M_INCX_C       {xval}
-00035Dr 2                           bra             INCX_CONTINUE
-00035Dr 2               .endmacro
-00035Dr 2               
-00035Dr 2               INC_8:
-00035Dr 2  DA A2 01 80              _M_INCX         1
-000361r 2  0D           
-000362r 2               
-000362r 2               INC_16:
-000362r 2  DA A2 02 80              _M_INCX         2
-000366r 2  08           
-000367r 2               
-000367r 2               INC_24:
-000367r 2  DA A2 03 80              _M_INCX         3
-00036Br 2  03           
-00036Cr 2               
-00036Cr 2               INC_32:
-00036Cr 2  DA A2 04                 _M_INCX_C       4
-00036Fr 2               
-00036Fr 2               INCX_CONTINUE:
-00036Fr 2  20 rr rr                 jsr             INC_X
-000372r 2  08                       php                             ; save the flags
-000373r 2  68                       pla                             ; move them to .A for restore later
-000374r 2  FA                       plx                             ; retrieve saved .X (which modifies N, Z)
-000375r 2  48                       pha                             ; push old flags to stack
-000376r 2  28                       plp                             ;    and restore them to the flags register
-000377r 2  60                       rts
-000378r 2               
-000378r 2               INC_40:
-000378r 2  DA A2 05 80              _M_INCX         5
-00037Cr 2  F2           
-00037Dr 2               
-00037Dr 2               INC_48:
-00037Dr 2  DA A2 06 80              _M_INCX         6
-000381r 2  ED           
-000382r 2               
-000382r 2               INC_56:
-000382r 2  DA A2 07 80              _M_INCX         7
-000386r 2  E8           
-000387r 2               
-000387r 2               INC_64:
-000387r 2  DA A2 08 80              _M_INCX         8
-00038Br 2  E3           
-00038Cr 2               
-00038Cr 2               .feature c_comments
-00038Cr 2               /*
-00038Cr 2               MATH_PS_ACCEPT_BYTES    := 0
-00038Cr 2               MATH_PS_BASE_NEG        := 1
-00038Cr 2               MATH_PS_BASE_CHANGE     := 2
-00038Cr 2               MATH_PS_CAN_CHANGE_BASE := 3
-00038Cr 2               MATH_PS_VAL_NEG         := $80
-00038Cr 2               
-00038Cr 2               ValidBases:
-00038Cr 2                           HString         "bdhtwx"
-00038Cr 2               BaseSize:
-00038Cr 2                           .byte           2, 10, 16, 3, 12, 36
-00038Cr 2               BasePlaceValues:
-00038Cr 2                           .byte           "0123456789ABCDEFGHIJKLMNOPQRSTUVWZYZ"
-00038Cr 2               BalanceTerneryValues:
-00038Cr 2                           .byte           "-0+"
-00038Cr 2               
-00038Cr 2               ; Number parsing
-00038Cr 2               
-00038Cr 2               MATH_PARSE_DEC_TO_WORD:
-00038Cr 2                           ldy             #2
-00038Cr 2               
-00038Cr 2               MATH_PARSE_DEC:
-00038Cr 2                           phx
-00038Cr 2                           lda             #10
-00038Cr 2               
-00038Cr 2               ; .A = initial base, .Y = size in bytes
-00038Cr 2               MATH_PARSE_INIT:
-00038Cr 2                           sta             ZP_MATH_PB
-00038Cr 2                           sty             ZP_MATH_PNS
-00038Cr 2                           lda             #MATH_PS_CAN_CHANGE_BASE
-00038Cr 2                           stz             ZP_MATH_PST
-00038Cr 2                           rts
-00038Cr 2               
-00038Cr 2               ; .A = byte to parse
-00038Cr 2               MATH_PARSE_BYTE:
-00038Cr 2               ; if state = INIT, can get % or digit
-00038Cr 2                           pha
-00038Cr 2                           lda             #$7f
-00038Cr 2                           and             ZP_MATH_PST
-00038Cr 2                           beq             @parse_byte
-00038Cr 2                           cmp             #MATH_PS_CAN_CHANGE_BASE
-00038Cr 2               
-00038Cr 2               @parse_byte:
-00038Cr 2                           jsr             MATH_PARSE_VALID_BYTE     ; leaves place value in .A
-00038Cr 2                           bcc             @base_mult
-00038Cr 2                           rts
-00038Cr 2               
-00038Cr 2               @base_mult:
-00038Cr 2                           ldx             #0
-00038Cr 2               ; save the place value in y
-00038Cr 2                           tay
-00038Cr 2               @copy_loop:
-00038Cr 2                           lda             ZP_MATH_TEMP, x
-00038Cr 2                           sta             ZP_MATH_TEMP2, x
-00038Cr 2                           inx
-00038Cr 2                           cpx             ZP_MATH_PNS
-00038Cr 2                           bmi             @copy_loop
-00038Cr 2                           jsr             @shift_one
-00038Cr 2                           jsr             @shift_one
-00038Cr 2                           ldx             #0
-00038Cr 2                           clc
-00038Cr 2                           php
-00038Cr 2               @add_loop:
-00038Cr 2                           plp
-00038Cr 2                           lda             ZP_MATH_TEMP, x
-00038Cr 2                           adc             ZP_MATH_TEMP2, x
-00038Cr 2                           php
-00038Cr 2                           inx
-00038Cr 2                           cpx             ZP_MATH_PNS
-00038Cr 2                           bpl             @shift_one
-00038Cr 2                           plp
-00038Cr 2                           ;bcs             @err_overflow
-00038Cr 2               
-00038Cr 2               @shift_one:
-00038Cr 2                           ldx             #0
-00038Cr 2                           clc
-00038Cr 2                           php
-00038Cr 2               
-00038Cr 2               @shift_loop:
-00038Cr 2                           php
-00038Cr 2                           rol             ZP_MATH_TEMP, x
-00038Cr 2                           inx
-00038Cr 2                           cpx             ZP_MATH_PNS
-00038Cr 2                           bmi             @shift_loop
-00038Cr 2               
-00038Cr 2               @add_one:
-00038Cr 2               
-00038Cr 2               MATH_PARSE_VALID_BYTE:
-00038Cr 2                           cmp             #ASCII_0
-00038Cr 2                           bmi             @ret_invalid_byte_err
-00038Cr 2                           sec
-00038Cr 2                           sbc             #ASCII_0
-00038Cr 2                           cmp             #10
-00038Cr 2                           bmi             :+
-00038Cr 2                           sec
-00038Cr 2                           sbc             #(ASCII_A - ASCII_0)
-00038Cr 2               :
-00038Cr 2                           cmp             ZP_MATH_PB
-00038Cr 2                           bpl             @ret_invalid_byte_err
-00038Cr 2                           clc
-00038Cr 2                           rts
-00038Cr 2               
-00038Cr 2               @ret_invalid_byte_err:
-00038Cr 2                           sec
-00038Cr 2                           lda             #ERR_MATH_INVD
-00038Cr 2                           rts
-00038Cr 2               
-00038Cr 2               ; .A.Y: output address
-00038Cr 2               MATH_PARSE_END:
-00038Cr 2               */
-00038Cr 2               
-00038Cr 1               .include "tasks.s"
-00038Cr 2               .debuginfo
-00038Cr 2               .segment "TASKS"
-000000r 2               
-000000r 2               TASK_0_VECTOR           = $E000
-000000r 2               
-000000r 2               TASK_BUSY_FLAG          = 1
-000000r 2               TASK_PAUSED_FLAG        = 2
-000000r 2               
-000000r 2               ; TASK STATUS REGISTER BITS
-000000r 2               ;   0: 0 = Available, 1 = In Use
-000000r 2               ;   1: 0 = Active, 1 = Paused
-000000r 2               ;   2: 0 = Not Waiting, 1 = Awaiting I/O
-000000r 2               ;   3: 0 = , 1 =
-000000r 2               ;   4: 0 = , 1 =
-000000r 2               ;   5: 0 = , 1 =
-000000r 2               ;   6: 0 = , 1 =
-000000r 2               ;   7: 0 = , 1 =
-000000r 2               
-000000r 2               .macro SELECT_TASK      task
-000000r 2                           lda     T_REGISTER
-000000r 2                           and     #$F0
-000000r 2                           ora     #(task & $0F)
-000000r 2                           sta     T_REGISTER
-000000r 2               .endmacro
-000000r 2               
-000000r 2               .macro SELECT_SHARED_BANK bank
-000000r 2                           lda     T_REGISTER
-000000r 2                           and     #$0F
-000000r 2                           ora     #(bank << 4)
-000000r 2                           sta     T_REGISTER
-000000r 2               .endmacro
-000000r 2               
-000000r 2               ; Initialize the tasks, their stacks, etc.
-000000r 2               TASKS_INIT:
-000000r 2  78                       sei                                     ; Turn off interrupts
-000001r 2  AD F0 FF                 lda     T_REGISTER
-000004r 2  D0 1C                    bne     @cleanup                        ; Only support tasks init when on task 0
-000006r 2  A2 0F                    ldx     #MAX_TASK_NUMBER
-000008r 2               
-000008r 2               @loop:
-000008r 2  8E F0 FF                 stx     T_REGISTER                      ; Quick switch to task X
-00000Br 2  64 rr                    stz     RAM_BANK_REG
-00000Dr 2  64 rr                    stz     ROM_BANK_REG
-00000Fr 2  64 rr                    stz     TASK_STATUS_REG
-000011r 2  64 rr                    stz     TASK_PARENT
-000013r 2  A9 FF                    lda     #$FF
-000015r 2  85 rr                    sta     STACK_SAVE_REG
-000017r 2  A5 rr 85 rr              MOV     ZP_READ_PTR, ZP_WRITE_PTR       ; Do INIT_BUFFER, without the stack
-00001Br 2  CA                       dex
-00001Cr 2  10 EA                    bpl     @loop                           ; Loop back as long as X >= 0
-00001Er 2  A9 01                    lda     #TASK_BUSY_FLAG
-000020r 2  85 rr                    sta     TASK_STATUS_REG                 ; Mark task zero as "busy"
-000022r 2               
-000022r 2                           ; setup interrupt handler and interrupt timer
-000022r 2               
-000022r 2                           ; Will fall through when X = $FF, leaving us in Task 0, as required
-000022r 2               
-000022r 2               @cleanup:
-000022r 2  58                       cli                                     ; Turn interrupts back on
-000023r 2  60                       rts
-000024r 2               
-000024r 2               ;  Task switch
-000024r 2               ;  Task# to switch to in A
-000024r 2               SWITCH_TO:
-000024r 2  85 rr                    sta     ZP_A_SAVE
-000026r 2  68                       pla                                     ; need to change return addr from RTS style (IP - 1) to RTI style (IP)
-000027r 2  1A                       inc
-000028r 2  D0 07                    bne     :+                              ; page boundary?
-00002Ar 2  86 rr                    stx     ZP_X_SAVE
-00002Cr 2  FA                       plx
-00002Dr 2  E8                       inx
-00002Er 2  DA                       phx
-00002Fr 2  A6 rr                    ldx     ZP_X_SAVE
-000031r 2               :
-000031r 2  48                       pha
-000032r 2  08                       php
-000033r 2  A5 rr                    lda     ZP_A_SAVE
-000035r 2               
-000035r 2               SWITCH_TO_NO_PHP:
-000035r 2  48 DA 5A                 PUSH_AXY
-000038r 2  BA                       tsx
-000039r 2  86 rr                    stx     STACK_SAVE_REG
-00003Br 2               
-00003Br 2               SWITCH_TO_NSS:
-00003Br 2  8D F0 FF                 sta     T_REGISTER
-00003Er 2  A6 rr                    ldx     STACK_SAVE_REG                  ; Restore the stack pointer
-000040r 2  9A                       txs                                     ; ...
-000041r 2  7A FA 68                 PULL_YXA
-000044r 2  40                       rti
-000045r 2               
-000045r 2               ; .A.Y: Address of task entrypoint
-000045r 2               SPAWN_TASK:
-000045r 2  85 rr                    sta     ZP_TEMP_VEC
-000047r 2  84 rr                    sty     ZP_TEMP_VEC + 1
-000049r 2               
-000049r 2               ; Find a task that is idle and start it executing at the address in ZP_TEMP_VEC && ZP_TEMP_VEC + 1
-000049r 2               ; Return task # in A and C == 1
-000049r 2               ;   OR error in A and C == 0 (if no task available)
-000049r 2               TASK_START:
-000049r 2  20 rr rr                 jsr     RESERVE_TASK
-00004Cr 2  B0 03                    bcs     @start_task
-00004Er 2  A9 F1                    lda     #ERR_NO_TASKS_AVAILABLE
-000050r 2  60                       rts
-000051r 2               
-000051r 2               @start_task:
-000051r 2  CD F0 FF                 cmp     T_REGISTER
-000054r 2  D0 01                    bne     :+                              ; task is current task, so just bail out
-000056r 2  60                       rts
-000057r 2               
-000057r 2               :
-000057r 2  AC F0 FF                 ldy     T_REGISTER
-00005Ar 2  8D F0 FF                 sta     T_REGISTER
-00005Dr 2  84 rr                    sty     TASK_PARENT
-00005Fr 2  8C F0 FF                 sty     T_REGISTER
-000062r 2  A6 rr                    ldx     ZP_TEMP_VEC + 1
-000064r 2  A4 rr                    ldy     ZP_TEMP_VEC
-000066r 2  D0 01                    bne     :+                              ; skip HOB of addr if LOB <> 0
-000068r 2  CA                       dex                                     ; update entrypoint to rts-style addr-1
-000069r 2               
-000069r 2               :
-000069r 2  88                       dey                                     ; update LOB
-00006Ar 2  97 rr                    smb1    TASK_STATUS_REG                 ; mark parent task state as PAUSED
-00006Cr 2  8D F0 FF                 sta     T_REGISTER                      ; do the task switch
-00006Fr 2  86 rr                    stx     ZP_X_SAVE                       ; new task ZP
-000071r 2  A2 FF                    ldx     #$FF                            ; Reset the stack pointer
-000073r 2  9A                       txs
-000074r 2  A6 rr                    ldx     ZP_X_SAVE
-000076r 2  98                       tya
-000077r 2  20 rr rr                 jsr     @task_start
-00007Ar 2               
-00007Ar 2               @task_complete:
-00007Ar 2  64 rr                    stz     TASK_STATUS_REG
-00007Cr 2  A5 rr                    lda     TASK_PARENT
-00007Er 2  A2 FF                    ldx     #$FF
-000080r 2  86 rr                    stx     TASK_PARENT                     ; ...and reset the resume-to register to #$FF (invalid)
-000082r 2  4C rr rr                 jmp     SWITCH_TO_NSS
-000085r 2               
-000085r 2               @task_start:
-000085r 2  17 rr                    rmb1    TASK_STATUS_REG                 ; remove the PAUSED flag
-000087r 2  DA                       phx                                     ; push the start address onto the stack
-000088r 2  48                       pha                                     ; ...
-000089r 2  60                       rts                                     ; start executing
-00008Ar 2               
-00008Ar 2               
-00008Ar 2               ; Find an available task
-00008Ar 2               ; Modifies: A, CNZ Flags
-00008Ar 2               ; Returns C = 1 AND A = TaskNumber (when found)
-00008Ar 2               ; Returns C = 0 AND A = $FF        (when not found)
-00008Ar 2               RESERVE_TASK:
-00008Ar 2  78                       sei                                     ; Disable interrupts
-00008Br 2  DA 5A                    PUSH_XY
-00008Dr 2               
-00008Dr 2               ; !! NO STACK MANIPULATIONS UNTIL SWITCHING BACK TO ORIGINAL TASK !!
-00008Dr 2  AC F0 FF                 ldy     T_REGISTER
-000090r 2  A2 0F                    ldx     #$F                             ; Start search with Task $F
-000092r 2               
-000092r 2               @task_busy:
-000092r 2  8E F0 FF                 stx     T_REGISTER                      ; Quick task switch to task in .X
-000095r 2  0F rr 07                 bbr0    TASK_STATUS_REG, @task_found    ; Is Bit 0 (TASK_BUSY_FLAG) reset/clear?
-000098r 2  CA                       dex                                     ; Not found, so check next
-000099r 2  D0 F7                    bne     @task_busy                      ; Until we reach the system task (0), loop
-00009Br 2  18                       clc                                     ; Not found
-00009Cr 2  CA                       dex                                     ; .X == $FF
-00009Dr 2  80 05                    bra     @cleanup
-00009Fr 2               
-00009Fr 2               @task_found:
-00009Fr 2  87 rr                    smb0    TASK_STATUS_REG
-0000A1r 2  97 rr                    smb1    TASK_STATUS_REG
-0000A3r 2  38                       sec                                     ; Found
-0000A4r 2               
-0000A4r 2               @cleanup:
-0000A4r 2  8A                       txa                                     ; Return the task number in A (OR $FF if not found)
-0000A5r 2  8C F0 FF                 sty     T_REGISTER                      ; Switch back to the original task
-0000A8r 2               
-0000A8r 2               ; Back on the original task, so restore the registers
-0000A8r 2  7A FA                    PULL_YX
-0000AAr 2  58                       cli                                     ; Re-enable interrupts
-0000ABr 2  60                       rts
-0000ACr 2               
-0000ACr 2               ; Find the next task that is paused
-0000ACr 2               ; Return task # to switch to in A.  C == 0, none found; C == 1, found
-0000ACr 2               NEXT_TASK:
-0000ACr 2  48 DA 5A                 PUSH_AXY
-0000AFr 2  AD F0 FF                 lda     T_REGISTER
-0000B2r 2  29 0F                    and     #$0F
-0000B4r 2  A8                       tay
-0000B5r 2               
-0000B5r 2               @test_next:
-0000B5r 2  1A                       inc
-0000B6r 2  29 0F                    and     #$0F                            ; masking since we could have carried
-0000B8r 2  85 rr                    sta     ZP_TEMP
-0000BAr 2  C4 rr                    cpy     ZP_TEMP                         ; are we back where we started?
-0000BCr 2  F0 08                    beq     @not_found
-0000BEr 2  8D F0 FF                 sta     T_REGISTER                      ; switch to the next task
-0000C1r 2  1F rr F1                 bbr1    TASK_STATUS_REG, @test_next     ; Is bit 1 clear (TASK_PAUSED_FLAG)? if so, try next task
-0000C4r 2  38                       sec
-0000C5r 2  22                       SKIPNEXT
-0000C6r 2               
-0000C6r 2               @not_found:
-0000C6r 2  18                       clc
-0000C7r 2               
-0000C7r 2               @done:
-0000C7r 2  8C F0 FF                 sty     T_REGISTER
-0000CAr 2  7A FA 68                 PULL_YXA
-0000CDr 2  60                       rts
-0000CEr 2               
-0000CEr 2               ; Non-maskable interrupt handler (same as maskable interrupt handler for now)
-0000CEr 2               NMI_HANDLER:
-0000CEr 2  40                       rti
-0000CFr 2               
-0000CFr 2  48                       pha
-0000D0r 2  A9 2A 20 rr              PRINT_CHAR  #ASCII_STAR
-0000D4r 2  rr           
-0000D5r 2  68                       pla
-0000D6r 2  20 rr rr                 jsr     NEXT_TASK
-0000D9r 2  B0 01                    bcs     @switch
-0000DBr 2  40                       rti
-0000DCr 2               
-0000DCr 2               @switch:
-0000DCr 2  4C rr rr                 jmp     SWITCH_TO_NO_PHP
-0000DFr 2               
-0000DFr 1               .include "disasm.s"
-0000DFr 2               .debuginfo
-0000DFr 2               .segment "DISASM"
+000021r 2               .segment "DISASM"
 000000r 2               
 000000r 2               ; Offsets into MNEMONIC_STR
 000000r 2               MN_adc := $2B
@@ -3065,7 +2666,7 @@ Current file: all.s
 000190r 2               ;                   ZERO PAGE USAGE
 000190r 2               ;----------------------------------------------------------------------
 000190r 2               .segment "ZEROPAGE"
-00003Cr 2               .org $C8
+00002Er 2               .org $C8
 0000C8  2               ZPSTART:
 0000C8  2               ;
 0000C8  2               ;                   HyForth setup stuff
@@ -3634,19 +3235,22 @@ Current file: all.s
 00021Cr 2                ;
 00021Cr 2                ;  FALL THROUGH
 00021Cr 2               ;---------------------------------------------------------------------
-00021Cr 2               ; increment a word in page zero. offset by X
+00021Cr 2               ; increment a word in page zero, identified by X and offset to it from $00.
 00021Cr 2               ;
 00021Cr 2               ;   Usage: ldx #<pointer name> and then jsr incwx/addwx
 00021Cr 2               ;
 00021Cr 2               ;   THESE functions are SOLELY intended to increment/decrement
-00021Cr 2               ;   zeropage pointers, and nothing else.  Offsets indexed by
+00021Cr 2               ;   zeropage pointers.  Offsets indexed by
 00021Cr 2               ;   X are INTO the zeropage space, not relative to a specific
-00021Cr 2               ;   pointer location.
+00021Cr 2               ;   pointer location; X IDENTIFIES the 16-bit pointer in
+00021Cr 2               ;   question, period.
 00021Cr 2               ;
 00021Cr 2               incwx:
 00021Cr 2  A9 01            lda #01
 00021Er 2               ;---------------------------------------------------------------------
-00021Er 2               ; add a byte in A to a word in page zero. offset by X
+00021Er 2               ; add a byte in A to a word in page zero. X identifies the pointer
+00021Er 2               ; being incremented, and is not itself dec'd or inc'd.
+00021Er 2               ;
 00021Er 2               addwx:
 00021Er 2  18               clc
 00021Fr 2  75 00            adc 0, x
@@ -3661,14 +3265,15 @@ Current file: all.s
 000229r 2               
 000229r 2               ;---------------------------------------------------------------------
 000229r 2               ;          decwx, heap moves
-000229r 2               ; decrement a word in page zero. offset by X
+000229r 2               ; decrement a word in page zero, identified by X and offset to it from $00.
 000229r 2               ;
 000229r 2               ;   Usage: ldx #<pointer name> and then jsr decwx
 000229r 2               ;
 000229r 2               ;   THESE functions are SOLELY intended to increment/decrement
-000229r 2               ;   zeropage pointers, and nothing else.  Offsets indexed by
+000229r 2               ;   zeropage pointers.  Offsets indexed by
 000229r 2               ;   X are INTO the zeropage space, not relative to a specific
-000229r 2               ;   pointer location.
+000229r 2               ;   pointer location; X IDENTIFIES the 16-bit pointer in
+000229r 2               ;   question, period.
 000229r 2               ;
 000229r 2               decwx:
 000229r 2  B5 00            lda 0, x
@@ -5582,6 +5187,7 @@ Current file: all.s
 00050Cr 2               ;
 00050Cr 2               ;
 00050Cr 2               ;------------ CRITICAL CORE PRIMITIVES (AGSB and PGS) ----------------
+00050Cr 2               ;   (the 'primitive' primitives)
 00050Cr 2               ;
 00050Cr 2               ;   COMPILE (:), FINISH (;), FETCH (@), STORE (!)
 00050Cr 2               ;      including:  keeps, this, next, finish
@@ -5626,12 +5232,28 @@ Current file: all.s
 000546r 2  A0 F2            ldy #TEMP2
 000548r 2  20 rr rr         jsr copyfrom            ; copies data from [TEMP1] => TEMP2
 00054Br 2               ;---------------------------------------------------------------------
-00054Br 2               ;            NEXT entry point for many AGSB primitives
+00054Br 2               ;            NEXT entry point for many AGSB primitives, and
+00054Br 2               ;            almost all other hard-coded words.
 00054Br 2               ;---------------------------------------------------------------------
+00054Br 2                                           ; in fall through, this copies TEMP2 (in y) to TEMP1,
+00054Br 2                                           ; overwriting the address that was pulled from the stack.
+00054Br 2                                           ;
+00054Br 2                                           ; in theory, one could load y with any TEMPx and
+00054Br 2                                           ; call jump to 'copys' to finish off to 'next'.
+00054Br 2                                           ; in PRACTICE, AGSB didn't reuse this much.
+00054Br 2                                           ;
 00054Br 2               copys:                      ; copy from cell at y (zp) to TEMP1
 00054Br 2  B9 00 00         lda 0, y
 00054Er 2  85 F0            sta TEMP1
 000550r 2  B9 01 00         lda 1, y
+000553r 2                                           ; 'keeps' is a shortcut to the 'second half' of the
+000553r 2                                           ; (sta TEMP1) routine to return results; to push another
+000553r 2                                           ; variable on the stack, do it explicitly.
+000553r 2                                           ;
+000553r 2                                           ; 'this' assumes 'keeps' has already been done.
+000553r 2                                           ;  Almost every hard-coded word uses keeps, this, or next
+000553r 2                                           ;  to end a word; 'next' ends with 'exit' of course.
+000553r 2                                           ;
 000553r 2               keeps:                      ; saves bytes since have to get here anyway
 000553r 2  85 F1            sta TEMP1+1
 000555r 2               this:                       ; same as above
@@ -5669,9 +5291,10 @@ Current file: all.s
 00058Dr 2                                                        ; NOTE: 'lit' or similar will have pushed a value
 00058Dr 2                                                        ; or address onto stack; 'comma' stores it inline in word
 00058Dr 2                                                        ;
-00058Dr 2  rr rr 01 2C  def_word ",", "xcomma", 0                ; pull data from top of stack, store at 'here', adjust
-000591r 2  20 rr rr         jsr spull_0                          ; 'here' to point at next cell
-000594r 2  A0 00            ldy #0
+00058Dr 2  rr rr 01 2C  def_word ",", "xcomma", 0                ; pull data from top of stack, store at 'here' (NEXTHEAP)
+000591r 2                                                        ; , increment 'here' to point to next cell.
+000591r 2  20 rr rr         jsr spull_0                          ;
+000594r 2  A0 00            ldy #0                               ;
 000596r 2  A5 F0            lda TEMP1
 000598r 2  91 E6            sta (NEXTHEAP),y                     ; POP DS TO TEMP1, [here] = TEMP1
 00059Ar 2  C8               iny
@@ -7524,6 +7147,9 @@ Current file: all.s
 000508r 2  xx xx xx xx  
 000600r 2               
 000600r 2               .segment "WOZMON"
+000000r 2               ;
+000000r 2               ; usually ends up at $FE00  (see os_rom_C02.cfg)
+000000r 2               ;
 000000r 2               ; WOZMON Entrypoint
 000000r 2               MON_START:
 000000r 2  D8                           cld                             ; Clear decimal arithmetic mode.
@@ -7710,835 +7336,390 @@ Current file: all.s
 0000FCr 2  F0 C8                        beq             @print_next_addr
 0000FEr 2  80 D8                        bra             @print_data
 000100r 2               
-000100r 1               .include "mmu.s"
+000100r 1               ;.include "mmu.s"
+000100r 1               .include "shell.s"
 000100r 2               .debuginfo
-000100r 2               
-000100r 2               .segment "MMU"
-000000r 2               
-000000r 2               .struct     Address
-000000r 2                           l           .byte
-000000r 2                           h           .byte
-000000r 2               .endstruct
-000000r 2               
-000000r 2               .struct     PageAddress
-000000r 2                           page        .byte
-000000r 2                           addr        .tag Address
-000000r 2               .endstruct
-000000r 2               
-000000r 2               ; status byte =>
-000000r 2               ; Bit 0: Allocated (1=Allocated, 0=Free)        Is the memory free or allocated
-000000r 2               ; Bit 1: Paged (1=Paged, 0=Task)                Points to Paged RAM
-000000r 2               ; Bit 2: Shared (1=Shared, 0=Task)              Points to Shared RAM when Shared == 1 && Paged == 1
-000000r 2               ; Bit 3: Block (1=sz in Pages, 0=sz in Bytes)
-000000r 2               ; Bit 4-6: RESERVED
-000000r 2               ; Bit 7: IsValid (1=Yes, 0=NO)              Is this structure in use?
-000000r 2               
-000000r 2               AI_ALLOCATED = $01
-000000r 2               AI_PAGED     = $02
-000000r 2               AI_SHARED    = $04
-000000r 2               AI_BLOCK     = $08
-000000r 2               AI_VALID     = $80
-000000r 2               
-000000r 2               AI_DEFAULT   = AI_VALID
-000000r 2               ALLOC_TASK   = AI_VALID | AI_ALLOCATED
-000000r 2               ALLOC_PAGED  = ALLOC_TASK | AI_PAGED
-000000r 2               ALLOC_SHARED = ALLOC_PAGED | AI_SHARED
-000000r 2               
-000000r 2               MSG_IN_BUFFER_BASE  = $8000
-000000r 2               MSG_OUT_BUFFER_BASE = $9000
-000000r 2               
-000000r 2               MSG_BUFFER_BANK = $F0
-000000r 2               
-000000r 2               .struct     BlockAllocInfo
-000000r 2                           status      .byte
-000000r 2                           pages       .word                               ; 256-byte pages in this block
-000000r 2                           next        .tag Address
-000000r 2                           addr        .tag PageAddress
-000000r 2               .endstruct
-000000r 2               
-000000r 2               PI_VALID = $01
-000000r 2               
-000000r 2               .struct     BlockInfo
-000000r 2                           status      .byte
-000000r 2               .endstruct
-000000r 2               
-000000r 2               MMU_INIT:
-000000r 2  20 rr rr                 jsr         TASK_RAM_INIT
-000003r 2  4C rr rr                 jmp         SHARED_RAM_INIT
-000006r 2               
-000006r 2               TASK_RAM_INIT:
-000006r 2  AD F0 FF                 lda         T_REGISTER
-000009r 2  C9 00                    cmp         #SYSTEM_TASK_NUM
-00000Br 2  F0 03                    beq         :+
-00000Dr 2  4C rr rr                 jmp         ERROR_NOT_SYSTEM_TASK
-000010r 2               
-000010r 2               :
-000010r 2  DA                       phx
-000011r 2  A2 0F                    ldx         #MAX_TASK_NUMBER
-000013r 2               
-000013r 2               @task_loop:
-000013r 2  8E F0 FF                 stx         T_REGISTER
-000016r 2               
-000016r 2               ; Initialize the Task RAM for the current task
-000016r 2                           ; start at $0400-$7FFF
-000016r 2               
-000016r 2               ; Initiazize the Paged RAM space for the current task
-000016r 2               
-000016r 2               ; Initialize Message buffer pointers
-000016r 2  A0 0F                    ldy         #MAX_TASK_NUMBER
-000018r 2               
-000018r 2               :
-000018r 2                           ;lda         ZP_MSG_INP,Y
-000018r 2                           ;sta         ZP_MSG_OUTP,Y
-000018r 2  88                       dey
-000019r 2  10 FD                    bpl         :-
-00001Br 2  CA                       dex
-00001Cr 2  10 F5                    bpl         @task_loop
-00001Er 2  80 05                    bra         :+
-000020r 2  A9 00                    lda         #SYSTEM_TASK_NUM
-000022r 2  8D F0 FF                 sta         T_REGISTER
-000025r 2               
-000025r 2               :
-000025r 2  FA                       plx
-000026r 2  60                       rts
-000027r 2               
-000027r 2               ; .X = To Task#, .A = Byte to write
-000027r 2               MSG_SEND_BYTE:
-000027r 2  78                       sei
-000028r 2  5A                       phy                                             ; Save Y, RAM_BANK and U
-000029r 2  A4 rr                    ldy         RAM_BANK_REG
-00002Br 2  5A                       phy
-00002Cr 2  AC F1 FF                 ldy         U_REGISTER
-00002Fr 2  5A                       phy
-000030r 2  48                       pha
-000031r 2  AD F0 FF                 lda         T_REGISTER
-000034r 2  0A 0A 0A 0A              SL_N        4
-000038r 2  86 rr                    stx         ZP_M_TEMP
-00003Ar 2  05 rr                    ora         ZP_M_TEMP
-00003Cr 2  AA                       tax
-00003Dr 2                           ;lda
-00003Dr 2  68                       pla
-00003Er 2  8D F1 FF                 sta         U_REGISTER
-000041r 2  68                       pla
-000042r 2  85 rr                    sta         RAM_BANK_REG
-000044r 2  7A                       ply
-000045r 2  58                       cli
-000046r 2  60                       rts
-000047r 2               
-000047r 2               .macro _M_ERROR_RETURN  errno
-000047r 2                           lda         #errno
-000047r 2                           sec
-000047r 2                           rts
-000047r 2               .endmacro
-000047r 2               
-000047r 2               ERROR_NOT_SYSTEM_TASK:
-000047r 2  A9 01 38 60              _M_ERROR_RETURN     ERR_NOT_SYSTEM_TASK
-00004Br 2               
-00004Br 2               ERROR_OUT_OF_MEMORY:
-00004Br 2  A9 02 38 60              _M_ERROR_RETURN     ERR_OUT_OF_MEMORY
-00004Fr 2               
-00004Fr 2               ; IN: .A.Y = Bytes to allocate
-00004Fr 2               ; OUT (success): .A.Y = Address of allocation, C = 0
-00004Fr 2               ; OUT (failure): .A = ERROR, C = 1
-00004Fr 2               TASK_ALLOC:
-00004Fr 2  C0 00                    cpy         #0                                  ; Is this a byte alloc or block alloc
-000051r 2  F0 07                    beq         TASK_BYTE_ALLOC
-000053r 2  C9 00                    cmp         #0                                  ; Is this a whole-block allocation?
-000055r 2  F0 02                    beq         TASK_BLOCK_ALLOC
-000057r 2  C8                       iny                                             ; Allocate one more page to cover the extra bytes
-000058r 2  98                       tya                                             ; ...and then fall through to do a block allocation
-000059r 2               
-000059r 2               ; IN: .A = Pages to allocate for current task
-000059r 2               ; OUT (success): .A.Y = Address of the allocation structure, C = 0
-000059r 2               ; OUT (failure): .A = ERROR, C = 1
-000059r 2               TASK_BLOCK_ALLOC:
-000059r 2  60                       rts
-00005Ar 2               
-00005Ar 2               ; IN: .A = Bytes to allocate for current task
-00005Ar 2               ; OUT (success): .A.Y = Address of the allocation structure, C = 0
-00005Ar 2               ; OUT (failure): .A = ERROR, C = 1
-00005Ar 2               TASK_BYTE_ALLOC:
-00005Ar 2  60                       rts
-00005Br 2               
-00005Br 2               TASK_FREE:
-00005Br 2  60                       rts
-00005Cr 2               
-00005Cr 2               ; IN: .A.Y = Bytes to allocate, T must be 0
-00005Cr 2               ; OUT (success): .A.Y = Address of shared allocation structure, C = 0
-00005Cr 2               ; OUT (out of memory): .A = ERR_OUT_OF_MEMORY, C = 1
-00005Cr 2               ;           If T <> 0, .A = ERR_NOT_SYSTEM_TASK, C = 1
-00005Cr 2               SHARED_ALLOC:
-00005Cr 2  DA                       phx
-00005Dr 2  AE F0 FF                 ldx         T_REGISTER
-000060r 2  E0 00                    cpx         #SYSTEM_TASK_NUM
-000062r 2  F0 04                    beq         :+
-000064r 2  FA                       plx
-000065r 2  4C rr rr                 jmp         ERROR_NOT_SYSTEM_TASK
-000068r 2               
-000068r 2               :
-000068r 2                                                                           ; Do the allocation
-000068r 2               
-000068r 2  FA                       plx
-000069r 2  60                       rts
-00006Ar 2               
-00006Ar 2               ; IN: .A.Y = Address of PageAddress struct that points to location in shared memory to free
-00006Ar 2               SHARED_FREE:
-00006Ar 2  60                       rts
-00006Br 2               
-00006Br 2               SHARED_RAM_INIT:
-00006Br 2  60                       rts
-00006Cr 2               
-00006Cr 2               ; IN: .X = Byte to write, .A.Y = Address of PageAddress struct that points to read location in shared memory
-00006Cr 2               SHARED_WRITE:
-00006Cr 2  78                       sei
-00006Dr 2  DA                       phx                                             ; Push the byte to write
-00006Er 2  20 rr rr                 jsr         SHARED_RW_PAGE_SETUP                ; Clobbers .X.  After, .X = old RAM_BANK, .Y = old U
-000071r 2  68                       pla                                             ; Get it back
-000072r 2  92 rr                    sta         (ZP_M_SP1)                          ; Do the write
-000074r 2  86 rr                    stx         RAM_BANK_REG                        ; Restore prior RAM_BANK
-000076r 2  8C F1 FF                 sty         U_REGISTER                          ; Restore prior Shared RAM Macro-page
-000079r 2  58                       cli
-00007Ar 2  60                       rts
-00007Br 2               
-00007Br 2               ; IN: .A.Y = Address of PageAddress struct that points to shared memory location to write to
-00007Br 2               ; OUT: .A = Byte read at address
-00007Br 2               SHARED_READ:
-00007Br 2  78                       sei
-00007Cr 2  DA                       phx                                             ; Don't clobber .X
-00007Dr 2  20 rr rr                 jsr         SHARED_RW_PAGE_SETUP                ; Clobbers .X.  After, .X = old RAM_BANK, .Y = old U
-000080r 2  B2 rr                    lda         (ZP_M_SP1)                          ; Do the read
-000082r 2  86 rr                    stx         RAM_BANK_REG                        ; Restore prior RAM_BANK
-000084r 2  8C F1 FF                 sty         U_REGISTER                          ; Restore prior Shared RAM Macro-page
-000087r 2  FA                       plx
-000088r 2  58                       cli
-000089r 2  60                       rts
-00008Ar 2               
-00008Ar 2               SHARED_RW_PAGE_SETUP:
-00008Ar 2  85 rr                    sta         ZP_M_SP1
-00008Cr 2  84 rr                    sty         ZP_M_SP1 + 1
-00008Er 2  A4 01                    ldy         PageAddress::addr + Address::l
-000090r 2  B1 rr                    lda         (ZP_M_SP1),Y                        ; Get the LOB of the address
-000092r 2  AA                       tax
-000093r 2  C8                       iny                                             ; Now the HOB
-000094r 2  B1 rr                    lda         (ZP_M_SP1),Y
-000096r 2  A8                       tay
-000097r 2  B2 rr                    lda         (ZP_M_SP1)                          ; Load the page
-000099r 2  86 rr                    stx         ZP_M_SP1
-00009Br 2  84 rr                    sty         ZP_M_SP1 + 1
-00009Dr 2  A8                       tay                                             ; Save the page for use later
-00009Er 2  09 F0                    ora         #$F0                                ; Shared Bank transform
-0000A0r 2  A6 rr                    ldx         RAM_BANK_REG                        ; Save bank for restore
-0000A2r 2  85 rr                    sta         RAM_BANK_REG                        ; Update the RAM_BANK to new Shared bank
-0000A4r 2  98                       tya                                             ; Get the original page back
-0000A5r 2  4A                       lsr                                             ; Shift right 4-bits
-0000A6r 2  4A                       lsr
-0000A7r 2  4A                       lsr
-0000A8r 2  4A                       lsr
-0000A9r 2  AC F1 FF                 ldy         U_REGISTER                          ; Save macro-page for restore
-0000ACr 2  8D F1 FF                 sta         U_REGISTER                          ; Update macro-page[0..3] from PageAddress::page[4..7]
-0000AFr 2  60                       rts
-0000B0r 2               
-0000B0r 2               ; Memory Copy
-0000B0r 2               ; ZP_TEMP_VEC: From, ZP_TEMP_VEC2: To, .A.Y: Size
-0000B0r 2               MEM_COPY:
-0000B0r 2  DA                       phx
-0000B1r 2  AA                       tax
-0000B2r 2  D0 03                    bne         :+
-0000B4r 2  98                       tya
-0000B5r 2  F0 3F                    beq         @done                               ; copy zero bytes?  Done!
-0000B7r 2               :
-0000B7r 2  20 rr rr                 PRINT_CRLF
-0000BAr 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC + 1
-0000BEr 2  rr           
-0000BFr 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC
-0000C3r 2  rr           
-0000C4r 2  A9 2D 20 rr              PRINT_CHAR  #ASCII_DASH, #ASCII_GT
-0000C8r 2  rr A9 3E 20  
-0000CCr 2  rr rr        
-0000CEr 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC2 + 1
-0000D2r 2  rr           
-0000D3r 2  A5 rr 20 rr              PRINT_BYTE  ZP_TEMP_VEC2
-0000D7r 2  rr           
-0000D8r 2               
-0000D8r 2               @loop:
-0000D8r 2  B2 rr                    lda         (ZP_TEMP_VEC)
-0000DAr 2  92 rr                    sta         (ZP_TEMP_VEC2)
-0000DCr 2  A9 2E 20 rr              PRINT_CHAR  #ASCII_PERIOD
-0000E0r 2  rr           
-0000E1r 2  CA                       dex
-0000E2r 2  D0 04                    bne         :+
-0000E4r 2  98                       tya
-0000E5r 2  F0 0F                    beq         @done
-0000E7r 2  88                       dey
-0000E8r 2               :
-0000E8r 2  E6 rr                    inc         ZP_TEMP_VEC
-0000EAr 2  D0 02                    bne         :+
-0000ECr 2  E6 rr                    inc         ZP_TEMP_VEC + 1
-0000EEr 2               :
-0000EEr 2  E6 rr                    inc         ZP_TEMP_VEC2
-0000F0r 2  D0 02                    bne         :+
-0000F2r 2  E6 rr                    inc         ZP_TEMP_VEC2 + 1
-0000F4r 2               :
-0000F4r 2  80 E2                    bra         @loop
-0000F6r 2               
-0000F6r 2               @done:
-0000F6r 2  FA                       plx
-0000F7r 2  60                       rts
-0000F8r 2               
-0000F8r 2               ; TESTS
-0000F8r 2               MEM_TEST:
-0000F8r 2  48 DA 5A                 PUSH_AXY
-0000FBr 2  20 rr rr                 PRINT_CRLF
-0000FEr 2                           ;stz         T_REGISTER
-0000FEr 2               
-0000FEr 2               @task_num_loop:
-0000FEr 2  64 rr                    stz         RAM_BANK_REG
-000100r 2  A9 04                    lda         #$04
-000102r 2  A2 80                    ldx         #$80                                ; exclude the task serial buffers @ $0200 && $0300
-000104r 2  20 rr rr                 jsr         TEST_PAGE_RANGE
-000107r 2  A2 A0                    ldx         #$A0                                ; end of banked RAM
-000109r 2               
-000109r 2               @ram_bank_loop:
-000109r 2  A5 rr 20 rr              PRINT_BYTE  RAM_BANK_REG
-00010Dr 2  rr           
-00010Er 2  A9 2E 20 rr              PRINT_CHAR  #ASCII_PERIOD
-000112r 2  rr           
-000113r 2  A9 80                    lda         #$80
-000115r 2  20 rr rr                 jsr         TEST_PAGE_RANGE
-000118r 2  E6 rr                    inc         RAM_BANK_REG
-00011Ar 2  A9 F0                    lda         #NUM_RAM_BANKS
-00011Cr 2  C5 rr                    cmp         RAM_BANK_REG
-00011Er 2  D0 E9                    bne         @ram_bank_loop
-000120r 2                           ;inc         T_REGISTER
-000120r 2                           ;lda         #$10
-000120r 2                           ;cmp         T_REGISTER
-000120r 2                           ;bne         @task_num_loop
-000120r 2  9C F1 FF                 stz         U_REGISTER
-000123r 2               
-000123r 2               @shared_banks_loop:
-000123r 2  A9 F0                    lda         #$F0
-000125r 2  85 rr                    sta         RAM_BANK_REG
-000127r 2               
-000127r 2               @shared_bank_loop:
-000127r 2  AD F1 FF 20              PRINT_BYTE  U_REGISTER
-00012Br 2  rr rr        
-00012Dr 2  A9 2E 20 rr              PRINT_CHAR  #ASCII_PERIOD
-000131r 2  rr           
-000132r 2  A5 rr 20 rr              PRINT_BYTE  RAM_BANK_REG
-000136r 2  rr           
-000137r 2  A9 2E 20 rr              PRINT_CHAR  #ASCII_PERIOD
-00013Br 2  rr           
-00013Cr 2  A9 80                    lda         #$80
-00013Er 2  20 rr rr                 jsr         TEST_PAGE_RANGE
-000141r 2  E6 rr                    inc         RAM_BANK_REG                        ; increment shared bank
-000143r 2  D0 E2                    bne         @shared_bank_loop
-000145r 2  EE F1 FF                 inc         U_REGISTER
-000148r 2  AD F1 FF                 lda         U_REGISTER
-00014Br 2  C9 10                    cmp         #$10
-00014Dr 2  90 D4                    bcc         @shared_banks_loop
-00014Fr 2  7A FA 68                 PULL_YXA
-000152r 2  60                       rts
-000153r 2               
-000153r 2               ; .A = HOB of first page to test, .X = HOB of last page + 1
-000153r 2               TEST_PAGE_RANGE:
-000153r 2  85 rr                    sta         ZP_TEMP_VEC + 1
-000155r 2  20 rr rr                 PRINT_BYTE
-000158r 2  A9 00 20 rr              PRINT_BYTE  #0
-00015Cr 2  rr           
-00015Dr 2  A9 2E 20 rr              PRINT_CHAR  #ASCII_PERIOD
-000161r 2  rr           
-000162r 2  8A                       txa
-000163r 2  3A                       dec
-000164r 2  20 rr rr                 PRINT_BYTE
-000167r 2  A9 FF 20 rr              PRINT_BYTE  #$FF
-00016Br 2  rr           
-00016Cr 2  A9 3A 20 rr              PRINT_CHAR  #ASCII_COLON
-000170r 2  rr           
-000171r 2  64 rr                    stz         ZP_TEMP_VEC
-000173r 2  64 rr                    stz         ZP_TEMP
-000175r 2               
-000175r 2               @loop_init:
-000175r 2  A0 00                    ldy         #0
-000177r 2               
-000177r 2               @loop:
-000177r 2  B1 rr                    lda         (ZP_TEMP_VEC),Y                     ; save what is in memory (non-descructive)
-000179r 2  85 rr                    sta         ZP_M_SV
-00017Br 2  A9 AA                    lda         #$AA
-00017Dr 2               @test_it:
-00017Dr 2  49 FF                    eor         #$FF
-00017Fr 2  91 rr                    sta         (ZP_TEMP_VEC),Y
-000181r 2  D1 rr                    cmp         (ZP_TEMP_VEC),Y
-000183r 2  F0 04                    beq         @next
-000185r 2  A9 21                    lda         #ASCII_BANG
-000187r 2  80 0D                    bra         @write                              ; always, no need to restore value since it isn't storing properly anyway
-000189r 2               
-000189r 2               @next:
-000189r 2  C9 AA                    cmp         #$AA
-00018Br 2  D0 F0                    bne         @test_it
-00018Dr 2  A5 rr                    lda         ZP_M_SV                             ; restore saved value
-00018Fr 2  91 rr                    sta         (ZP_TEMP_VEC),Y
-000191r 2  C8                       iny
-000192r 2  D0 E3                    bne         @loop
-000194r 2  A9 2E                    lda         #ASCII_PERIOD
-000196r 2               
-000196r 2               @write:
-000196r 2  20 rr rr                 PRINT_CHAR
-000199r 2  64 rr                    stz         ZP_TEMP
-00019Br 2  E6 rr                    inc         ZP_TEMP_VEC + 1
-00019Dr 2  E4 rr                    cpx         ZP_TEMP_VEC + 1
-00019Fr 2  D0 D4                    bne         @loop_init
-0001A1r 2  4C rr rr                 PRINT_CRLF_JMP
-0001A4r 2               
-0001A4r 2               ; test memory pages, start page in .A, end page in .X
-0001A4r 2               DEEP_PAGE_TEST_RANGE_AX:
-0001A4r 2  86 rr                    stx         ZP_M_SP2_H
-0001A6r 2  85 rr                    sta         ZP_M_SP1_H
-0001A8r 2  80 06                    bra         DEEP_PAGE_TEST_RANGE
-0001AAr 2               
-0001AAr 2               ; test a single page in .A
-0001AAr 2               DEEP_PAGE_TEST_A:
-0001AAr 2  85 rr                    sta         ZP_M_SP1_H
-0001ACr 2               
-0001ACr 2               ; test a single page in ZP_M_SP1_H
-0001ACr 2               DEEP_PAGE_TEST:
-0001ACr 2  A5 rr                    lda         ZP_M_SP1_H
-0001AEr 2  85 rr                    sta         ZP_M_SP2_H
-0001B0r 2               
-0001B0r 2               ; test a range of pages, start in ZP_M_SP1_H, end in ZP_M_SP2_H
-0001B0r 2               DEEP_PAGE_TEST_RANGE:
-0001B0r 2  DA 5A                    PUSH_XY
-0001B2r 2  64 rr                    stz         ZP_M_SP1_L
-0001B4r 2               @next_page:
-0001B4r 2  A5 rr                    lda         ZP_M_SP1_H
-0001B6r 2  20 rr rr                 PRINT_BYTE
-0001B9r 2  A9 00 20 rr              PRINT_BYTE  #0
-0001BDr 2  rr           
-0001BEr 2  A9 3A 20 rr              PRINT_CHAR  #ASCII_COLON
-0001C2r 2  rr           
-0001C3r 2  20 rr rr                 PRINT_CRLF
-0001C6r 2  A0 00                    ldy         #0
-0001C8r 2  A2 00                    ldx         #0
-0001CAr 2               @next_cell:
-0001CAr 2  64 rr                    stz         ZP_M_TEMP
-0001CCr 2  B1 rr                    lda         (ZP_M_SP1),Y
-0001CEr 2  85 rr                    sta         ZP_M_SV                             ; save the old value
-0001D0r 2  A9 01                    lda         #1
-0001D2r 2  85 rr                    sta         ZP_M_TEMP2
-0001D4r 2               @loop_start:
-0001D4r 2  A5 rr                    lda         ZP_M_TEMP2
-0001D6r 2  91 rr                    sta         (ZP_M_SP1),Y                     ; store it
-0001D8r 2  D1 rr                    cmp         (ZP_M_SP1),Y                     ; test it
-0001DAr 2  D0 08                    bne         :+
-0001DCr 2  49 FF                    eor         #$FF                                ; test the inverse
-0001DEr 2  91 rr                    sta         (ZP_M_SP1),Y                     ; store it
-0001E0r 2  D1 rr                    cmp         (ZP_M_SP1),Y                     ; test it
-0001E2r 2  F0 06                    beq         @shift
-0001E4r 2               :
-0001E4r 2  A5 rr                    lda         ZP_M_TEMP2
-0001E6r 2  05 rr                    ora         ZP_M_TEMP                           ; add bit to set of bad bits found
-0001E8r 2  85 rr                    sta         ZP_M_TEMP
-0001EAr 2               @shift:
-0001EAr 2  06 rr                    asl         ZP_M_TEMP2                          ; Walk the bit forward
-0001ECr 2  D0 E6                    bne         @loop_start
-0001EEr 2  A5 rr                    lda         ZP_M_TEMP                           ; get the set of bad bits we found
-0001F0r 2  20 rr rr                 PRINT_BYTE
-0001F3r 2  E8                       inx
-0001F4r 2  E0 10                    cpx         #$10
-0001F6r 2  F0 07                    beq         :+
-0001F8r 2  A9 20 20 rr              PRINT_SPACE
-0001FCr 2  rr           
-0001FDr 2  80 05                    bra         :++
-0001FFr 2               :
-0001FFr 2  20 rr rr                 PRINT_CRLF
-000202r 2  A2 00                    ldx         #0
-000204r 2               :
-000204r 2  A5 rr                    lda         ZP_M_SV
-000206r 2  91 rr                    sta         (ZP_M_SP1),Y                     ; restore the old value
-000208r 2  C8                       iny
-000209r 2  D0 BF                    bne         @next_cell
-00020Br 2  A5 rr                    lda         ZP_M_SP1_H
-00020Dr 2  C5 rr                    cmp         ZP_M_SP2_H
-00020Fr 2  F0 05                    beq         @done
-000211r 2  E6 rr                    inc         ZP_M_SP1_H
-000213r 2  4C rr rr                 jmp         @next_page
-000216r 2               @done:
-000216r 2  7A FA                    PULL_YX
-000218r 2  60                       rts
-000219r 2               
-000219r 1               .include "shell.s"
-000219r 2               .debuginfo
-000219r 2               .segment "SHELL"
+000100r 2               .segment "SHELL"
 000000r 2               
 000000r 2               SHELL_MAIN:
 000000r 2  20 rr rr                 jsr     MON_START
 000003r 2               
 000003r 1               .include "sound.s"
-000003r 2               ; zero out all YM-2151 registers $28-$FF
-000003r 2               SOUND_INIT:
-000003r 2  48                           pha
-000004r 2  DA                           phx
-000005r 2  A9 00                        lda         #0
-000007r 2  A2 14                        ldx         #$14        ; turn off the clocks
-000009r 2  20 rr rr                     jsr         YM_WRITE
-00000Cr 2  A2 28                        ldx         #$28
-00000Er 2               
-00000Er 2               @write_z:
-00000Er 2  20 rr rr                     jsr         YM_WRITE
-000011r 2  B0 0D                        bcs         @error
-000013r 2  E8                           inx
-000014r 2  D0 F8                        bne         @write_z
-000016r 2  A2 03                        ldx         #IRQ_NUMBER_ONBOARD_SOUND
-000018r 2  A9 rr                        lda         #<SOUND_IRQ_HANDLER
-00001Ar 2  A0 rr                        ldy         #>SOUND_IRQ_HANDLER
-00001Cr 2  20 rr rr                     jsr         IRQ_SET_VECTOR
-00001Fr 2  18                           clc
+000003r 2               .debuginfo
+000003r 2               .segment "SOUND"
+000000r 2               
+000000r 2               ;
+000000r 2               ; usually ends up at $E400 (see os_rom_C02.cfg)
+000000r 2               ;
+000000r 2               ; zero out all YM-2151 registers $28-$FF
+000000r 2               SOUND_INIT:
+000000r 2  48                           pha
+000001r 2  DA                           phx
+000002r 2  A9 00                        lda         #0
+000004r 2  A2 14                        ldx         #$14        ; turn off the clocks
+000006r 2  20 rr rr                     jsr         YM_WRITE
+000009r 2  A2 28                        ldx         #$28
+00000Br 2               
+00000Br 2               @write_z:
+00000Br 2  20 rr rr                     jsr         YM_WRITE
+00000Er 2  B0 0D                        bcs         @error
+000010r 2  E8                           inx
+000011r 2  D0 F8                        bne         @write_z
+000013r 2  A2 03                        ldx         #IRQ_NUMBER_ONBOARD_SOUND
+000015r 2  A9 rr                        lda         #<SOUND_IRQ_HANDLER
+000017r 2  A0 rr                        ldy         #>SOUND_IRQ_HANDLER
+000019r 2  20 rr rr                     jsr         IRQ_SET_VECTOR
+00001Cr 2  18                           clc
+00001Dr 2               
+00001Dr 2               @error:
+00001Dr 2  FA                           plx
+00001Er 2  68                           pla
+00001Fr 2  60                           rts
 000020r 2               
-000020r 2               @error:
-000020r 2  FA                           plx
-000021r 2  68                           pla
-000022r 2  60                           rts
-000023r 2               
-000023r 2               
-000023r 2               SOUND_IRQ_HANDLER:
-000023r 2                               ; check which
-000023r 2  40                           rti
-000024r 2               
-000024r 2               YMN0L = $A0
-000024r 2               YMN0H = YMN0L + 1
-000024r 2               YMN1L = YMN0L + 2
-000024r 2               YMN1H = YMN0L + 3
-000024r 2               
-000024r 2               AZP0L = $B0
-000024r 2               AZP0H = AZP0L + 1
-000024r 2               YMTMP1 = AZP0L + 2
-000024r 2               YMTMP2 = AZP0L + 3
-000024r 2               
-000024r 2               ;C# = 0
-000024r 2               ;D  = 1
-000024r 2               ;D# = 2
-000024r 2               ;E  = 4
-000024r 2               ;F  = 5
-000024r 2               ;F# = 6
-000024r 2               ;G  = 8
-000024r 2               ;G# = 9
-000024r 2               ;A  = A
-000024r 2               ;A# = C
-000024r 2               ;B  = D
-000024r 2               ;C  = E
-000024r 2               
-000024r 2               ;$20+C, $38+C
-000024r 2               ;$40+C - $78+C
-000024r 2               ;$80+C - $B8+C
-000024r 2               ;$C0+C - $F8+C
-000024r 2               
-000024r 2               M027_Electric_Clean_Guitar:
-000024r 2  F8 00        	.byte $F8,$00
-000026r 2  29 31 21 31  	.byte $29,$31,$21,$31,$2E,$1E,$0F,$00
-00002Ar 2  2E 1E 0F 00  
-00002Er 2  1F 1F 1F 1F  	.byte $1F,$1F,$1F,$1F,$10,$04,$08,$09
-000032r 2  10 04 08 09  
-000036r 2  00 00 00 00  	.byte $00,$00,$00,$00,$F9,$B1,$F4,$FB
-00003Ar 2  F9 B1 F4 FB  
-00003Er 2               
-00003Er 2               M028_Electric_Muted_Guitar:
-00003Er 2  E2 00        	.byte $E2,$00
-000040r 2  54 51 01 01  	.byte $54,$51,$01,$01,$20,$21,$32,$00
-000044r 2  20 21 32 00  
-000048r 2  1C 1F 1F 1F  	.byte $1C,$1F,$1F,$1F,$15,$02,$03,$0A
-00004Cr 2  15 02 03 0A  
-000050r 2  00 00 00 00  	.byte $00,$00,$00,$00,$FF,$B1,$F4,$F9
-000054r 2  FF B1 F4 F9  
-000058r 2               
-000058r 2               M029_Electric_Overdriven_Guitar:
-000058r 2  FA 00        	.byte $FA,$00
-00005Ar 2  33 11 32 33  	.byte $33,$11,$32,$33,$10,$16,$21,$00
-00005Er 2  10 16 21 00  
-000062r 2  1F 1F 1F 1F  	.byte $1F,$1F,$1F,$1F,$17,$08,$02,$03
-000066r 2  17 08 02 03  
-00006Ar 2  00 00 00 00  	.byte $00,$00,$00,$00,$FF,$B1,$F4,$FB
-00006Er 2  FF B1 F4 FB  
-000072r 2               
-000072r 2               M030_Electric_Distorted_Guitar:
-000072r 2  FA 00        	.byte $FA,$00
-000074r 2  33 11 31 33  	.byte $33,$11,$31,$33,$09,$0B,$1A,$00
-000078r 2  09 0B 1A 00  
-00007Cr 2  1F 1F 1F 1F  	.byte $1F,$1F,$1F,$1F,$17,$00,$00,$07
-000080r 2  17 00 00 07  
-000084r 2  00 00 00 00  	.byte $00,$00,$00,$00,$FF,$B1,$F4,$FB
-000088r 2  FF B1 F4 FB  
-00008Cr 2               
-00008Cr 2               GUITAR_PATCH = M029_Electric_Overdriven_Guitar
-00008Cr 2               
-00008Cr 2               ; Note data for Sweet Child o' Mine (first 4 bars)
-00008Cr 2               SCOM_NOTES_0:   ;            D4,  D4,  E4,  E4,  G4,  G4,  D4,  D4
-00008Cr 2                               ;.byte       $41, $41, $44, $44, $48, $48, $41, $41
-00008Cr 2  40 40 42 42                  .byte       $40, $40, $42, $42, $46, $46, $40, $40 ; half-note flat, just like Slash
-000090r 2  46 46 40 40  
-000094r 2               
-000094r 2               SCOM_NOTES_1:
-000094r 2                               ;            D5,  A4,  G4,  G5,  A4, F#5,  A4
-000094r 2                               ;.byte       $51, $4A, $48, $58, $4A, $56, $4A
-000094r 2  50 49 46 56                  .byte       $50, $49, $46, $56, $49, $55, $49   ; half-note flat
-000098r 2  49 55 49     
-00009Br 2               
-00009Br 2               SOUND_TEST:
-00009Br 2                               ; Set basic FM patch (simple sine-like sound)
-00009Br 2  A2 20                        ldx         #$20
-00009Dr 2  A9 C7                        lda         #$C7
-00009Fr 2  20 rr rr                     jsr         YM_WRITE
-0000A2r 2               
-0000A2r 2  A2 80                        ldx         #$80
-0000A4r 2  A9 1F                        lda         #$1F
-0000A6r 2  20 rr rr                     jsr         YM_WRITE
-0000A9r 2               
-0000A9r 2  A2 E0                        ldx         #$E0
-0000ABr 2  A9 0F                        lda         #$0F
-0000ADr 2  20 rr rr                     jsr         YM_WRITE
-0000B0r 2               
-0000B0r 2  A2 21                        ldx         #$21
-0000B2r 2  A9 C7                        lda         #$C7
-0000B4r 2  20 rr rr                     jsr         YM_WRITE
-0000B7r 2               
-0000B7r 2  A2 81                        ldx         #$81
-0000B9r 2  A9 1F                        lda         #$1F
-0000BBr 2  20 rr rr                     jsr         YM_WRITE
-0000BEr 2               
-0000BEr 2  A2 E1                        ldx         #$E1
-0000C0r 2  A9 0F                        lda         #$0F
-0000C2r 2  20 rr rr                     jsr         YM_WRITE
-0000C5r 2               
-0000C5r 2  A9 00                        lda         #$00    ; Channel 0
-0000C7r 2  A2 rr                        ldx         #<GUITAR_PATCH
-0000C9r 2  A0 rr                        ldy         #>GUITAR_PATCH
-0000CBr 2  20 rr rr                     jsr         YM_LOADPATCH
-0000CEr 2               
-0000CEr 2  A9 01                        lda         #$01    ; Channel 1
-0000D0r 2  A2 rr                        ldx         #<GUITAR_PATCH
-0000D2r 2  A0 rr                        ldy         #>GUITAR_PATCH
-0000D4r 2  20 rr rr                     jsr         YM_LOADPATCH
-0000D7r 2               
-0000D7r 2  A2 60                        ldx         #$60    ; Total Level (volume) for operator 1, Channel 0
-0000D9r 2  A9 00                        lda         #$00    ; Max Volume
-0000DBr 2  20 rr rr                     jsr         YM_WRITE
-0000DEr 2               
-0000DEr 2  A2 61                        ldx         #$61    ; Total Level (volume) for operator 1, Channel 1
-0000E0r 2  A9 00                        lda         #$00    ; Max Volume
-0000E2r 2  20 rr rr                     jsr         YM_WRITE
-0000E5r 2               
-0000E5r 2  A9 rr                        lda         #<SCOM_NOTES_0
-0000E7r 2  85 A0                        sta         YMN0L
-0000E9r 2  A9 rr                        lda         #>SCOM_NOTES_0
-0000EBr 2  85 A1                        sta         YMN0H
-0000EDr 2               
-0000EDr 2  A9 rr                        lda         #<SCOM_NOTES_1
-0000EFr 2  85 A2                        sta         YMN1L
-0000F1r 2  A9 rr                        lda         #>SCOM_NOTES_1
-0000F3r 2  85 A3                        sta         YMN1H
-0000F5r 2               
-0000F5r 2  A0 00                        ldy         #0          ; counter for channel 0
-0000F7r 2               @play_loop:
-0000F7r 2                               ; 0. set outer counter to 0
-0000F7r 2                               ; 1. key off channel 0
-0000F7r 2                               ; 1a.  key off on channel 1
-0000F7r 2                               ; 2. set note to next note in channel 0 list
-0000F7r 2                               ; 3. key on on channel 0
-0000F7r 2                               ; 4. one delay
-0000F7r 2                               ; 5. notes for rest of sequence on channel 1
-0000F7r 2                               ; 5a.  reset counter to 0
-0000F7r 2                               ; 5b.  key off on channel 1
-0000F7r 2                               ; 5c.  set note on channel 1
-0000F7r 2                               ; 5d.  key on on channel 1
-0000F7r 2                               ; 5e.  one delay
-0000F7r 2                               ; 5f.  increment counter
-0000F7r 2                               ; 5g.  loop until 7 notes have been played on channel 1
-0000F7r 2                               ; 6.  increment outer counter to play next start note on channel 0
-0000F7r 2                               ; 7.  loop back to 1 until outer count reaches 8 (8 sequences have played)
-0000F7r 2                               ; Key Off (silence previous note)
-0000F7r 2               
-0000F7r 2  A2 08                        ldx         #$08    ; Key On/Off register
-0000F9r 2  A9 00                        lda         #$00    ; CH0 off
-0000FBr 2  20 rr rr                     jsr         YM_WRITE
-0000FEr 2               
-0000FEr 2  A2 08                        ldx         #$08    ; Key On/Off register
-000100r 2  A9 01                        lda         #$01    ; CH1 off
-000102r 2  20 rr rr                     jsr         YM_WRITE
-000105r 2               
-000105r 2                               ; Set frequency (KC)
-000105r 2  A2 28                        ldx         #$28    ; KC register for CH0
-000107r 2  B1 A0                        lda         (YMN0L),y
-000109r 2  20 rr rr                     jsr         YM_WRITE
-00010Cr 2               
-00010Cr 2                               ; Key On
-00010Cr 2  A2 08                        ldx         #$08    ; Key On/Off register
-00010Er 2  A9 78                        lda         #$78    ; CH0 on
-000110r 2  20 rr rr                     jsr         YM_WRITE
-000113r 2               
-000113r 2                               ; Delay 8 64th notes in length
-000113r 2  A9 08                        lda         #8
-000115r 2  20 rr rr                     jsr         YM_DELAY_64
-000118r 2               
-000118r 2  5A                           phy
-000119r 2  A0 00                        ldy         #0
-00011Br 2  80 07                        bra         @skip_ch1_off   ; already off at the start of the loop
-00011Dr 2               
-00011Dr 2               @next_ch1:
-00011Dr 2  A2 08                        ldx         #$08    ; Key On/Off register
-00011Fr 2  A9 01                        lda         #$01    ; CH1 off
-000121r 2  20 rr rr                     jsr         YM_WRITE
-000124r 2               
-000124r 2               @skip_ch1_off:
-000124r 2                               ; Set frequency (KC)
-000124r 2  A2 29                        ldx         #$29    ; KC register for CH1
-000126r 2  B1 A2                        lda         (YMN1L),y
-000128r 2  20 rr rr                     jsr         YM_WRITE
-00012Br 2               
-00012Br 2                               ; Key On
-00012Br 2  A2 08                        ldx         #$08    ; Key On/Off register
-00012Dr 2  A9 79                        lda         #$79    ; CH1 on
-00012Fr 2  20 rr rr                     jsr         YM_WRITE
-000132r 2               
-000132r 2                               ; Delay 8 64th notes in length
-000132r 2  A9 08                        lda         #8
-000134r 2  20 rr rr                     jsr         YM_DELAY_64
-000137r 2               
-000137r 2  C8                           iny
-000138r 2  C0 07                        cpy         #7
-00013Ar 2  D0 E1                        bne         @next_ch1
-00013Cr 2               
-00013Cr 2                               ; Next note on CH0
-00013Cr 2  7A                           ply                 ; pull CH0 count
-00013Dr 2  C8                           iny
-00013Er 2  C0 08                        cpy         #8      ; 8 bars
-000140r 2  D0 B5                        bne         @play_loop
-000142r 2               
-000142r 2                               ; Stop sound
-000142r 2  A2 08                        ldx         #$08
-000144r 2  A9 00                        lda         #$00
-000146r 2  20 rr rr                     jsr         YM_WRITE
-000149r 2               
-000149r 2  A2 08                        ldx         #$08
-00014Br 2  A9 01                        lda         #$01
-00014Dr 2  4C rr rr                     jmp         YM_WRITE
-000150r 2               
-000150r 2               YM_TIMEOUT = 64
-000150r 2               
-000150r 2               ; Write value in A to YM-2151 register in X
-000150r 2               YM_WRITE:
-000150r 2  78                           sei
-000151r 2  5A                           phy
-000152r 2  A0 40                        ldy         #YM_TIMEOUT
-000154r 2               
-000154r 2               @ym_wait1:
-000154r 2  88                           dey
-000155r 2  30 18                        bmi         @timeout
-000157r 2  2C rr rr                     bit         YM_DATA
-00015Ar 2  30 F8                        bmi         @ym_wait1
-00015Cr 2  8E rr rr                     stx         YM_REG
-00015Fr 2  A0 40                        ldy         #YM_TIMEOUT
-000161r 2               
-000161r 2               @ym_wait2:
-000161r 2  88                           dey
-000162r 2  30 0B                        bmi         @timeout
-000164r 2  2C rr rr                     bit         YM_DATA
-000167r 2  30 F8                        bmi         @ym_wait2
-000169r 2  8D rr rr                     sta         YM_DATA
-00016Cr 2  18                           clc
-00016Dr 2  80 01                        bra         @cleanup
-00016Fr 2               
-00016Fr 2               @timeout:
-00016Fr 2  38                           sec
+000020r 2               
+000020r 2               SOUND_IRQ_HANDLER:
+000020r 2                               ; check which
+000020r 2  40                           rti
+000021r 2               
+000021r 2               YMN0L = $A0
+000021r 2               YMN0H = YMN0L + 1
+000021r 2               YMN1L = YMN0L + 2
+000021r 2               YMN1H = YMN0L + 3
+000021r 2               
+000021r 2               AZP0L = $B0
+000021r 2               AZP0H = AZP0L + 1
+000021r 2               YMTMP1 = AZP0L + 2
+000021r 2               YMTMP2 = AZP0L + 3
+000021r 2               
+000021r 2               ;C# = 0
+000021r 2               ;D  = 1
+000021r 2               ;D# = 2
+000021r 2               ;E  = 4
+000021r 2               ;F  = 5
+000021r 2               ;F# = 6
+000021r 2               ;G  = 8
+000021r 2               ;G# = 9
+000021r 2               ;A  = A
+000021r 2               ;A# = C
+000021r 2               ;B  = D
+000021r 2               ;C  = E
+000021r 2               
+000021r 2               ;$20+C, $38+C
+000021r 2               ;$40+C - $78+C
+000021r 2               ;$80+C - $B8+C
+000021r 2               ;$C0+C - $F8+C
+000021r 2               
+000021r 2               M027_Electric_Clean_Guitar:
+000021r 2  F8 00        	.byte $F8,$00
+000023r 2  29 31 21 31  	.byte $29,$31,$21,$31,$2E,$1E,$0F,$00
+000027r 2  2E 1E 0F 00  
+00002Br 2  1F 1F 1F 1F  	.byte $1F,$1F,$1F,$1F,$10,$04,$08,$09
+00002Fr 2  10 04 08 09  
+000033r 2  00 00 00 00  	.byte $00,$00,$00,$00,$F9,$B1,$F4,$FB
+000037r 2  F9 B1 F4 FB  
+00003Br 2               
+00003Br 2               M028_Electric_Muted_Guitar:
+00003Br 2  E2 00        	.byte $E2,$00
+00003Dr 2  54 51 01 01  	.byte $54,$51,$01,$01,$20,$21,$32,$00
+000041r 2  20 21 32 00  
+000045r 2  1C 1F 1F 1F  	.byte $1C,$1F,$1F,$1F,$15,$02,$03,$0A
+000049r 2  15 02 03 0A  
+00004Dr 2  00 00 00 00  	.byte $00,$00,$00,$00,$FF,$B1,$F4,$F9
+000051r 2  FF B1 F4 F9  
+000055r 2               
+000055r 2               M029_Electric_Overdriven_Guitar:
+000055r 2  FA 00        	.byte $FA,$00
+000057r 2  33 11 32 33  	.byte $33,$11,$32,$33,$10,$16,$21,$00
+00005Br 2  10 16 21 00  
+00005Fr 2  1F 1F 1F 1F  	.byte $1F,$1F,$1F,$1F,$17,$08,$02,$03
+000063r 2  17 08 02 03  
+000067r 2  00 00 00 00  	.byte $00,$00,$00,$00,$FF,$B1,$F4,$FB
+00006Br 2  FF B1 F4 FB  
+00006Fr 2               
+00006Fr 2               M030_Electric_Distorted_Guitar:
+00006Fr 2  FA 00        	.byte $FA,$00
+000071r 2  33 11 31 33  	.byte $33,$11,$31,$33,$09,$0B,$1A,$00
+000075r 2  09 0B 1A 00  
+000079r 2  1F 1F 1F 1F  	.byte $1F,$1F,$1F,$1F,$17,$00,$00,$07
+00007Dr 2  17 00 00 07  
+000081r 2  00 00 00 00  	.byte $00,$00,$00,$00,$FF,$B1,$F4,$FB
+000085r 2  FF B1 F4 FB  
+000089r 2               
+000089r 2               GUITAR_PATCH = M029_Electric_Overdriven_Guitar
+000089r 2               
+000089r 2               ; Note data for Sweet Child o' Mine (first 4 bars)
+000089r 2               SCOM_NOTES_0:   ;            D4,  D4,  E4,  E4,  G4,  G4,  D4,  D4
+000089r 2                               ;.byte       $41, $41, $44, $44, $48, $48, $41, $41
+000089r 2  40 40 42 42                  .byte       $40, $40, $42, $42, $46, $46, $40, $40 ; half-note flat, just like Slash
+00008Dr 2  46 46 40 40  
+000091r 2               
+000091r 2               SCOM_NOTES_1:
+000091r 2                               ;            D5,  A4,  G4,  G5,  A4, F#5,  A4
+000091r 2                               ;.byte       $51, $4A, $48, $58, $4A, $56, $4A
+000091r 2  50 49 46 56                  .byte       $50, $49, $46, $56, $49, $55, $49   ; half-note flat
+000095r 2  49 55 49     
+000098r 2               
+000098r 2               SOUND_TEST:
+000098r 2                               ; Set basic FM patch (simple sine-like sound)
+000098r 2  A2 20                        ldx         #$20
+00009Ar 2  A9 C7                        lda         #$C7
+00009Cr 2  20 rr rr                     jsr         YM_WRITE
+00009Fr 2               
+00009Fr 2  A2 80                        ldx         #$80
+0000A1r 2  A9 1F                        lda         #$1F
+0000A3r 2  20 rr rr                     jsr         YM_WRITE
+0000A6r 2               
+0000A6r 2  A2 E0                        ldx         #$E0
+0000A8r 2  A9 0F                        lda         #$0F
+0000AAr 2  20 rr rr                     jsr         YM_WRITE
+0000ADr 2               
+0000ADr 2  A2 21                        ldx         #$21
+0000AFr 2  A9 C7                        lda         #$C7
+0000B1r 2  20 rr rr                     jsr         YM_WRITE
+0000B4r 2               
+0000B4r 2  A2 81                        ldx         #$81
+0000B6r 2  A9 1F                        lda         #$1F
+0000B8r 2  20 rr rr                     jsr         YM_WRITE
+0000BBr 2               
+0000BBr 2  A2 E1                        ldx         #$E1
+0000BDr 2  A9 0F                        lda         #$0F
+0000BFr 2  20 rr rr                     jsr         YM_WRITE
+0000C2r 2               
+0000C2r 2  A9 00                        lda         #$00    ; Channel 0
+0000C4r 2  A2 rr                        ldx         #<GUITAR_PATCH
+0000C6r 2  A0 rr                        ldy         #>GUITAR_PATCH
+0000C8r 2  20 rr rr                     jsr         YM_LOADPATCH
+0000CBr 2               
+0000CBr 2  A9 01                        lda         #$01    ; Channel 1
+0000CDr 2  A2 rr                        ldx         #<GUITAR_PATCH
+0000CFr 2  A0 rr                        ldy         #>GUITAR_PATCH
+0000D1r 2  20 rr rr                     jsr         YM_LOADPATCH
+0000D4r 2               
+0000D4r 2  A2 60                        ldx         #$60    ; Total Level (volume) for operator 1, Channel 0
+0000D6r 2  A9 00                        lda         #$00    ; Max Volume
+0000D8r 2  20 rr rr                     jsr         YM_WRITE
+0000DBr 2               
+0000DBr 2  A2 61                        ldx         #$61    ; Total Level (volume) for operator 1, Channel 1
+0000DDr 2  A9 00                        lda         #$00    ; Max Volume
+0000DFr 2  20 rr rr                     jsr         YM_WRITE
+0000E2r 2               
+0000E2r 2  A9 rr                        lda         #<SCOM_NOTES_0
+0000E4r 2  85 A0                        sta         YMN0L
+0000E6r 2  A9 rr                        lda         #>SCOM_NOTES_0
+0000E8r 2  85 A1                        sta         YMN0H
+0000EAr 2               
+0000EAr 2  A9 rr                        lda         #<SCOM_NOTES_1
+0000ECr 2  85 A2                        sta         YMN1L
+0000EEr 2  A9 rr                        lda         #>SCOM_NOTES_1
+0000F0r 2  85 A3                        sta         YMN1H
+0000F2r 2               
+0000F2r 2  A0 00                        ldy         #0          ; counter for channel 0
+0000F4r 2               @play_loop:
+0000F4r 2                               ; 0. set outer counter to 0
+0000F4r 2                               ; 1. key off channel 0
+0000F4r 2                               ; 1a.  key off on channel 1
+0000F4r 2                               ; 2. set note to next note in channel 0 list
+0000F4r 2                               ; 3. key on on channel 0
+0000F4r 2                               ; 4. one delay
+0000F4r 2                               ; 5. notes for rest of sequence on channel 1
+0000F4r 2                               ; 5a.  reset counter to 0
+0000F4r 2                               ; 5b.  key off on channel 1
+0000F4r 2                               ; 5c.  set note on channel 1
+0000F4r 2                               ; 5d.  key on on channel 1
+0000F4r 2                               ; 5e.  one delay
+0000F4r 2                               ; 5f.  increment counter
+0000F4r 2                               ; 5g.  loop until 7 notes have been played on channel 1
+0000F4r 2                               ; 6.  increment outer counter to play next start note on channel 0
+0000F4r 2                               ; 7.  loop back to 1 until outer count reaches 8 (8 sequences have played)
+0000F4r 2                               ; Key Off (silence previous note)
+0000F4r 2               
+0000F4r 2  A2 08                        ldx         #$08    ; Key On/Off register
+0000F6r 2  A9 00                        lda         #$00    ; CH0 off
+0000F8r 2  20 rr rr                     jsr         YM_WRITE
+0000FBr 2               
+0000FBr 2  A2 08                        ldx         #$08    ; Key On/Off register
+0000FDr 2  A9 01                        lda         #$01    ; CH1 off
+0000FFr 2  20 rr rr                     jsr         YM_WRITE
+000102r 2               
+000102r 2                               ; Set frequency (KC)
+000102r 2  A2 28                        ldx         #$28    ; KC register for CH0
+000104r 2  B1 A0                        lda         (YMN0L),y
+000106r 2  20 rr rr                     jsr         YM_WRITE
+000109r 2               
+000109r 2                               ; Key On
+000109r 2  A2 08                        ldx         #$08    ; Key On/Off register
+00010Br 2  A9 78                        lda         #$78    ; CH0 on
+00010Dr 2  20 rr rr                     jsr         YM_WRITE
+000110r 2               
+000110r 2                               ; Delay 8 64th notes in length
+000110r 2  A9 08                        lda         #8
+000112r 2  20 rr rr                     jsr         YM_DELAY_64
+000115r 2               
+000115r 2  5A                           phy
+000116r 2  A0 00                        ldy         #0
+000118r 2  80 07                        bra         @skip_ch1_off   ; already off at the start of the loop
+00011Ar 2               
+00011Ar 2               @next_ch1:
+00011Ar 2  A2 08                        ldx         #$08    ; Key On/Off register
+00011Cr 2  A9 01                        lda         #$01    ; CH1 off
+00011Er 2  20 rr rr                     jsr         YM_WRITE
+000121r 2               
+000121r 2               @skip_ch1_off:
+000121r 2                               ; Set frequency (KC)
+000121r 2  A2 29                        ldx         #$29    ; KC register for CH1
+000123r 2  B1 A2                        lda         (YMN1L),y
+000125r 2  20 rr rr                     jsr         YM_WRITE
+000128r 2               
+000128r 2                               ; Key On
+000128r 2  A2 08                        ldx         #$08    ; Key On/Off register
+00012Ar 2  A9 79                        lda         #$79    ; CH1 on
+00012Cr 2  20 rr rr                     jsr         YM_WRITE
+00012Fr 2               
+00012Fr 2                               ; Delay 8 64th notes in length
+00012Fr 2  A9 08                        lda         #8
+000131r 2  20 rr rr                     jsr         YM_DELAY_64
+000134r 2               
+000134r 2  C8                           iny
+000135r 2  C0 07                        cpy         #7
+000137r 2  D0 E1                        bne         @next_ch1
+000139r 2               
+000139r 2                               ; Next note on CH0
+000139r 2  7A                           ply                 ; pull CH0 count
+00013Ar 2  C8                           iny
+00013Br 2  C0 08                        cpy         #8      ; 8 bars
+00013Dr 2  D0 B5                        bne         @play_loop
+00013Fr 2               
+00013Fr 2                               ; Stop sound
+00013Fr 2  A2 08                        ldx         #$08
+000141r 2  A9 00                        lda         #$00
+000143r 2  20 rr rr                     jsr         YM_WRITE
+000146r 2               
+000146r 2  A2 08                        ldx         #$08
+000148r 2  A9 01                        lda         #$01
+00014Ar 2  4C rr rr                     jmp         YM_WRITE
+00014Dr 2               
+00014Dr 2               YM_TIMEOUT = 64
+00014Dr 2               
+00014Dr 2               ; Write value in A to YM-2151 register in X
+00014Dr 2               YM_WRITE:
+00014Dr 2  78                           sei
+00014Er 2  5A                           phy
+00014Fr 2  A0 40                        ldy         #YM_TIMEOUT
+000151r 2               
+000151r 2               @ym_wait1:
+000151r 2  88                           dey
+000152r 2  30 18                        bmi         @timeout
+000154r 2  2C rr rr                     bit         YM_DATA
+000157r 2  30 F8                        bmi         @ym_wait1
+000159r 2  8E rr rr                     stx         YM_REG
+00015Cr 2  A0 40                        ldy         #YM_TIMEOUT
+00015Er 2               
+00015Er 2               @ym_wait2:
+00015Er 2  88                           dey
+00015Fr 2  30 0B                        bmi         @timeout
+000161r 2  2C rr rr                     bit         YM_DATA
+000164r 2  30 F8                        bmi         @ym_wait2
+000166r 2  8D rr rr                     sta         YM_DATA
+000169r 2  18                           clc
+00016Ar 2  80 01                        bra         @cleanup
+00016Cr 2               
+00016Cr 2               @timeout:
+00016Cr 2  38                           sec
+00016Dr 2               
+00016Dr 2               @cleanup:
+00016Dr 2  7A                           ply
+00016Er 2  58                           cli
+00016Fr 2  60                           rts
 000170r 2               
-000170r 2               @cleanup:
-000170r 2  7A                           ply
-000171r 2  58                           cli
-000172r 2  60                           rts
-000173r 2               
-000173r 2               YM_LOADPATCH:
-000173r 2                               ; Make re-entrant safe by protecting tmp and pointer variables from interrupt
-000173r 2  08                           php
-000174r 2  78                           sei
-000175r 2               
-000175r 2                               ; and #$07 ; mask channel to range 0..7
-000175r 2  86 B0                        stx AZP0L
-000177r 2  84 B1                        sty AZP0H
-000179r 2  18                           clc
-00017Ar 2  69 20                        adc #$20 ; first byte of patch goes to YM:$20+channel
-00017Cr 2  AA                           tax
-00017Dr 2               
-00017Dr 2  B2 B0                        lda (AZP0L)
-00017Fr 2  29 3F                        and #$3F
-000181r 2               
-000181r 2                               ;sta ymtmp1
-000181r 2                               ;lda ymshadow,x
-000181r 2                               ;and #$C0 ; L+R bits for YM channel
-000181r 2                               ;ora ymtmp1 ; Add the patch byte without L+R
-000181r 2  09 C0                        ora #$C0;
-000183r 2               
-000183r 2  20 rr rr                     jsr YM_WRITE
-000186r 2  B0 16                        bcs @fail
-000188r 2  A0 00                        ldy #0
-00018Ar 2  8A                           txa         ; YM_WRITE preserves X (YM register)
-00018Br 2                               ; Now skip over $28 and $30 by adding $10 to the register address.
-00018Br 2                               ; C guaranteed clear by successful ym_write
-00018Br 2  69 10                        adc #$10
-00018Dr 2  AA                           tax         ; set up for loop
-00018Er 2               @next:
-00018Er 2  8A                           txa
-00018Fr 2                               ; C guaranteed clear by successful YM_WRITE
-00018Fr 2  69 08                        adc #$08
-000191r 2  B0 0E                        bcs @success
-000193r 2  C8                           iny
-000194r 2  AA                           tax
-000195r 2  B1 B0                        lda (AZP0L),y
-000197r 2  5A                           phy         ; YM_WRITE clobbers .Y
-000198r 2  20 rr rr                     jsr YM_WRITE
-00019Br 2  7A                           ply
-00019Cr 2  90 F0                        bcc @next
-00019Er 2               @fail:
+000170r 2               YM_LOADPATCH:
+000170r 2                               ; Make re-entrant safe by protecting tmp and pointer variables from interrupt
+000170r 2  08                           php
+000171r 2  78                           sei
+000172r 2               
+000172r 2                               ; and #$07 ; mask channel to range 0..7
+000172r 2  86 B0                        stx AZP0L
+000174r 2  84 B1                        sty AZP0H
+000176r 2  18                           clc
+000177r 2  69 20                        adc #$20 ; first byte of patch goes to YM:$20+channel
+000179r 2  AA                           tax
+00017Ar 2               
+00017Ar 2  B2 B0                        lda (AZP0L)
+00017Cr 2  29 3F                        and #$3F
+00017Er 2               
+00017Er 2                               ;sta ymtmp1
+00017Er 2                               ;lda ymshadow,x
+00017Er 2                               ;and #$C0 ; L+R bits for YM channel
+00017Er 2                               ;ora ymtmp1 ; Add the patch byte without L+R
+00017Er 2  09 C0                        ora #$C0;
+000180r 2               
+000180r 2  20 rr rr                     jsr YM_WRITE
+000183r 2  B0 16                        bcs @fail
+000185r 2  A0 00                        ldy #0
+000187r 2  8A                           txa         ; YM_WRITE preserves X (YM register)
+000188r 2                               ; Now skip over $28 and $30 by adding $10 to the register address.
+000188r 2                               ; C guaranteed clear by successful ym_write
+000188r 2  69 10                        adc #$10
+00018Ar 2  AA                           tax         ; set up for loop
+00018Br 2               @next:
+00018Br 2  8A                           txa
+00018Cr 2                               ; C guaranteed clear by successful YM_WRITE
+00018Cr 2  69 08                        adc #$08
+00018Er 2  B0 0E                        bcs @success
+000190r 2  C8                           iny
+000191r 2  AA                           tax
+000192r 2  B1 B0                        lda (AZP0L),y
+000194r 2  5A                           phy         ; YM_WRITE clobbers .Y
+000195r 2  20 rr rr                     jsr YM_WRITE
+000198r 2  7A                           ply
+000199r 2  90 F0                        bcc @next
+00019Br 2               @fail:
+00019Br 2  28                           plp         ; restore interrupt flag
+00019Cr 2  38                           sec
+00019Dr 2  60                           rts         ; return C set as failed patch write.
+00019Er 2               @success:
 00019Er 2  28                           plp         ; restore interrupt flag
-00019Fr 2  38                           sec
-0001A0r 2  60                           rts         ; return C set as failed patch write.
-0001A1r 2               @success:
-0001A1r 2  28                           plp         ; restore interrupt flag
-0001A2r 2  18                           clc
-0001A3r 2  60                           rts
-0001A4r 2               
-0001A4r 2               ; YM_DELAY_64 - Delay subroutine for musical note lengths
-0001A4r 2               ; A: number of 64th-note delays to wait (a 64th note @120 BPM = ~ 111,861 clock cycles @ 3.57955 MHz)
-0001A4r 2               YM_DELAY_64:
-0001A4r 2  DA 5A                        PUSH_XY
-0001A6r 2  85 B2                        sta         YMTMP1
-0001A8r 2               
-0001A8r 2               @far_outer:
-0001A8r 2  A9 01                        lda         #1          ; 2 cycles
-0001AAr 2  A2 4B                        ldx         #75
-0001ACr 2  A0 8E                        ldy         #142
-0001AEr 2  80 04                        bra         @inner
-0001B0r 2               
-0001B0r 2               @outer:
-0001B0r 2  A2 00                        ldx         #0          ; 2 cycles
-0001B2r 2               
-0001B2r 2               @mid:
-0001B2r 2  A0 00                        ldy         #0          ; 2 cycles
-0001B4r 2               
-0001B4r 2               @inner:
-0001B4r 2  88                           dey                     ; 2 cycles
-0001B5r 2  D0 FD                        bne         @inner      ; 3 cycles when branching, 2 when not
-0001B7r 2  CA                           dex                     ; 2 cycles
-0001B8r 2  D0 F8                        bne         @mid        ; 3 cycles when branching, 2 when not
-0001BAr 2               
-0001BAr 2                               ; Fine-tuning at end of inner loop
-0001BAr 2  3A                           dec                     ; 2 cycles
-0001BBr 2  D0 F3                        bne         @outer      ; 3 cycles when branching, 2 when not
-0001BDr 2  C6 B2                        dec         YMTMP1      ; 3 cycles
-0001BFr 2  D0 E7                        bne         @far_outer  ; 3 cycles when branching, 2 when not
-0001C1r 2  7A FA                        PULL_YX
-0001C3r 2  60                           rts                     ; 6 cycles
-0001C4r 2               
-0001C4r 1               .include "os_main.s"
-0001C4r 2               .debuginfo
-0001C4r 2               
-0001C4r 2               .segment "BIOS_P0"
+00019Fr 2  18                           clc
+0001A0r 2  60                           rts
+0001A1r 2               
+0001A1r 2               ; YM_DELAY_64 - Delay subroutine for musical note lengths
+0001A1r 2               ; A: number of 64th-note delays to wait (a 64th note @120 BPM = ~ 111,861 clock cycles @ 3.57955 MHz)
+0001A1r 2               YM_DELAY_64:
+0001A1r 2  DA 5A                        PUSH_XY
+0001A3r 2  85 B2                        sta         YMTMP1
+0001A5r 2               
+0001A5r 2               @far_outer:
+0001A5r 2  A9 01                        lda         #1          ; 2 cycles
+0001A7r 2  A2 4B                        ldx         #75
+0001A9r 2  A0 8E                        ldy         #142
+0001ABr 2  80 04                        bra         @inner
+0001ADr 2               
+0001ADr 2               @outer:
+0001ADr 2  A2 00                        ldx         #0          ; 2 cycles
+0001AFr 2               
+0001AFr 2               @mid:
+0001AFr 2  A0 00                        ldy         #0          ; 2 cycles
+0001B1r 2               
+0001B1r 2               @inner:
+0001B1r 2  88                           dey                     ; 2 cycles
+0001B2r 2  D0 FD                        bne         @inner      ; 3 cycles when branching, 2 when not
+0001B4r 2  CA                           dex                     ; 2 cycles
+0001B5r 2  D0 F8                        bne         @mid        ; 3 cycles when branching, 2 when not
+0001B7r 2               
+0001B7r 2                               ; Fine-tuning at end of inner loop
+0001B7r 2  3A                           dec                     ; 2 cycles
+0001B8r 2  D0 F3                        bne         @outer      ; 3 cycles when branching, 2 when not
+0001BAr 2  C6 B2                        dec         YMTMP1      ; 3 cycles
+0001BCr 2  D0 E7                        bne         @far_outer  ; 3 cycles when branching, 2 when not
+0001BEr 2  7A FA                        PULL_YX
+0001C0r 2  60                           rts                     ; 6 cycles
+0001C1r 2               
+0001C1r 1               .include "os_main.s"
+0001C1r 2               .debuginfo
+0001C1r 2               
+0001C1r 2               .segment "BIOS_P0"
+000000r 2               ;
+000000r 2               ; usually ends up at $E000 (see os_rom_C02.cfg)
+000000r 2               ;
 000000r 2               RESET_VECTOR_START:
 000000r 2  A9 00                    lda     #0                    ; ZERO the W register
 000002r 2  8D F3 FF                 sta     W_REGISTER
@@ -8548,88 +7729,89 @@ Current file: all.s
 00000Br 2  85 01                    sta                 $01                                 ; Init ROM Bank selector
 00000Dr 2  A2 FF                    ldx                 #$FF                                ; Init stack pointer
 00000Fr 2  9A                       txs
-000010r 2                           ; MOV                 ZP_READ_PTR, ZP_WRITE_PTR           ; remove when tasks_init is used
-000010r 2               
-000010r 2  20 rr rr                 jsr                 IRQ_VECTOR_INIT
-000013r 2  20 rr rr                 jsr                 TASKS_INIT                          ; Must be called before SERIAL_INIT and MMU_INIT
-000016r 2                           ;jsr                 MMU_INIT
-000016r 2  20 rr rr                 jsr                 VIA_INIT
-000019r 2                           ;jsr                 SPI_INIT
-000019r 2  20 rr rr                 jsr                 SOUND_INIT
-00001Cr 2  20 rr rr                 jsr                 SERIAL_INIT
-00001Fr 2                           ;jsr                 SPI_TEST
-00001Fr 2                           ;jsr                 SOUND_TEST
-00001Fr 2  20 rr rr                 jsr                 DO_WELCOME
-000022r 2  4C rr rr                 jmp                 SHELL_MAIN
-000025r 2               
-000025r 2               DO_WELCOME:
-000025r 2  20 rr rr                 jsr                 CLEAR_SCR
-000028r 2  A9 rr A0 rr              _M_WRITE_HSTRING    HYDRA_WELCOME
-00002Cr 2  20 rr rr     
-00002Fr 2  20 rr rr                 PRINT_CRLF
-000032r 2  A2 00                    ldx     #0
-000034r 2               
-000034r 2               @vector_loop:
-000034r 2  8E F2 FF                 stx                 V_REGISTER
-000037r 2  DA                       phx
-000038r 2  AD F2 FF 20              PRINT_HEX           V_REGISTER
-00003Cr 2  rr rr        
-00003Er 2  A9 08 20 rr              PRINT_CHAR          #ASCII_BACKSPACE
-000042r 2  rr           
-000043r 2  AD F2 FF                 lda                 V_REGISTER
-000046r 2  20 rr rr                 PRINT_HEX
-000049r 2  A9 3A 20 rr              PRINT_CHAR          #ASCII_COLON
-00004Dr 2  rr           
-00004Er 2  AD FF FF 20              PRINT_BYTE          $FFFF
-000052r 2  rr rr        
-000054r 2  AD FE FF 20              PRINT_BYTE          $FFFE
-000058r 2  rr rr        
-00005Ar 2  A9 20 20 rr              PRINT_SPACE
-00005Er 2  rr           
-00005Fr 2  FA                       plx
-000060r 2  E8                       inx
-000061r 2  E0 10                    cpx                 #$10
-000063r 2  90 CF                    bcc                 @vector_loop
-000065r 2  4C rr rr                 PRINT_CRLF_JMP
-000068r 2               
-000068r 2               SPI_TEST:
-000068r 2  A2 00                    ldx                 #SPI_DEV_0
-00006Ar 2  20 rr rr                 jsr                 SPI_INIT_DELAY
-00006Dr 2  A9 40 20 rr              SPI_SEND_CMD        0, 0, 0, 0,   0, $4A                ; CMD0
-000071r 2  rr A9 00 20  
-000075r 2  rr rr 85 rr  
-000092r 2  A9 48 20 rr              SPI_SEND_CMD        8, 0, 0, 1, $AA, $43                ; CMD8
-000096r 2  rr A9 00 20  
-00009Ar 2  rr rr 85 rr  
-0000B7r 2               @loop:
-0000B7r 2  A9 7A 20 rr              SPI_SEND_CMD        58, 0, 0, 0,   0                    ; CMD58
-0000BBr 2  rr A9 00 20  
-0000BFr 2  rr rr 85 rr  
-0000DCr 2  A9 69 20 rr              SPI_SEND_CMD        41, $40, 0, 0,   0                  ; ACMD41
-0000E0r 2  rr A9 40 20  
-0000E4r 2  rr rr 85 rr  
-000101r 2  D0 B4                    bne                 @loop
-000103r 2  60                       rts
-000104r 2               
-000104r 2               ; A: S/W interrupt number
-000104r 2               SW_INT:
-000104r 2  0A                       asl                                                     ; move int# to V[4..7]
-000105r 2  0A                       asl
+000010r 2  A5 rr                    lda                 ZP_READ_PTR
+000012r 2  85 rr                    sta                 ZP_WRITE_PTR           ; remove when tasks_init is used
+000014r 2               
+000014r 2  20 rr rr                 jsr                 IRQ_VECTOR_INIT
+000017r 2                           ;jsr                 TASKS_INIT                          ; Must be called before SERIAL_INIT and MMU_INIT
+000017r 2                           ;jsr                 MMU_INIT
+000017r 2  20 rr rr                 jsr                 VIA_INIT
+00001Ar 2                           ;jsr                 SPI_INIT
+00001Ar 2  20 rr rr                 jsr                 SOUND_INIT
+00001Dr 2  20 rr rr                 jsr                 SERIAL_INIT
+000020r 2                           ;jsr                 SPI_TEST
+000020r 2                           ;jsr                 SOUND_TEST
+000020r 2  20 rr rr                 jsr                 DO_WELCOME
+000023r 2  4C rr rr                 jmp                 SHELL_MAIN
+000026r 2               
+000026r 2               DO_WELCOME:
+000026r 2  20 rr rr                 jsr                 CLEAR_SCR
+000029r 2  A9 rr A0 rr              _M_WRITE_HSTRING    HYDRA_WELCOME
+00002Dr 2  20 rr rr     
+000030r 2  20 rr rr                 PRINT_CRLF
+000033r 2  A2 00                    ldx     #0
+000035r 2               
+000035r 2               @vector_loop:
+000035r 2  8E F2 FF                 stx                 V_REGISTER
+000038r 2  DA                       phx
+000039r 2  AD F2 FF 20              PRINT_HEX           V_REGISTER
+00003Dr 2  rr rr        
+00003Fr 2  A9 08 20 rr              PRINT_CHAR          #ASCII_BACKSPACE
+000043r 2  rr           
+000044r 2  AD F2 FF                 lda                 V_REGISTER
+000047r 2  20 rr rr                 PRINT_HEX
+00004Ar 2  A9 3A 20 rr              PRINT_CHAR          #ASCII_COLON
+00004Er 2  rr           
+00004Fr 2  AD FF FF 20              PRINT_BYTE          $FFFF
+000053r 2  rr rr        
+000055r 2  AD FE FF 20              PRINT_BYTE          $FFFE
+000059r 2  rr rr        
+00005Br 2  A9 20 20 rr              PRINT_SPACE
+00005Fr 2  rr           
+000060r 2  FA                       plx
+000061r 2  E8                       inx
+000062r 2  E0 10                    cpx                 #$10
+000064r 2  90 CF                    bcc                 @vector_loop
+000066r 2  4C rr rr                 PRINT_CRLF_JMP
+000069r 2               
+000069r 2               SPI_TEST:
+000069r 2  A2 00                    ldx                 #SPI_DEV_0
+00006Br 2  20 rr rr                 jsr                 SPI_INIT_DELAY
+00006Er 2  A9 40 20 rr              SPI_SEND_CMD        0, 0, 0, 0,   0, $4A                ; CMD0
+000072r 2  rr A9 00 20  
+000076r 2  rr rr 85 rr  
+000093r 2  A9 48 20 rr              SPI_SEND_CMD        8, 0, 0, 1, $AA, $43                ; CMD8
+000097r 2  rr A9 00 20  
+00009Br 2  rr rr 85 rr  
+0000B8r 2               SPI_T_LOOP:
+0000B8r 2  A9 7A 20 rr              SPI_SEND_CMD        58, 0, 0, 0,   0                    ; CMD58
+0000BCr 2  rr A9 00 20  
+0000C0r 2  rr rr 85 rr  
+0000DDr 2  A9 69 20 rr              SPI_SEND_CMD        41, $40, 0, 0,   0                  ; ACMD41
+0000E1r 2  rr A9 40 20  
+0000E5r 2  rr rr 85 rr  
+000102r 2  D0 B4                    bne                 SPI_T_LOOP
+000104r 2  60                       rts
+000105r 2               
+000105r 2               ; A: S/W interrupt number
+000105r 2               SW_INT:
+000105r 2  0A                       asl                                                     ; move int# to V[4..7]
 000106r 2  0A                       asl
 000107r 2  0A                       asl
-000108r 2  09 0F                    ora                 #$F
-00010Ar 2  8D F2 FF                 sta                 V_REGISTER
-00010Dr 2  00                       brk                                                     ; force an interrupt
-00010Er 2  60                       rts
-00010Fr 2               
-00010Fr 2               .macro OTHER_PAGE_FILLER
-00010Fr 2                           lda     #0                                              ; zero out W register
-00010Fr 2                           sta     W_REGISTER
-00010Fr 2                           .res                $1FF2, $EA
-00010Fr 2                           jmp                 RESET_VECTOR_START
-00010Fr 2               .endmacro
-00010Fr 2               
-00010Fr 2               .segment "BIOS_P1"
+000108r 2  0A                       asl
+000109r 2  09 0F                    ora                 #$F
+00010Br 2  8D F2 FF                 sta                 V_REGISTER
+00010Er 2  00                       brk                                                     ; force an interrupt
+00010Fr 2  60                       rts
+000110r 2               
+000110r 2               .macro OTHER_PAGE_FILLER
+000110r 2                           lda     #0                                              ; zero out W register
+000110r 2                           sta     W_REGISTER
+000110r 2                           .res                $1FF2, $EA
+000110r 2                           jmp                 RESET_VECTOR_START
+000110r 2               .endmacro
+000110r 2               
+000110r 2               .segment "BIOS_P1"
 000000r 2  A9 00 8D F3              OTHER_PAGE_FILLER
 000004r 2  FF EA EA EA  
 000008r 2  EA EA EA EA  
