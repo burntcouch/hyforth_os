@@ -15,10 +15,6 @@ COPYTORAM:
 CTRSTART:
     WCRLF_np
     WCRLF_np
-;    lda #<ends
-;    sta TEMP0
-;    lda #>ends
-;    sta TEMP0+1
     stz supprint               ; let it print
     lda #>COPYMAIN
     sta mainoff+1
@@ -32,17 +28,14 @@ CTRSTART:
     ;
     lda #>RAMST
     sta ramstart+1
-    PRINT_BYTE
     lda #<RAMST
     sta ramstart
-    PRINT_BYTE
-    jsr MEMCPY
-    lda ramstart+1
-    PRINT_BYTE
-    lda ramstart
-    PRINT_BYTE
     WCRLF_np
     jsr MEMCPY
     rts
 ;;
-
+WHERESFT:
+    nop
+    bit ftrain_0 + INROM               ; see if is of use
+    nop
+;;

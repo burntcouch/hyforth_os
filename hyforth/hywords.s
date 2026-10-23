@@ -108,7 +108,7 @@ def_word "cells", "cells", 0
 
 ; ( -- 32)   - : bl lit [ 1 2* 2* 2* 2* 2* , ] ;
 def_word "spc", "spc", 0
-    lda #ASCII_SPACE
+    lda #$20
     sta TEMP1
     stz TEMP1+1
     jmp this
@@ -153,7 +153,7 @@ VCHEAD:
                                  ; code field comes with later proc
 VCLOOP:
     lda (NXTTOK), y
-    cmp #ASCII_SPACE                    ; copy in length and name
+    cmp #$20                   ; copy in length and name
     beq VCMID
 VCCOPY:
     sta (NEXTHEAP), y
@@ -234,7 +234,7 @@ def_word "cons", "cons", 0
     ldy #TEMP8
     jsr spull
 
-    jsr DUMPREG
+;    jsr DUMPREG
 
 CCHEAD:
 ; copy LASTHEAP into (NEXTHEAP)
@@ -245,7 +245,7 @@ CCHEAD:
                                  ; code field comes with later proc
 CCLOOP0:
     lda (NXTTOK), y
-    cmp #ASCII_SPACE
+    cmp #$20
     beq CCMID
 CCCOPY:
     sta (NEXTHEAP), y
@@ -848,7 +848,7 @@ CLOADMSG:
    .byte 0
 BLOADMSG:
    .byte "bload:"
-   .byte ASCII_CR, ASCII_LF, 0
+   .byte $0D, $0A, 0
 ;
 ; ( -- )     autoload a list of scripts
 def_word "autoload", "autoload", 0
@@ -863,32 +863,35 @@ def_word "autoload", "autoload", 0
 
 ; (a -- )       load a compile-able script from memory, zero term'd
 def_word "cload", "cload", 0
-    ;stz ALFLAG         ; clear autoload flag
+    ;stz ALFLAG        ; clear autoload flag
 CLOAD_IN:
     WSEQ_raw CLOADMSG
-    jsr spull_0  ; address from stack to TEMP1
+    jsr spull_0        ; address from stack to TEMP1
     ldy #0
-    lda #ASCII_SPACE
-    sta (TIB), y   ; put space at start
+    lda #$20
+    sta (TIB), y       ; put space at start
 CLOAD_LP:
     lda (TEMP1), y
     beq CLOAD_CONT     ; stops at first 0
-    PRINT_CHAR     ; echo char out so can see what's being pulled in
-    iny           ; yep, skip
+    jsr WRITE_CHAR     ; echo char out so can see what's being pulled in
+    iny                ; yep, skip
     sta (TIB), y
     bra CLOAD_LP
 CLOAD_CONT:
     iny
-    lda #ASCII_SPACE
-    sta (TIB),y     ; not sure but won't hurt to add a space
-    PRINT_CRLF
-    lda #ASCII_SPACE
+    lda #$20
+    sta (TIB),y        ; not sure but won't hurt to add a space
+    lda #$0D
+    jsr WRITE_CHAR
+    lda #$0A
+    jsr WRITE_CHAR     ; print CRLF
+    lda #$20
     phy
     ldy #0
     sta (TIB), y       ; start with space
     ply
-    sta (TIB), y        ; ends with space
-    lda #0            ; mark eol with 0
+    sta (TIB), y       ; ends with space
+    lda #0             ; mark eol with 0
     iny
     sta (TIB), y
     dey
@@ -1010,47 +1013,37 @@ BLTEND:
 ; ( -- )   ANSI clear screen
 .ifdef ANSIOK
 def_word "Acls", "Acls", 0
-    jsr CLEAR_SCR
+    jsr ANSICLS
     jmp next
 ;
 ; (c r -- )      ANSI screen position ESC[<r>;<c>f
 def_word "Ascr", "Ascr", 0
-    PRINT_ANSI_ESC_SEQ
+    jsr ANSIHDR
     jsr spull_0
     ldx TEMP1
-    jsr DEC2ASCII
-    lda TEMP3+1
-    cmp #ASCII_0
-    beq ASCRNXT1
-    PRINT_CHAR
-ASCRNXT1:
-    PRINT_CHAR TEMP3, #ASCII_SEMI
+    jsr DEC2ASCII         ; digits end up in TEMP3
+    jsr ANSIONEDIG         
+    lda #';'
+    jsr WRITE_CHAR
     jsr spull_0
     ldx TEMP1
-    jsr DEC2ASCII
-    lda TEMP3+1
-    cmp #ASCII_0
-    beq ASCRNXT2
-    PRINT_CHAR
-ASCRNXT2:
-    PRINT_CHAR TEMP3, #ASCII_f
+    jsr DEC2ASCII         ; digits end up in TEMP3
+    jsr ANSIONEDIG
+    lda #'f'
+    jsr WRITE_CHAR
     jmp next
 ;
 ; (c -- )      ANSI attributes ESC[<c>m
 def_word "Acol", "Acol", 0
-    PRINT_ANSI_ESC_SEQ
+    jsr ANSIHDR
     jsr spull_0
     ldx TEMP1
-    jsr DEC2ASCII
-    lda TEMP3+1
-    cmp #ASCII_0
-    beq ACOLNXT2
-    PRINT_CHAR
-ACOLNXT2:
-    PRINT_CHAR TEMP3, #ASCII_m
+    jsr DEC2ASCII         ; digits end up in TEMP3
+    jsr ANSIONEDIG
+    lda #'m'
+    jsr WRITE_CHAR    
     jmp next
 .endif   ; ANSIOK
-
 ;
 ;--------------------------RANDOM #'s
 ; ( s s -- )   random #

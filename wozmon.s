@@ -5,8 +5,11 @@
 .segment "BUFFERS"
 IN:
                 .res            $100
-
+;
 .segment "WOZMON"
+;
+; usually ends up at $FE00  (see os_rom_C02.cfg)
+;
 ; WOZMON Entrypoint
 MON_START:
                 cld                             ; Clear decimal arithmetic mode.
@@ -15,9 +18,9 @@ MON_START:
                 bra             @is_start
 
 @not_cr:
-                cmp             #ASCII_BACKSPACE
+                cmp             #$08            ; backspace
                 beq             @is_backspace
-                cmp             #ASCII_ESC
+                cmp             #$1B            ; escape
                 beq             @is_start
                 iny                             ; Advance text index.
                 bpl             @get_next_char  ; Auto ESC if line longer than 127.
@@ -37,7 +40,7 @@ MON_START:
                 jsr             READ_CHAR
                 bcc             @get_next_char
                 sta             IN,y            ; Add to text buffer.
-                cmp             #ASCII_CR
+                cmp             #$0D
                 bne             @not_cr
                 ldy             #$FF            ; Reset text index.  Will iny shortly...
                 lda             #$00            ; For ZP_WM_XAM mode.
@@ -57,28 +60,28 @@ MON_START:
 
 @next_item:
                 lda             IN,y            ; Get character.
-                cmp             #ASCII_CR       ; CR?
+                cmp             #$0D      ; CR?
                 beq             @get_line       ; Yes, done with this line.
-                cmp             #ASCII_PERIOD
+                cmp             #'.'
                 bcc             @skip_delim     ; Skip delimiter.
                 beq             @set_block      ; Set BLOCK ZP_WM_XAM mode.
-                cmp             #ASCII_COLON
+                cmp             #':'
                 beq             @set_store      ; Yes, set STOR mode.
-                cmp             #ASCII_M
+                cmp             #'M'
                 bpl             @check_rtow
-                cmp             #ASCII_K
+                cmp             #'K'
                 bmi             @not_tuvw
-                eor             #ASCII_K        ; 'K' resets DASTATE to 0
+                eor             #'K'        ; 'K' resets DASTATE to 0
                 sta             ZP_D_STATE
                 bra             @skip_delim
 
 @check_rtow:
-                cmp             #ASCII_R
+                cmp             #'R'
                 beq             @run_prog
                 bcc             @not_tuvw
-                cmp             #ASCII_X        ; R, S, T, U, V, or W
+                cmp             #'X'        ; R, S, T, U, V, or W
                 bcs             @not_tuvw
-                cmp             #ASCII_S
+                cmp             #'S'
                 bne             @not_spawn
                 lda             ZP_WM_XAM
                 ldy             ZP_WM_XAM + 1
@@ -87,7 +90,7 @@ MON_START:
 
 @not_spawn:
                 clc
-                adc             #($F0 - ASCII_T); T=FFF0, U=FFF1, V=FFF2, W=FFF3
+                adc             #($F0 - 'T'); T=FFF0, U=FFF1, V=FFF2, W=FFF3
                 sta             ZP_WM_HVP       ;
                 lda             #$FF            ;
                 sta             ZP_WM_HVP + 1   ;
@@ -104,7 +107,7 @@ MON_START:
 
 @next_hex:
                 lda             IN,y            ; Get character for hex test.
-                eor             #ASCII_0        ; Map digits to $0-9.
+                eor             #'0'            ; Map digits to $0-9.
                 cmp             #$0A            ; Digit?
                 bcc             @is_digit       ; Yes.
                 adc             #$88            ; Map letter "A"-"F" to $FA-FF.
@@ -144,8 +147,11 @@ MON_START:
                 bra             @next_item      ; Get next command item.
 
 @run_prog:
-                _M_JSRR         ZP_WM_XAM, MON_START
-
+                lda             #>(MON_START-1)   ; push Wozmon entry point on stack
+                pha                               
+                lda             #<(MON_START-1)
+                pha
+                jmp             (ZP_WM_XAM)       ; then jump to program
 @not_store:
                 bmi             @examine_next   ; B7 = 0 for XAM, 1 for BLOCK XAM.
                 ldx             #2              ; Byte count.
@@ -160,7 +166,7 @@ MON_START:
 @print_next_addr:
                 PRINT_CRLF
                 PRINT_BYTE      ZP_WM_XAM + 1, ZP_WM_XAM   ; Print 'examine index'
-                PRINT_CHAR      #ASCII_COLON    ; ...+ COLON
+                PRINT_CHAR      #':'                      ; ...+ COLON
 
 @print_data:
                 phy

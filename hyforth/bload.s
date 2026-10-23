@@ -16,7 +16,7 @@
 test00:
 .byte 6
 .byte "BLtest"
-     SKIPNEXT
+     .byte $22
      .byte 0
      PRINT_CRLF
      PRINT_CHAR #'T', #'E', #'S', #'T'
@@ -25,7 +25,7 @@ test00:
 .byte 0, 0
 .byte 7
 .byte "BLtest2"
-     SKIPNEXT
+     .byte $22
      .byte 0
      PRINT_CRLF
      PRINT_CHAR #'T', #'E', #'S', #'T', #'Y'

@@ -96,6 +96,7 @@ pick:                               ;        'THE SWITCHER' - COMPILED OR PRIMIT
 PRINTWSKIP:
 .endif
 ; .. use old-fashioned way AND new tricks
+;  ( otherwise known as THE SWITCH )
 ;
     lda WORKREG + 1                 ; compare pages (MSBs)
     cmp #>ends + 1                  ;  !! Compiled must be higher in memory than hardcoded !! (see below)
@@ -117,10 +118,17 @@ jump:                               ; EXECUTE                      ( PRIMITIVE )
     jmp (WORKREG)                   ; start running code at next word
                                     ;  JUMP [W]
 ;
+; other stuff we want in ROM
+;
+HYWELCOME:
+    .byte $0D, $0A
+    .byte "HyForth 0.912 10-22-2026"
+    .byte $0D, $0A, 0
+;
 ;------- used by 'autoload'
 ALOADTIB:
     ldy #0
-    lda #ASCII_SPACE
+    lda #$20
     sta (TIB),y
 ALOADLOOP:
     lda (TEMP7),y
@@ -384,23 +392,23 @@ TEXTGET:
     ldy #1                          ; skip len of first token
 TX2SKSPC:
     lda (NXTTOK),y
-    cmp #ASCII_SPACE                        ; skip leading spaces
+    cmp #$20                        ; skip leading spaces
     bne TX2SK00
     iny
     bra TX2SKSPC
 TX2SK00:
-    cmp #ASCII_q
+    cmp #'q'
     bne TX2NOGOOD
     iny
     lda (NXTTOK),y
-    cmp #ASCII_CARET
+    cmp #'^'
     bne TX2NOGOOD
     iny
     sty TEMP6                       ; temp6 stores pos of first char
 TX2SCAN:
     lda (NXTTOK),y                  ; find delimiting '^'
     iny
-    cmp #ASCII_CARET
+    cmp #'^'
     beq TX2FOUND
     tya
     clc
@@ -472,13 +480,13 @@ TX2END:
 ;-----------------------   NUMBER CONVERSIONS
 ;
 DEC2ASCII:       ;  X is # - return as two digits in TEMP3, TEMP3+1
-    lda #ASCII_0
+    lda #'0'
     sta TEMP3+1
     txa
     sta TEMP3
 D2ASCLOOP:
     sec
-    sbc #ASCII_LF
+    sbc #$0A
     bcc D2ASCNEXT
     inc TEMP3+1
     bra D2ASCLOOP
@@ -502,11 +510,11 @@ DIGCONVT:    ;  Y is index into NXTPTR, X is length
     lda #10
     sta DIGBASE
     lda (NXTTOK),y
-    cmp #ASCII_MINUS
+    cmp #'-'
     beq DIGCONV_MINUS
-    cmp #ASCII_DOLLAR
+    cmp #'$'
     beq DIGHEX1
-    cmp #ASCII_PERCENT
+    cmp #'%'
     beq DIGBIN1
     bra DIG_SNG
 DIGCONV_MINUS:
@@ -618,7 +626,7 @@ DIGCONV_ERR:
 GETDIG:                             ; y is index to next char in NXTTOK
     lda (NXTTOK),y
     sec
-    sbc #ASCII_0
+    sbc #'0'
     bcc GETDIG_ERR
     cmp #10
     bcc GETDIG_RTN
@@ -672,7 +680,7 @@ H2DSK0:
 H2DSK1:
     lda TEMP6
     clc
-    adc #ASCII_0
+    adc #'0'
     sta TEMP1
     stz TEMP1+1
     phx
@@ -684,12 +692,11 @@ H2DSK1:
 H2DFIN:
     lda TEMP3
     clc
-    adc #ASCII_0
+    adc #'0'
     sta TEMP1
     stz TEMP1+1
     jsr spush_0
     rts
-
 ;
 ;
 .endif    ; numbers
@@ -698,10 +705,6 @@ H2DFIN:
 ;  zero out $C8 - $FF, meet and greet
 ;  zero out INBUF also
 ;
-HYWELCOME:
-    .byte ASCII_CR, ASCII_LF
-    .byte "HyForth 0.91 05-07-2026"
-    .byte ASCII_CR, ASCII_LF, 0
 CLEAR:
     lda #1
     sta DFLAG                       ; debug OFF by default
@@ -746,7 +749,7 @@ DUMPTXT1:
         .byte 0
 DUMPMSG1:
         .byte "<spc> to continue, x for Wozmon, z for ZP, t for TIB, s for stacks"
-        .byte ASCII_CR, ASCII_LF, 0
+        .byte $0D, $0A, 0
 
 DUMPREG:            ; dump registers safely and print
     php                         ; -3
@@ -762,7 +765,7 @@ DPFCHECK:
 DUMPLP0:
     lda   DUMPTXT1, y
     beq   DUMPCON
-    PRINT_CHAR
+    jsr  WRITE_CHAR
     iny
     bra   DUMPLP0
 DUMPCON:
@@ -770,8 +773,9 @@ DUMPCON:
     txa
     clc
     adc   #6
-    PRINT_BYTE      ; print stack pointer b4 jump
-    PRINT_CHAR #ASCII_SLASH
+    jsr WRITE_BYTE      ; print stack pointer b4 jump
+    lda #'/'
+    jsr WRITE_CHAR 
     inx                         ; -5
     inx                         ; -4
     inx                         ; -3
@@ -780,10 +784,12 @@ DUMPCON:
     lda   $0100,x               ; get PC LSB
     tay
     inx                         ; 0
-    PRINT_BYTE {$0100,x}        ; get PC MSB
+    lda $0100,x
+    jsr WRITE_BYTE        ; get PC MSB
     tya
-    PRINT_BYTE
-    PRINT_CHAR #ASCII_SLASH
+    jsr WRITE_BYTE
+    lda #'/'
+    jsr WRITE_CHAR 
         ;   whew
         ;
     dex                         ; -1
@@ -794,53 +800,58 @@ DUMPLP2:
     rol
     pha
     bcc   DUMPSKx               ; NV-BDIZC
-    lda   #ASCII_1
+    lda   #'1'
     bra   DUMPSKy
 DUMPSKx:
-    lda   #ASCII_0
+    lda   #'0'
 DUMPSKy:
-    PRINT_CHAR                  ; print y-th bit
+    jsr WRITE_CHAR                  ; print y-th bit
     pla
     dey
     bne   DUMPLP2
-    PRINT_CHAR #ASCII_SLASH
+    lda #'/'
+    jsr WRITE_CHAR
     dex                         ; -3
-    PRINT_BYTE {$0100,x}        ; print A
-    PRINT_CHAR #ASCII_SLASH
+    lda $0100,x
+    jsr WRITE_BYTE       ; print A
+    lda #'/'
+    jsr WRITE_CHAR 
     dex                         ; -4
-    lda   $0100,x
-    PRINT_BYTE                  ; print X
-    PRINT_CHAR #ASCII_SLASH
+    lda $0100,x
+    jsr WRITE_BYTE                  ; print X
+    lda #'/'
+    jsr WRITE_CHAR 
     dex                         ; -5
-    PRINT_BYTE {$0100,x}        ; print Y
+    lda $0100,x
+    jsr WRITE_BYTE       ; print Y
     WCRLF_np
     ldy   #0
 DUMPLP1:                        ; print message
     lda   DUMPMSG1, y
     beq   DREGLP1
-    PRINT_CHAR
+    jsr   WRITE_CHAR
     iny
     bra   DUMPLP1
 DREGLP1:
     jsr   READ_CHAR             ; wait for a key
     bcc   DREGLP1
-    cmp   #ASCII_s              ; print out stacks?
+    cmp   #'s'              ; print out stacks?
     bne   DREGSK3
     jsr   DUMPSTACK
 DREGSK3:
-    cmp   #ASCII_z              ; print out zp?
+    cmp   #'z'              ; print out zp?
     bne  DREGSK5
     jsr  DUMPZP
 DREGSK5:
-    cmp   #ASCII_t              ; print out INBUF?
+    cmp   #'t'              ; print out INBUF?
     bne  DREGSK4
     jsr  DUMPTIB
 DREGSK4:
-    cmp   #ASCII_x
+    cmp   #'x'
     bne   DREGELSE
     jsr   $FE00                 ; go to Wozmon if necc
 DREGELSE:
-    cmp   #ASCII_CR                 ; continue on enter
+    cmp   #$0D                 ; continue on enter
     beq   DREGNXT
     jmp   DPFCHECK              ; otherwise print eveything again
 DREGNXT:
@@ -880,21 +891,24 @@ DUMPPDBG:
     sty TEMP0
 DUMPLOOP:
     lda TEMP0+1
-    PRINT_BYTE
+    jsr WRITE_BYTE
     tya
-    PRINT_BYTE
-    PRINT_CHAR #ASCII_COLON
+    jsr WRITE_BYTE
+    lda #':'
+    jsr WRITE_CHAR 
 DPLOOP2:
     lda (TEMP0), y
-    PRINT_BYTE
-    PRINT_SPACE
+    jsr WRITE_BYTE
+    lda #$20
+    jsr WRITE_CHAR              ; print space between columns
     iny
     tya
     and #$0F                    ; 00001111
     beq  DPSKIP
     bra  DPLOOP2
 DPSKIP:
-    PRINT_SPACE
+    lda #$20
+    jsr WRITE_CHAR
     phy
     tya
     sec
@@ -902,14 +916,15 @@ DPSKIP:
     tay
 DPPLOOP:
     lda (TEMP0), y              ; printable ascii
-    cmp #ASCII_SPACE
+    cmp #$20
     bcc PPERIOD
     cmp #$7F
     bcs PPERIOD
-    PRINT_CHAR
+    jsr WRITE_CHAR
     bra DPPSKIP
 PPERIOD:
-    PRINT_CHAR #ASCII_PERIOD
+    lda #'.'
+    jsr WRITE_CHAR
 DPPSKIP:
     iny
     tya
@@ -946,7 +961,7 @@ COPYLOOP:
 SKIP1:
     lda supprint
     bne SKIP01
-    PRINT_CHAR #ASCII_PERIOD
+    PRINT_CHAR #'.'
 SKIP01:
     inc mainoff
     bne SKIP2
@@ -959,5 +974,61 @@ SKIP3:
     bra COPYLOOP
 CPRTS:
     rts
+;
+;  ANSI CLS, cursor reposition, and color change
+;
+ANSIHDR:
+    lda #27
+    jsr WRITE_CHAR
+    lda #91
+    jsr WRITE_CHAR
+    rts
+
+ANSIONEDIG:   ;two ASCII digits in TEMP3
+    lda TEMP3 + 1
+    cmp #$30
+    beq ansi_scr_00
+    jsr WRITE_CHAR
+ansi_scr_00:
+    lda TEMP3
+    jsr WRITE_CHAR
+    rts
+
+ANSICLS:
+    jsr ANSIHDR
+    lda #'2'    
+    jsr WRITE_CHAR
+    lda #'J'    
+    jsr WRITE_CHAR
+    rts    
+    
+ANSISCR:      ; .... and another two in TEMP4
+    jsr ANSIHDR
+    jsr ANSIONEDIG
+    lda #';'
+    jsr WRITE_CHAR
+    lda TEMP4 + 1
+    cmp #$30
+    beq ansi_scr_01
+    jsr WRITE_CHAR
+ansi_scr_01:
+    lda TEMP4
+    jsr WRITE_CHAR
+    lda #'f'    
+    jsr WRITE_CHAR
+    rts
+    
+ANSICOL:
+    jsr ANSIHDR
+    jsr ANSIONEDIG
+    lda #'m'    
+    jsr WRITE_CHAR
+    rts
+        
+;
+;
+   .include "hyf_edit.s"
+HFE_EDIT_END:
+;
 ; ---------------- end of upper.s
 ;

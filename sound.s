@@ -323,7 +323,8 @@ YM_LOADPATCH:
 ; YM_DELAY_64 - Delay subroutine for musical note lengths
 ; A: number of 64th-note delays to wait (a 64th note @120 BPM = ~ 111,861 clock cycles @ 3.57955 MHz)
 YM_DELAY_64:
-                PUSH_XY
+                phx
+                phy
                 sta         YMTMP1
 
 @far_outer:
@@ -349,5 +350,6 @@ YM_DELAY_64:
                 bne         @outer      ; 3 cycles when branching, 2 when not
                 dec         YMTMP1      ; 3 cycles
                 bne         @far_outer  ; 3 cycles when branching, 2 when not
-                PULL_YX
+                ply
+                plx
                 rts                     ; 6 cycles
