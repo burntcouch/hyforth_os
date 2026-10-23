@@ -1,5 +1,4 @@
 .debuginfo
-.macpack        cpu
 .setcpu     "65C02"
 
 .include "defines.s"
@@ -8,7 +7,7 @@
                                            ; I want these HERE so I can easily change the banner to reflect the
                                            ; latest version.
 .segment "BIOS"
-NamedHString HYDRA_WELCOME, "HYDRA-16 v1.8Da.01"          ; 10/15/26 <- update the date!
+NamedHString HYDRA_WELCOME, "HYDRA-16 v1.8Da.02"          ; 10/22/26 <- update the date!
 
 .include "bios.s"
 .include "thunks.s"

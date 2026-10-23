@@ -7,11 +7,6 @@ ERR_SUCCESS         = $00
 ERR_NOT_SYSTEM_TASK = $01
 ERR_OUT_OF_MEMORY   = $02
 
-ERR_MATH_INVD       = $31       ; invalid digit
-ERR_MATH_INVB       = $32       ; invalid base
-ERR_MATH_OVF        = $33       ; overflow
-ERR_MATH_UNF        = $34       ; underflow
-
 RESET_ENTRY     = $E000
 
 IO_PORT_BASE    = $FF00
@@ -69,7 +64,9 @@ SWT_SELECT_H    = SWT / 256
 .struct IO_Port_10_Bytes
     Bytes       .byte 10
 .endstruct
-
+;
+;  *** convenience stuff ***
+;
 .macro HString Str
     .byte       .strlen(Str), Str
 .endmacro
@@ -78,21 +75,9 @@ SWT_SELECT_H    = SWT / 256
 Name:
     HString Str
 .endmacro
-
-;.struct SerialInfo
-;    .byte   IOPort_IRQ
-;    .byte   Read_Ptr_L
-;    .byte   Read_Ptr_H
-;    .byte   Write_Ptr_L
-;    .byte   Write_Ptr_H
-;.endstruct
-
-;.macro SERIAL_INFO port, irq, task, buff_addr
-;.endmacro
-
-;.macro Serial_Buffer_Advance info
-;.endmacro
-
+;
+;
+;
 .define IO_PORT_BYTE(port, byte)    port + IO_Port::Bytes + byte
 
 VIA1            = IO_PORT_0
@@ -234,90 +219,6 @@ ASCII_BACKSPACE = $08
 ASCII_LF        = $0A
 ASCII_CR        = $0D
 ASCII_ESC       = $1B
-ASCII_SPACE     = ' '
-ASCII_BANG      = '!'
-ASCII_DQUOTE    = '"'
-ASCII_SQUOTE    = '''
-ASCII_HASH      = '#'
-ASCII_DOLLAR    = '$'
-ASCII_PERCENT   = '%'
-ASCII_CARET     = '^'
-ASCII_AMP       = '&'
-ASCII_SQOUTE    = '''
-ASCII_LPAREN    = '('
-ASCII_RPAREN    = ')'
-ASCII_STAR      = '*'
-ASCII_PLUS      = '+'
-ASCII_COMMA     = ','
-ASCII_MINUS     = '-'
-ASCII_DASH      = ASCII_MINUS
-ASCII_HYPHEN    = ASCII_MINUS
-ASCII_PERIOD    = '.'
-ASCII_DOT       = ASCII_PERIOD
-ASCII_SLASH     = '/'
-ASCII_0         = '0'
-ASCII_1         = '1'
-ASCII_2         = '2'
-ASCII_3         = '3'
-ASCII_4         = '4'
-ASCII_5         = '5'
-ASCII_6         = '6'
-ASCII_7         = '7'
-ASCII_8         = '8'
-ASCII_9         = '9'
-ASCII_COLON     = ':'
-ASCII_SEMI      = ':'
-ASCII_LT        = '<'
-ASCII_EQ        = '='
-ASCII_GT        = '>'
-ASCII_QUESTION  = '?'
-ASCII_A         = 'A'
-ASCII_B         = 'B'
-ASCII_C         = 'C'
-ASCII_D         = 'D'
-ASCII_E         = 'E'
-ASCII_F         = 'F'
-ASCII_G         = 'G'
-ASCII_H         = 'H'
-ASCII_I         = 'I'
-ASCII_J         = 'J'
-ASCII_K         = 'K'
-ASCII_L         = 'L'
-ASCII_M         = 'M'
-ASCII_N         = 'N'
-ASCII_O         = 'O'
-ASCII_P         = 'P'
-ASCII_Q         = 'Q'
-ASCII_R         = 'R'
-ASCII_S         = 'S'
-ASCII_T         = 'T'
-ASCII_U         = 'U'
-ASCII_V         = 'V'
-ASCII_W         = 'W'
-ASCII_X         = 'X'
-ASCII_Y         = 'Y'
-ASCII_Z         = 'Z'
-ASCII_a         = 'a'
-ASCII_f         = 'f'
-ASCII_m         = 'm'
-ASCII_q         = 'q'
-ASCII_s         = 's'
-ASCII_t         = 't'
-ASCII_x         = 'x'
-ASCII_z         = 'z'
-ASCII_PIPE      = '|'
-ASCII_LBRACKET  = '['
-ASCII_BACKSLASH = '\'
-ASCII_RBRACKET  = ']'
-ASCII_LBRACE    = '{'
-ASCII_RBRACE    = '}'
-
-ASCII_LETTER_OFFSET = ASCII_A-ASCII_0-10
-
-; FORTH Defines
-
-F_CELL          := 2
-
 
 ; write a byte in A to the IO PORT
 .macro IO_PORT_WRITE    port, byte, imm
@@ -339,281 +240,10 @@ F_CELL          := 2
                 lda     IO_PORT_BYTE port, byte
 .endif
 .endmacro
-
-.macro PUSH_AX
-                pha
-                phx
-.endmacro
-
-.macro  PULL_XA
-                plx
-                pla
-.endmacro
-
-.macro PUSH_AY
-                pha
-                phy
-.endmacro
-
-.macro  PULL_YA
-                ply
-                pla
-.endmacro
-
-.macro PUSH_XY
-                phx
-                phy
-.endmacro
-
-.macro  PULL_YX
-                ply
-                plx
-.endmacro
-
-.macro PUSH_AXY
-                pha
-                phx
-                phy
-.endmacro
-
-.macro  PULL_YXA
-                ply
-                plx
-                pla
-.endmacro
-
-; convenience macros
-
-; MOV
-; Modifies: A
-.macro MOV              addr1, addr2
-                lda     addr1
-                sta     addr2
-.endmacro
-
-.macro MOVA             addr1, addr2
-                MOV     addr1, addr2
-.endmacro
-
-.macro MOVX             addr1, addr2
-                ldx     addr1
-                stx     addr2
-.endmacro
-
-.macro MOVY             addr1, addr2
-                ldy     addr1
-                sty     addr2
-.endmacro
-
-.macro MOV16            addr1, addr2
-                MOV     addr1, addr2
-                MOV     addr1 + 1, addr2 + 1
-.endmacro
-
-.macro MOVA16           addr1, addr2
-                MOV16   addr1, addr2
-.endmacro
-
-.macro MOVX16           addr1, addr2
-                MOVX    addr1, addr2
-                MOVX    addr1 + 1, addr2 + 1
-.endmacro
-
-.macro MOVY16           addr1, addr2
-                MOVY    addr1, addr2
-                MOVY    addr1 + 1, addr2 + 1
-.endmacro
-
-.macro MOVAX            addr1, addr2
-                lda     addr1,X
-                sta     addr2,X
-.endmacro
-
-.macro MOVAY            addr1, addr2
-                lda     addr1,Y
-                sta     addr2,Y
-.endmacro
-
-.macro MOVAX16          addr1, addr2
-                MOVAX   addr1, addr2
-                inx
-                MOVAX   addr1, addr2
-.endmacro
-
-.macro MOVAY16          addr1, addr2
-                MOVAY   addr1, addr2
-                iny
-                MOVAY   addr1, addr2
-.endmacro
-
-; X: # of bytes to move
-; Clobbers A
-.macro BLKMOVX          addr1, addr2
-                phy
-                txa
-                tay
-:
-                dey
-                lda     addr1,Y
-                sta     addr2,Y
-                bne     :-
-                ply
-.endmacro
-
-; Y: # of bytes to move
-; Clobbers A, Y
-.macro BLKMOVY          addr1, addr2
-:
-                dey
-                lda     addr1,Y
-                sta     addr2,Y
-                bne     :-
-.endmacro
-
-.macro  _M_ADDTO        addr
-                adc     addr
-                sta     addr
-.endmacro
-
-; _M_INCC: inc and set C/V if rollover.  Clobbers .A, C
-.macro  _M_INCC    addr
-                sec
-                lda     #0
-                _M_ADDTO    {addr}
-.endmacro
-
-.macro  _M_INCC16       addr
-                inc     addr
-                bne     :+
-                _M_INCC     addr + 1
-                bra     :++
-:
-                lda     addr + 1
-                ora     #1
-:
-.endmacro
-
-.macro  _M_INCC32       addr
-                inc     addr
-                bne     :+
-                inc     addr+1
-                bne     :+
-                _M_INCC16   addr+2
-.endmacro
-
-.macro  INC16           addr
-                inc     addr
-                bne     :+
-                inc     addr + 1
-                bra     :++
-:
-                lda     addr + 1
-                ora     #1
-:
-.endmacro
-
-.macro  INC32           addr
-                inc     addr
-                bne     :+
-                inc     addr+1
-                bne     :+
-                INC16   addr+2
-.endmacro
-
-.macro  DEC16           addr
-                lda     addr
-                bne     :+
-                dec     addr
-                dec     addr+1
-                bra     :+++
-:
-                dec     addr
-                bne     :+
-                lda     addr+1      ; LOB is zero, so use Z and N from HOB
-                bra     :++
-:
-                lda     addr+1
-                ora     #1          ; reset Z, if set, without affecting N
-:
-.endmacro
-
-.macro  DEC32           addr
-                lda     addr
-                bne     :+++
-                cmp     addr+1
-                bne     :++
-                cmp     addr+2
-                bne     :+
-                dec     addr+3
-:
-                dec     addr+2
-:
-                dec     addr+1
-:
-                dec     addr
-
-.endmacro
-
-; No-clobber (NC) macros to wrap another macro that overwrites one or more registers
-.macro  NC_A            MAC, p1, p2
-                pha
-                MAC     p1, p2
-                pla
-.endmacro
-
-.macro  NC_X            MAC, p1, p2
-                phx
-                MAC     p1, p2
-                plx
-.endmacro
-
-.macro  NC_Y            MAC, p1, p2
-                phy
-                MAC     p1, p2
-                ply
-.endmacro
-
-.macro  NC_AX           MAC, p1, p2
-                PUSH_AX
-                MAC     p1, p2
-                PULL_XA
-.endmacro
-
-.macro  NC_AY           MAC, p1, p2
-                PUSH_AY
-                MAC     p1, p2
-                PULL_YA
-.endmacro
-
-.macro  NC_XY           MAC, p1, p2
-                PUSH_XY
-                MAC     p1, p2
-                PULL_YX
-.endmacro
-
-.macro  NC_AXY          MAC, p1, p2
-                PUSH_AXY
-                MAC     p1, p2
-                PULL_YXA
-.endmacro
-
-.macro  DEC16_NC_A      addr
-                NC_A    DEC16, addr
-.endmacro
-
-.macro SWAP_AX
-                pha
-                txa
-                plx
-.endmacro
-
-.macro SWAP_AY
-                pha
-                tya
-                ply
-.endmacro
-
+;
+;
 ; SPI
+;
 .macro SPI_SEND_CMD b0, b1, b2, b3, b4, crc
                 lda             #b0 | $40
                 jsr             SPI_SEND
@@ -635,8 +265,11 @@ F_CELL          := 2
                 jsr             SPI_RECV
                 sta             ZP_TEMP
 .endmacro
-
+;
+;
 ; PRINT HELPERS
+;  --- begin macro madness
+;
 .define LOADA(arg)      lda arg
 
 .macro  LDA_CORA    CharOrAddr
@@ -678,23 +311,23 @@ F_CELL          := 2
 .endmacro
 
 .macro  PRINT_SPACE
-                PRINT_CHAR      #ASCII_SPACE
+                PRINT_CHAR      #$20
 .endmacro
 
 .macro  PRINT_ESC_SEQ   C1, C2, C3, C4, C5, C6, C7, C8
-                PRINT_CHAR      #ASCII_ESC, {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}, {C8}
+                PRINT_CHAR      #$1B, {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}, {C8}
 .endmacro
 
 .macro  PRINT_ESC_SEQ_JMP   C1, C2, C3, C4, C5, C6, C7, C8
-                PRINT_CHAR_JMP  #ASCII_ESC, {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}, {C8}
+                PRINT_CHAR_JMP  #$1B, {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}, {C8}
 .endmacro
 
 .macro  PRINT_ANSI_ESC_SEQ   C1, C2, C3, C4, C5, C6, C7
-                PRINT_CHAR      #ASCII_ESC, #ASCII_LBRACKET, {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}
+                PRINT_CHAR      #$1B, #'[', {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}
 .endmacro
 
 .macro  PRINT_ANSI_ESC_SEQ_JMP   C1, C2, C3, C4, C5, C6, C7
-                PRINT_CHAR_JMP  #ASCII_ESC, #ASCII_LBRACKET, {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}
+                PRINT_CHAR_JMP  #$1B, #'[', {C1}, {C2}, {C3}, {C4}, {C5}, {C6}, {C7}
 .endmacro
 
 .macro  PRINT_BYTE      C1, C2, C3, C4, C5, C6, C7, C8, C9
@@ -725,69 +358,6 @@ F_CELL          := 2
                 jmp             WRITE_CRLF
 .endmacro
 
-.macro  _M_WRITE_HSTRING        addr
-                lda             #<addr
-                ldy             #>addr
-                jsr             WRITE_HSTRING
-.endmacro
-
-; JSR using JMP
-.macro  _M_JSRR                 addrTo, addrFrom
-                lda             #>(addrFrom-1)
-                pha
-                lda             #<(addrFrom-1)
-                pha
-                jmp             (addrTo)
-.endmacro
-
-.macro _M_JSRR_NC_A             addrFrom, addrTo
-                NC_A            _M_JSRR, {addrFrom}, {addrTo}
-.endmacro
-
-.macro SL_N     n
-    .if     n > 0
-                asl
-                SL_N    n-1
-    .endif
-.endmacro
-
-.macro SR_N     n
-    .if     n > 0
-                lsr
-                SR_N    n-1
-    .endif
-.endmacro
-
-; save a byte on branching, when small in necessary
-.macro SKIPNEXT
-                .byte   $22     ; Undocumented 2-byte NOP, 2 cycles; uses 1 byte to skip the next byte
-.endmacro
-
-.macro SKIPNEXT2
-                .byte   $DC     ; Undocumented 3-byte NOP, 4 cycles, reads absolute address IP+1, IP+2; uses 1 byte to skip two bytes
-.endmacro
-
-.macro BYTECOPY fm, to
-                lda         fm
-                sta         to
-.endmacro
-
-.macro WORDCOPY fm, to
-                BYTECOPY    {fm + 1}, {to + 1}
-                BYTECOPY    {fm}, {to}
-.endmacro
-
-.macro LOAD_ADDR    addr, to
-                BYTECOPY    {#>addr}, {to + 1}
-                BYTECOPY    {#<addr}, {to}
-.endmacro
-
-.macro MEMCP    addrFrom, addrTo, size
-                PUSH_AY
-                LOAD_ADDR   {addrFrom}, ZP_TEMP_VEC
-                LOAD_ADDR   {addrTo}, ZP_TEMP_VEC2
-                lda         #<size
-                ldy         #>size
-                jsr         MEM_COPY
-                PULL_YA
-.endmacro
+;
+;  end of defines.s
+;

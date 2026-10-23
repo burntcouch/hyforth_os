@@ -204,7 +204,10 @@ DISASM_LOOP:
     cmp         #7                          ; BBR, BBS, RMB, SMB
     bne         @ex_space
     txa
-    SR_N        4
+    lsr
+    lsr
+    lsr
+    lsr
     and         #7
     PRINT_HEX
     bra         @skip_ex_space              ; skip one space
@@ -219,7 +222,7 @@ DISASM_LOOP:
     bcc         @not_indirect
     cpx         #AM_ABS                     ; but not absolute
     beq         @not_indirect
-    PRINT_CHAR  #ASCII_LPAREN
+    PRINT_CHAR  #'('
 
 @not_indirect:
     cpx         #AM_IMM
@@ -234,12 +237,14 @@ DISASM_LOOP:
     txa
     lsr                                     ; shift LOb to C
     bcs         @not_zprel                  ; AM_REL = 1, AM_ZPREL = 2, so skip ZP part if LOb is 1
-    PRINT_CHAR  #ASCII_COMMA
+    PRINT_CHAR  #','
     PRINT_SPACE
     jsr         _disasm_zeropage
 
 @not_zprel:
-    _M_WRITE_HSTRING HS_RelPrefix
+    lda             #<HS_RelPrefix
+    ldy             #>HS_RelPrefix
+    jsr             WRITE_HSTRING
     clc
     ldy         ZP_D_EXBYTES
     stz         ZP_TEMP
@@ -272,7 +277,7 @@ DISASM_LOOP:
     beq         @end_of_print
     cpx         #AM_ZPIY
     bne         @not_zpiy
-    PRINT_CHAR   #ASCII_RPAREN
+    PRINT_CHAR   #')'
 
 @not_zpiy:
     bbr2        ZP_D_MODE, @not_indexed     ; indexed?
@@ -286,7 +291,7 @@ DISASM_LOOP:
     bmi         @end_of_print
     cpx         #AM_ABS
     bcs         @end_of_print               ; AM_ABS or AM_ZPIY?  Skip trailing RPAREN
-    PRINT_CHAR  #ASCII_RPAREN
+    PRINT_CHAR  #')'
 
 @end_of_print:
     dec         ZP_D_ICOUNT
@@ -315,7 +320,10 @@ _disasm_load_inst:
     tax
     lda         MN_AMODE_EVEN, x
     bcc         @no_shift
-    SR_N        4
+    lsr
+    lsr
+    lsr
+    lsr
 
 @no_shift:
     and         #$0F
@@ -400,8 +408,8 @@ _disasm_print_padding:
 
 ; Carry: 1 = Y, Carry: 0 = X
 _disasm_commaXY:
-    PRINT_CHAR  #ASCII_COMMA
-    lda         #ASCII_X
+    PRINT_CHAR  #','
+    lda         #'X'
     bcc         :+
     inc
 
@@ -415,12 +423,12 @@ _disasm_absolute:
     bra         _disasm_zp_byte
 
 _disasm_immediate:
-    PRINT_CHAR  #ASCII_HASH
+    PRINT_CHAR  #'#'
     ; fall through
 
 _disasm_zeropage:
     iny
-    PRINT_CHAR  #ASCII_DOLLAR
+    PRINT_CHAR  #'$'
 
 _disasm_zp_byte:
     PRINT_BYTE_JMP  {ZP_D_INST, y}

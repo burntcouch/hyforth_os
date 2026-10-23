@@ -49,47 +49,53 @@ makelabel "", label
 ;  macros for PGS stuff
 ;
 .macro WCRLF_np                ; no push of A
-    PRINT_CRLF
+       lda #$0D
+       jsr WRITE_CHAR
+       lda #$0A
+       jsr WRITE_CHAR
 .endmacro
 
 .macro WCRLF
-    pha
-    WCRLF_np
-    pla
+       pha
+       lda #$0D
+       jsr WRITE_CHAR
+       lda #$0A
+       jsr WRITE_CHAR
+       pla
 .endmacro
 
 .macro  WSEQ_np  strlbl
-    phy
-    ldy #0
+     phy
+     ldy #0
 :
-    lda strlbl, y
-    beq :+
-    iny
-    PRINT_CHAR
-    bra :-
+     lda strlbl, y
+     beq :+
+     iny
+     jsr WRITE_CHAR
+     bra :-
 :
-    WCRLF_np
-    ply
+     WCRLF_np
+     ply
 .endmacro
 
 
 .macro  WSEQ_raw  strlbl
-    phy
-    ldy #0
+     phy
+     ldy #0
 :
-    lda strlbl, y
-    beq :+
-    iny
-    PRINT_CHAR
-    bra :-
+     lda strlbl, y
+     beq :+
+     iny
+     jsr WRITE_CHAR
+     bra :-
 :
-    ply
+     ply
 .endmacro
 
 .macro WSEQ  strlbl
-    pha
-    WSEQ_np  strlbl
-    pla
+      pha
+      WSEQ_np  strlbl
+      pla
 .endmacro
 
 ;
@@ -100,11 +106,37 @@ makelabel "", label
 ; H for 'home'
 ; <cc>[ABCD] screen moves
 ;
-.macro ANSI b1,b2,b3,b4,b5,b6,b7
-    pha
-    PRINT_ANSI_ESC_SEQ b1, b2, b3, b4, b5, b6, b7
-    pla
+.macro ANSI b1,b2,b3,b4,b5,b6
+      pha
+      lda #27
+      jsr WRITE_CHAR
+      lda #91
+      jsr WRITE_CHAR
+      lda #b1
+      jsr WRITE_CHAR
+.ifnblank b2
+      lda #b2
+      jsr WRITE_CHAR
+.ifnblank b3
+      lda #b3
+      jsr WRITE_CHAR
+.ifnblank b4
+      lda #b4
+      jsr WRITE_CHAR
+.ifnblank b5
+      lda #b5
+      jsr WRITE_CHAR
+.ifnblank b6
+      lda #b6
+      jsr WRITE_CHAR
+.endif 
+.endif 
+.endif
+.endif
+.endif
+      pla
 .endmacro
+
 
 ;---------------------------------------------------------------------
 ;  for error messages
@@ -130,7 +162,7 @@ werrloop:
     lda (TEMP0),y
     beq werrend
     iny
-    PRINT_CHAR
+    jsr WRITE_CHAR
     bra werrloop
 werrend:
     WCRLF_np
@@ -210,6 +242,7 @@ MEMTOP = $8000            ; malloc allocates DOWN from MEMTOP
 ;
 ;   types:  <type> <len0 len1> <data data data...>
 ;
+MEM_SCR = $01  ; screen  (1024 bytes, with 63 char rows terminated either $09 or $00
 MEM_SZ = $04   ; zero-termed string
 MEM_FRAC = $06 ; 'fractional binary' <type> <03 00> <offset> <xxxx>
 MEM_TAB = $07  ; table
@@ -318,7 +351,7 @@ TEMP5:   .res 1        ;    WORDS, WFIND                       $FC
 TEMP6:   .res 1        ;    WORDS, DIGCONT, TEXTGET            $FD
 TEMP7:   .res 2        ;    AUTOLOAD                           $FE
 ;
-; *** $DO-$FF total usage in ZP, including TEMP vars ***
+; *** $C8-$FF total usage in ZP, including TEMP vars ***
 ;
 ;   HYDRA-16 serial/read buffers at $200 and $300 so skip those
 ;
@@ -348,7 +381,6 @@ MEMSTK:                      ; memory manager
 forth_main:
     jmp cold
     jmp COPYTORAM
-
 HYPROMPT:
     .byte $0D, $0A
     .byte "HF>"
@@ -372,15 +404,13 @@ cold:
 
 warm:
 ; linked list of headers
-   ; lda #>h_exit               ; initialize HEAP pointers
+                                ; initialize HEAP pointers
     lda INROM+3                 ; standard 'heap' now sitting in ROM
     sta LASTHEAP + 1            ; and 'switcher' ('exit') code handles
-   ; lda #<h_exit               ; the rest.
+                                ; the rest.
     lda INROM+4
     sta LASTHEAP
-
-; next heap free cell
-;    lda #>ends + 1
+                                ; next heap free cell
     lda INROM+5                 ; ends stored here in ROM also
     inc a
     sta NEXTHEAP + 1
@@ -450,7 +480,7 @@ resolve:           ; get a token
     bne RVPSKIP
     WCRLF_np
     lda #'P'
-    PRINT_CHAR            ; DEBUG
+    jsr WRITE_CHAR            ; DEBUG
 .endif
 
 RVPSKIP:
@@ -491,7 +521,7 @@ RESEACH:                        ; msb linked list
 ; compare chars
 RESEQUAL:
     lda (NXTTOK), y
-    cmp #ASCII_SPACE            ; space ends
+    cmp #$20            ; space ends
     beq RESDONE
     sec                 ; verify
     sbc (WORKREG), y
@@ -520,7 +550,7 @@ compile:          ; otherwise compile
     bne CMPSKIP
     WCRLF_np
     lda #'C'
-    PRINT_CHAR
+    jsr WRITE_CHAR
 CMPSKIP:
 .endif
     jsr wcomma          ; copy W into NEXTHEAP ('here'), increment NEXTHEAP
@@ -535,7 +565,7 @@ execute:
     bne EXESKIP
     WCRLF_np
     lda #'E'
-    PRINT_CHAR
+    jsr WRITE_CHAR
 EXESKIP:
 .endif
     lda #>resolvept     ; set up INSTPTR to run,
@@ -549,7 +579,7 @@ try:
     lda (TIB), y                   ; index is in y
     beq getline    ; if \0  - get a line if pointing at 0
     iny
-    eor #ASCII_SPACE    ; return 0 in  A if a space
+    eor #$20    ; return 0 in  A if a space
     rts
 
 ;--------------------GET AN INPUT LINE ENDING WITH CR/LF ------------
@@ -579,20 +609,32 @@ GETLOOP:
     bne GETREADLOOP
     ldy #1
 GETREADLOOP:
-    jsr READ_CHAR
+    jsr READ_CHAR_NE
     bcc GETREADLOOP
-    cmp #ASCII_CR
+    cmp #$09         ; handle tab
+    bne GETLNNOTAB
+    WCRLF
+    lda #$20          ; CRLF and indent
+    jsr WRITE_CHAR
+    jsr WRITE_CHAR
+    jsr WRITE_CHAR
+    jsr WRITE_CHAR
+    jsr WRITE_CHAR
+    bra GETLOOP
+GETLNNOTAB:    
+    jsr WRITE_CHAR
+    cmp #$0D
     beq GETLNEND
-    cmp #ASCII_BACKSPACE         ; handle backspace
+    cmp #$08         ; handle backspace
     bne GETLOOP
     dey
     dey
     lda (TIB), y      ; make sure prev char not overwritten
     bra GETLOOP
 GETLNEND:                ; clear all if y eq \0
-    PRINT_CRLF
+    WCRLF                 ; macro, preserves A
 GETLNSKIPCRLF:          ; SKIP to here if don't want CRLF
-    lda #ASCII_SPACE
+    lda #$20
     phy
     ldy #0
     sta (TIB), y       ; start with space
@@ -611,6 +653,22 @@ GETLNSKIPCRLF:          ; SKIP to here if don't want CRLF
 ; no rewinds
 ;
 ;  (i.e 'the length byte goes immediately before name of word')
+;
+;    to access the buffer after a line is entered, to something like...
+;
+;      jsr token
+;      ldy #0
+;      lda (NXTTOK), y       ; length will be in A
+;      .... do some shit ...
+;loop:
+;      iny
+;      lda (NXTTOK), y       ; first char of token
+;      cmp #$20
+;      beq done             ; if is space, token done
+;      ... do some shit ...
+;      bra loop             ; go get next char      
+;      ... etc ....
+;done:
 ;
 token:
     ldy CURBUF   ; last position on INBUF
@@ -655,14 +713,14 @@ CHKFERTXT:
     jsr TEXTGET         ; returns length +4 in X
     bcs TOKENEND
     ldy #0
-    lda #ASCII_SPACE
+    lda #$20
     jmp TOKCLR
 TOKCLR0:
     ldy #0
     lda (NXTTOK),y     ; load length again
     tax
     inx
-    lda #ASCII_SPACE          ; copy spaces over entire converted string
+    lda #$20         ; copy spaces over entire converted string
 TOKCLR:
     sta (NXTTOK),y
     iny
@@ -885,13 +943,7 @@ ROMCODEEND:                         ; end of all code
 ;
 ;  end of hyforth.s
 ;
-;-----------------------------------------------------------------------
-    .res 16                    ; just a visible buffer in binary
-                               ; to make easier to identify different
-                               ; code segments.
-;-----------------------------------------------------------------------
-;                            BELOW ENDS UP IN RAM
-;-----------------------------------------------------------------------
+;------------------------------------------------------------------------
 .segment "FORTH_PAGED_ROM"
 ;------------------------------------------------------------------------
 ;
@@ -901,10 +953,30 @@ ROMCODEEND:                         ; end of all code
 ;
 ;
 COPYSTART := $A100              ; marks beginning of copy in ROM space
+;-----------------------------------------------------------------------
+;           BELOW ENDS UP IN RAM after COPYTORAM has run
+;-----------------------------------------------------------------------
 .segment "FORTH_CODE"
 RAMSTART:
     jmp forth_main             ; MAIN program start
     jmp reset
+;
+;        32 bytes reserved for HyFedit (see hyf_edit.s)
+;
+HFE_RSV:
+HFEWID:        ; offsets to data in RAM
+    .byte $40    ; 64 columns w/ $00 or $09 in rightmost
+HFEROWS:
+    .byte $10    ; 16 rows
+HFEBUF:
+    .res 2       ; addr to buffer
+    .res 6
+HFE_TITLE:
+    .byte "<-"
+HFE_TTXT:
+    .byte "Generic ScreenXX"
+    .byte "->"
+    .byte 0, 0
 ;---------------------------------------------------------------------
 ;        primitives.s -- original AGSB hardcoded dictionary
 ;
@@ -1067,7 +1139,7 @@ COMPHEADER:
                                  ; code field comes with later proc
 COMPLOOP:
     lda (NXTTOK), y
-    cmp #ASCII_SPACE
+    cmp #$20
     beq COMPEND
     cpy #0                       ; if this is the length field...
     bne COMCOPY

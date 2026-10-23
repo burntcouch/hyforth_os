@@ -30,7 +30,9 @@ RESET_VECTOR_START:
 
 DO_WELCOME:
             jsr                 CLEAR_SCR
-            _M_WRITE_HSTRING    HYDRA_WELCOME
+            lda             #<HYDRA_WELCOME
+            ldy             #>HYDRA_WELCOME
+            jsr             WRITE_HSTRING
             PRINT_CRLF
             ldx     #0
 
@@ -38,10 +40,10 @@ DO_WELCOME:
             stx                 V_REGISTER
             phx
             PRINT_HEX           V_REGISTER
-            PRINT_CHAR          #ASCII_BACKSPACE
+            PRINT_CHAR          #$08
             lda                 V_REGISTER
             PRINT_HEX
-            PRINT_CHAR          #ASCII_COLON
+            PRINT_CHAR          #':'
             PRINT_BYTE          $FFFF
             PRINT_BYTE          $FFFE
             PRINT_SPACE

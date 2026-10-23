@@ -1,0 +1,70 @@
+-------------------
+MEMORY MAP as assembled, 10/15/25
+-------------------
+zeropage
+$00     - shared RAM switch
+$01     - paged ROM switch
+$03-$06 -  *** reserved for task switcher ***
+$07-$2E - BIOS / OS stuff
+$2F-$C7 -  *** FREE TO USE ***
+$C8-$FF - HyForth
+
+buffers
+$0100       - stack
+$0200       - INPUT_BUFFER (serial / input buffer)
+$0300       - INBUF  (Forth input buffer)
+$0400-$047F - DS (Forth data stack)
+$0480-$04FF - RT (Forth return stack)
+$0500-$06FF - MEMSTK (Forth memory allocation stack)
+$0700-$07FF - *** reserved for Forth stuff ***
+$0800-$0805 - Forth jump table
+$0806-$2000 - current Forth words heap, working up
+$2000-$7xxx - Forth heap/memory space
+$7xxx-$7FFF - Forth memory heap, working down
+
+paged_ram
+$8000-$9FFF - **!! not used cuz paged RAM area unreliable !!**
+
+paged_rom
+    HyForth 0.91 ROM image:
+$A000-$Bxxx - Forth COPYTORAM, initial heap, training words
+    $A000->$0800->$EA00 - Forth cold start
+    $A003 - Forth COPYTORAM  (copy RAM image from paged ROM)
+    $A100 - $B24x - Forth heap
+    $B24D - autoload training words (ftrain_0:)
+    $B584 - binary load words (bload:)
+$Bxxx-$CFFF - *** available for other fun stuff ***
+
+os_rom
+$E000-$E110 - OS_MAIN, SHELL
+$E111-$E3FF - *** available for shell, initialization ***
+$E400-$E5FF - sound
+$E600-$E9FF - disassmbler
+$EA00-$F2xx - Forth ROM core
+$F2xx-$F7FF - *** available for use ***
+$F800-$F821 - thunks (BIOS entry point jump table)
+    TH_READ_CHAR           ; $F800
+    TH_WRITE_CHAR          ; $F803
+    TH_WRITE_BYTE          ; $F806
+    TH_WRITE_HEX           ; $F809
+    TH_WRITE_HEX_MASK      ; $F80C
+    TH_WRITE_HSTRING       ; $F80F
+    TH_WRITE_CRLF          ; $F812
+    TH_CLEAR_SCR           ; $F815
+    TH_DISASM              ; $F818
+    TH_DISASM_AY           ; $F81B
+    TH_MEM_COPY            ; $F81E     
+$F821-$F83F - *** more room for thunks, etc. ***
+$F840-$FBFF - BIOS
+$FC00-$FDFF - *** more room for bios ***
+$FE00-$FEFF - Wozmon
+$FF00-$FFxx - IO ports, TUVW registers, interrupt vectors
+    T_REGISTER   = $FFF0   (current task selector)
+    U_REGISTER   = $FFF1   (current shared-ram macro page)
+    V_REGISTER   = $FFF2   (interrupt vector selector)
+    W_REGISTER   = $FFF3   (BIOS page selector)
+    $FFF4-$FFF9   *** reserved for future use ***
+    NMI Vector   = $FFFA
+    Reset Vector = $FFFC
+    IRQ Vector   = $FFFE
+    

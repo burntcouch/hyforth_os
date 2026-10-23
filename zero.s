@@ -5,14 +5,15 @@ RAM_BANK_REG:
     .res  1
 ROM_BANK_REG:
     .res  1
-STACK_SAVE_REG:
-    .res  1
-TASK_STATUS_REG:
-    .res  1
-TASK_PARENT:
-    .res  1
-TASK_SAVE_REG:
-    .res  1
+;
+; reserved, but not used
+;
+ZP_RSRV:
+    .res  1  ; STACK_SAVE_REG:
+    .res  1  ; TASK_STATUS_REG:
+    .res  1  ; TASK_PARENT:
+    .res  1  ; TASK_SAVE_REG:
+;
 ZP_READ_PTR:
     .res  1
 ZP_WRITE_PTR:
@@ -54,7 +55,7 @@ ZP_W_SAVE:
 ZP_HS_TEMP:
     .res  2
 
-;  WAZMON
+;  WOZMON
 ZP_WM_ST:
     .res  2      ; STore address
 ZP_WM_XAM:
@@ -63,42 +64,6 @@ ZP_WM_HVP:
     .res  2      ; Hex Value Parsing
 ZP_WM_MODE:
     .res  1      ; $00=ZP_D_XAM, $7F=STOR, $AE=BLOCK ZP_D_XAM
-
-; MMU
-ZP_M_BI_START:
-    .res  2
-ZP_M_SP1:
-ZP_M_SP1_L:
-    .res  1
-ZP_M_SP1_H:
-    .res  1
-ZP_M_SP2:
-ZP_M_SP2_L:
-    .res  1
-ZP_M_SP2_H:
-    .res  1
-ZP_M_SZ1:
-    .res  1
-ZP_M_TEMP:
-    .res  1
-ZP_M_TEMP2:
-    .res  1
-ZP_M_SV:
-    .res  1
-
-; MATH
-ZP_MATH_TEMP:           ; temp space, parse output base
-    .res  4
-;ZP_MATH_TEMP2:          ; temp space, parse output base
-;    .res  4
-;ZP_MATH_PST:            ; parse state
-;    .res  1
-;ZP_MATH_PB:             ; parse base
-;    .res  1
-;ZP_MATH_PNS:            ; parse number size
-;    .res  1
-;ZP_MATH_OA:             ; parse output address
-;    .res  2
 
 ; DISASM
 ZP_D_STATE:

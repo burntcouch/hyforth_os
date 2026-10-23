@@ -24,7 +24,8 @@ def_word ".S", "splist", 0      ; changed from %S
     lda DSPTR + 1
     sta TEMP1 + 1
     WCRLF_np
-    PRINT_CHAR #ASCII_S
+    lda #'S'
+    jsr WRITE_CHAR 
     lda #DSEND
     jsr STKLIST
     WCRLF_np
@@ -62,7 +63,8 @@ def_word ".R", "rplist", 0       ; changed from %R
     lda RTPTR + 1
     sta TEMP1 + 1
     WCRLF_np
-    PRINT_CHAR #ASCII_R
+    lda #'R'
+    jsr WRITE_CHAR
     lda #RTEND
     jsr STKLIST
     WCRLF_np
@@ -149,34 +151,43 @@ WORD_LOOP:
     sta TEMP1 + 1
 
     lda TEMP5        ; check word count, CRLF if 4th one
-    cmp #4
+    and #$03
     bne WORD_SKIP
     WCRLF_np
+    lda TEMP5
+    cmp #80
+    bne WORD_SKIP
+WWAITKEY:
+    jsr READ_CHAR           ; wait for char to continue to next page
+    bcc WWAITKEY
     stz TEMP5
 
-WORD_SKIP:               ; TEMP1 has address of work-record,
+WORD_SKIP:               ; TEMP1 has address of word-record,
 ; put address            ; (TEMP1) is link to previous record
-    PRINT_SPACE
+    lda #$20
+    jsr WRITE_CHAR       ; print space
     lda TEMP1 + 1
-    PRINT_BYTE
+    jsr WRITE_BYTE       ; print msb of addr
     lda TEMP1
-    PRINT_BYTE
+    jsr WRITE_BYTE       ; print lsb of addr
 
     ldx #TEMP1          ; advance TEMP1 to size + flag, name
     lda #2
     jsr addwx
     ldy #0
-    jsr WRDSHOWNAME        ; put size + flag, name
+    jsr WRDSHOWNAME        ; print (size + flag,) name
 
     lda #10
     sec
     sbc TEMP6
     tax
 SPCLOOP:
-    PRINT_SPACE
+    lda #$20
+    jsr WRITE_CHAR
     dex
     bne SPCLOOP
-    PRINT_CHAR #ASCII_PIPE
+    lda #'|'
+    jsr WRITE_CHAR
     iny                  ; update TEMP1 again, point at CFA
     tya
     ldx #TEMP1
@@ -208,25 +219,139 @@ WORD_END:
 ;  routines needed for 'words'
 ;
 ; print size and name
+;  TEMP1 has address of word-record + 2, y is
+; is keeping track of offset withi in.
+;
 WRDSHOWNAME:
-    PRINT_CHAR #ASCII_COLON
+    lda #':'
+    jsr WRITE_CHAR
 ;    lda (TEMP1), y
-;    PRINT_BYTE       ; size
-
-    PRINT_SPACE
+;    jsr WRITE_BYTE       ; size and flag
+    lda #$20
+    jsr WRITE_CHAR
     lda (TEMP1), y
     and #$3F           ; mask off top two bits
-    tax
+    tax                ; x now has length
     sta TEMP6          ; save length of name
 
 NAMELOOP:              ; name
-    iny
-    PRINT_CHAR {(TEMP1), y}
+    iny                ; first time through, (TEMP1),y advanced to first char of name
+    lda (TEMP1), y
+    jsr WRITE_CHAR
     dex
     bne NAMELOOP
-    PRINT_SPACE
+    lda #$20
+    jsr WRITE_CHAR
     rts
+    
+;----------------------------------------------------------------------
+; ( saddr -- waddr ) find a word by matching to string
+;
+;  TEMP5 will point to the following string in the input buffer
+; for now, you must match ALL chars in the name of the word; no partial
+; matches.  Addr of word will end up on stack.
+;
+; so this will be used like 'w@ words' which will return CFA of 'words'
+;
+def_word "w@", "wfind", 0
+WLOOKUP:
+    jsr token            ; get following token
+    lda NXTTOK
+    sta TEMP5            ;store addr of first char
+    lda NXTTOK + 1
+    sta TEMP5 + 1
+    
+; load LASTHEAP
+    lda LASTHEAP + 1
+    sta TEMP2 + 1
+    lda LASTHEAP
+    sta TEMP2
 
+; load NEXTHEAP
+    lda NEXTHEAP + 1
+    sta TEMP3 + 1
+    lda NEXTHEAP
+    sta TEMP3
+
+WMATCH_LOOP:
+    lda TEMP2       ; lsb linked list
+    sta TEMP1
+    ora TEMP2 + 1    ; check if TEMP2 = $0000, end if so
+    beq WMATCH_END
+    lda TEMP2 + 1    ; msb linked list
+    sta TEMP1 + 1
+
+WMATCH_SKIP:               ; TEMP1 has address of word-record,
+;                          TEMP1) is link to previous record
+    ldx #TEMP1          ; advance TEMP1 to size + flag, name
+    lda #2
+    jsr addwx
+    ldy #0
+    jsr WNAMEMATCH       ; check if match; carry set, YES
+    bcs WMATCHFOUND
+    
+    iny                  ; update TEMP1 again, point at CFA
+    tya
+    ldx #TEMP1
+    jsr addwx
+    lda TEMP3           ; instead of printing refs, just advance TEMP1 to TEMP3
+    sta TEMP1
+    lda TEMP3+1
+    sta TEMP1+1
+
+WMATCH_CONT:
+    lda TEMP2            ; update TEMP2 and TEMP3, advance in linked list
+    sta TEMP3
+    lda TEMP2 + 1
+    sta TEMP3 + 1
+    ldy #0
+    lda (TEMP3), y
+    sta TEMP2
+    iny
+    lda (TEMP3), y
+    sta TEMP2 + 1
+    ldx #(TEMP3)
+    lda #2
+    jsr addwx
+    jmp WMATCH_LOOP
+WMATCH_END:
+    stz TEMP1
+    stz TEMP1 + 1
+    jsr spush_0
+    clc              ; clean return
+    jmp next
+    
+WMATCHFOUND:
+    jsr spush_0      ; push address of record + 2
+    ldy #0
+    lda (TEMP1),y
+    and #$3F
+    sta TEMP1
+    stz TEMP1 + 1
+    jsr spush_0      ; push length
+    clc
+    jmp next
+;
+;  TEMP1 has addr of string to test, TEMP2 is current word-record addr + 2
+;
+WNAMEMATCH:
+    lda (TEMP1), y
+    and #$3F
+    tax
+WMATCHLOOP:              ; name
+    iny                ; first time through, (TEMP1),y advanced to first char of name
+    lda (TEMP5), y     ; addr of string
+    cmp (TEMP1), y     ; addr of current name
+    bne  WMATCH_NO
+    dex
+    bne WMATCHLOOP
+    bra WMATCH_YES
+WMATCH_NO:
+    clc
+    rts
+WMATCH_YES:
+    sec
+    rts
 ;----------------------------------------------------------------------
 ;
 ;  holdover from original 'words' but keep for now
@@ -241,7 +366,7 @@ show_refer:
 ;    PRINT_BYTE
 ;    lda TEMP1
 ;    PRINT_BYTE
-;    PRINT_CHAR #ASCII_COLON
+;    PRINT_CHAR #':'
 ;    iny
 ;    PRINT_BYTE {(TEMP1), y}
 ;    dey
@@ -267,39 +392,67 @@ show_refer:
 ;----------------------------------------------------------------------
 ; ( u -- u ) print top of DS in hexadecimal in MSB:LSB form
 def_word ".", "dot", 0
-    PRINT_SPACE
+    lda #$20
+    jsr WRITE_CHAR
     jsr spull_0
-    PRINT_BYTE TEMP1 + 1, TEMP1
+    lda TEMP1
+    jsr WRITE_BYTE
+    lda TEMP1 + 1
+    jsr WRITE_BYTE
     jmp this      ; 'this' includes jsr spush_0 and next
 
 ; ( u -- u ) print top of DS in ascii, two bytes, msb first
 def_word ".C", "cdot", 0
     jsr spull_0
-    PRINT_CHAR TEMP1 + 1, TEMP1
+    lda TEMP1
+    jsr WRITE_BYTE
+    lda TEMP1 + 1
+    jsr WRITE_BYTE
     jmp this       ; 'this' includes jsr spush_0 and next
 ;
 ;
+; ( -- )  comments in ()
+def_word "(", "comment", 0
+COM_TOKLOOP:
+    jsr token                  ; get next token
+    ldy #0
+    lda (NXTTOK),y
+    cmp #1                     ; is it longer than 1?
+    bne COM_TOKLOOP
+    iny
+    lda (NXTTOK),y
+    cmp #')'                   ; does it start with a parens?
+    bne COM_TOKLOOP
+    jmp next
+;
+;
+; ( -- u) push following character in input buffer to stack
 def_word "ord", "ord", 0
     jsr token                  ; get first token
     ldy #0
     lda (NXTTOK),y
+    tax
     clc
-    adc #ASCII_0
-    PRINT_CHAR
-    ldy #1                     ; skip len, first time
-ORDLOOP:
+    adc #'0'
+    jsr WRITE_CHAR             ; print length, just for fun
+    lda #$20
+    sta (NXTTOK), y           ; clear it (may be unnecc.)
+    iny
+ORDLOOP:                     ; loop is necc because can pick up ANSI codes!
     lda (NXTTOK), y
     beq  ORDNONE
-    cmp #ASCII_SPACE
+    cmp #$20
     beq  ORDNONE
     sta TEMP1
     stz TEMP1+1
-    lda #ASCII_SPACE
-    ldy #0
-    sta (NXTTOK), y           ; clear it (may be unnecc.)
-    iny
+    lda #$20
     sta (NXTTOK), y
+    iny
+    phx
     jsr spush_0
+    plx
+    dex
+    bne ORDLOOP
 ORDNONE:
     jmp next
 ;
@@ -492,11 +645,11 @@ DECSFINISH:
 DECSCLRLOOP:             ; replace $00 or leading $30 with spaces
     lda (TEMP3),y
     beq  DECSTSK02
-    cmp #ASCII_0
+    cmp #'0'
     beq  DECSTSK02
     bra  DECSTDONE
 DECSTSK02:
-    lda #ASCII_SPACE
+    lda #$20
     sta (TEMP3),y
     iny
     bra DECSCLRLOOP
@@ -641,7 +794,7 @@ KEYRDLP:
 def_word "emit", "emit", 0
     jsr spull_0
     lda TEMP1
-    PRINT_CHAR
+    jsr WRITE_CHAR
     jmp next
 
 ;---------------------------------------------------------------------

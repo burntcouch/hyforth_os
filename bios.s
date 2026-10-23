@@ -41,10 +41,15 @@ SERIAL_INIT:
 ;
 ; Modifies: flags, A
 ; TODO: select the appropriate read stream for the current task
+READ_CHAR_NE:                                         ; no echo entry
+                lda   #1
+                sta   ZP_TEMP
+                bra   SERIAL_READ
 READ_CHAR:
+                stz   ZP_TEMP
 SERIAL_READ:
                 jsr             BUFFER_SIZE
-                bne             :+
+                bne   :+
                 clc
                 rts
 :
@@ -52,8 +57,10 @@ SERIAL_READ:
                 ldx             ZP_READ_PTR
                 lda             INPUT_BUFFER,X
                 inc             ZP_READ_PTR
-                plx
-                PRINT_CHAR                                  ; echo
+                ldx             ZP_TEMP
+                bne    :+                               ; no echo
+                jsr WRITE_CHAR                          ; echo
+:               plx
                 sec
                 rts
 
@@ -62,11 +69,11 @@ WRITE_DEC:
                 cmp             #0
                 bpl             WRITE_DEC_U
                 pha
-                PRINT_CHAR      #ASCII_MINUS
+                PRINT_CHAR      #'-'
                 pla
                 cmp             #$80                        ; special case for -128
                 bne             :+
-                PRINT_CHAR      #ASCII_1
+                PRINT_CHAR      #'1'
                 PRINT_BYTE_JMP  #$28
 :
                 jsr             NEGATE
@@ -117,7 +124,7 @@ WRITE_HEX:
                 phx
                 tax
                 lda             HEX_MAP,x
-                SKIPNEXT
+                .byte           $22                        ; skip a byte (over phx below)
 
 ; Output a character (from the A register) to the serial interface.
 ;
@@ -170,24 +177,24 @@ WRITE_DELAY:
 
 ; Convenience method to write CR/LF to output stream
 WRITE_CRLF:
-                PRINT_CHAR_JMP  #ASCII_CR, #ASCII_LF
+                PRINT_CHAR_JMP  #$0D, #$0A
 
 WRITE_PROMPT:
                 PRINT_CRLF
-                PRINT_CHAR      #ASCII_T
+                PRINT_CHAR      #'T'
                 PRINT_HEX_MASK  $FFF0
                 PRINT_SPACE
                 PRINT_BYTE      RAM_BANK_REG
                 cmp             #$F0
                 bcc             @not_shared
-                PRINT_CHAR      #ASCII_LPAREN
+                PRINT_CHAR      #'('
                 PRINT_HEX_MASK  $FFF1                       ; Shared RAM sub-bank
-                PRINT_CHAR      #ASCII_RPAREN
+                PRINT_CHAR      #')'
 
 @not_shared:
-                PRINT_CHAR      #ASCII_COLON
+                PRINT_CHAR      #':'
                 PRINT_BYTE      ROM_BANK_REG
-                PRINT_CHAR_JMP  #ASCII_GT
+                PRINT_CHAR_JMP  #'>'
 
 ; .A, .Y hold the addr of HString to write
 ; Clobbers .A, .Y; Preserves .X
@@ -209,13 +216,14 @@ WRITE_HSTRING:
 ; Initialize the circular input buffer
 ; Modifies: flags, A
 INIT_BUFFER:
-                MOV             ZP_READ_PTR, ZP_WRITE_PTR
+                lda           ZP_READ_PTR
+                sta           ZP_WRITE_PTR
                 rts
 
 ; Escape sequences
 CLEAR_SCR:
-                PRINT_ESC_SEQ #ASCII_LBRACKET, #ASCII_2, #ASCII_J
-                PRINT_ESC_SEQ_JMP #ASCII_LBRACKET, #ASCII_0, #ASCII_SEMI, #ASCII_0, #ASCII_f
+                PRINT_ESC_SEQ #'[', #'2', #'J'
+                PRINT_ESC_SEQ_JMP #'[', #'0', #';', #'0', #'f'
 
 ; Set up the SPI interface registers on the VIA
 SPI_INIT:
@@ -325,7 +333,9 @@ SPI_RECV:
 
 ; Delay for some number of cycles to ensure SPI device is ready to start working
 SPI_INIT_DELAY:
-                PUSH_AXY
+                pha
+                phx
+                phy
                 txa                                         ; set SPI device
                 ora             #SPI_BIT_CSB | SPI_BIT_MOSI ; de-select all devices
                 tax
@@ -336,7 +346,9 @@ SPI_INIT_DELAY:
                 stx             IOR_SPI_DATA
                 dey
                 bne             @loop
-                PULL_YXA
+                ply
+                plx
+                pla
                 rts
 
 ; Return (in A) the number of unread bytes in the circular input buffer as an unsigned byte
@@ -602,7 +614,9 @@ VIA_CLEAR_T2_INT:       ; READ LOB OF T2 Counter
 IRQ_VECTOR_INIT:
             sei
             sec
-            PUSH_AXY
+            pha
+            phx
+            phy
             ldx     #$F
             lda     #<SERIAL_IRQ_HANDLER
             ldy     #>SERIAL_IRQ_HANDLER
@@ -622,7 +636,9 @@ IRQ_VECTOR_INIT:
             ldy     #>VIA_IRQ_HANDLER
             jsr     IRQ_SET_VEC1
 
-            PULL_YXA
+            ply
+            plx
+            pla
             clc
             cli
             rts
@@ -771,7 +787,9 @@ REM_10:
 
 DIV_10:
             jsr             REM_10
-            SWAP_AX
+            pha
+            tya
+            ply
             rts
 
 ABS:
@@ -799,14 +817,14 @@ MEM_COPY:
             PRINT_CRLF
             PRINT_BYTE  ZP_TEMP_VEC + 1
             PRINT_BYTE  ZP_TEMP_VEC
-            PRINT_CHAR  #ASCII_DASH, #ASCII_GT
+            PRINT_CHAR  #'-', #'>'
             PRINT_BYTE  ZP_TEMP_VEC2 + 1
             PRINT_BYTE  ZP_TEMP_VEC2
 
 @loop:
             lda         (ZP_TEMP_VEC)
             sta         (ZP_TEMP_VEC2)
-            PRINT_CHAR  #ASCII_PERIOD
+            PRINT_CHAR  #'.'
             dex
             bne         :+
             tya

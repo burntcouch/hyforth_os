@@ -1,2 +1,7 @@
-ca65 os_main.s -o tmp\os_main.o -l tmp\os_main.txt -I C:\source\cc65\asminc --cpu 6502
-ld65 -C os_rom.cfg tmp\os_main.o -o tmp\os_main.bin -Ln tmp\os_main.lbl
+DEL .\tmp\*.o
+mkdir .\%1
+mkdir .\%1\hyforth
+copy *.* .\%1
+copy .\hyforth\*.* .\%1\hyforth
+h:\cc65\bin\ca65.exe -o tmp\all.o -l tmp\all.txt --cpu 65C02 all.s
+h:\cc65\bin\ld65.exe -C os_rom.cfg tmp\all.o -o tmp\os_rom.bin -Ln tmp\os_rom.lbl
