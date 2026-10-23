@@ -1,6 +1,8 @@
 # hyforth_os
 Hydra-16 BIOS + HyForth OS
 
+<a href="./#updates"> UPDATES </a>
+
 This project is an independent fork (not resident in same repository) as Dan Struthers' Hydra-16 hardware project:
 <p> https://github.com/danstruthers/hydra-16 </p>
 
@@ -35,3 +37,29 @@ The .bat file generates both a 'paged_rom' image and the main OS image.  The Hyd
 The 'paged_rom' image (one of eight SST39SF040 4Mbit ROMs on the Hydra-16) includes the Forth 'heap' image as well as some 'training data' (a basic compiled Forth library) and a 'bload' (binary library).  Because of some design issues with the Hydra-16 hardware, the paged ROM image (16K) actually gets split into two swapped halves that are mapped to $C000 and $A000 respectively; in other words, if your actual code image is larger than 8K (the BASIC ROM image was about 11K ferinstance) you will have to copy the first 8K at $C000 and the remainder at $A000 (or offset upward by 16K if this is not the first bank) in order for the image to actually be mapped into Hydra-16 memory space continguously from $A000-$DFFF.
 
 The Hydra-16 still boots to Wozmon in this version.  To install the heap into RAM, switch to the correct ROM bank by writing the page # to ZP location $01, then enter 'A003R' to run the COPYTORAM routine.  Then just enter '800R' in WozMon to start HyForth.  See the README for HyForth linked above for more details.
+
+<h1> Updates </h1>
+<a name="updates"></a>
+
+<h3> 10/22/26 </h3>
+<p>Lots of new things:</p>
+<ul>
+<li><p>Multi-line input using tabs</p>
+<p>The HyForth / millif parser is simple, and works very fast and well...but there have been a few gotchas.  One of the problems is that (unlike any Forth book you will every read), it WASN'T possible to enter a long Forth statement on multiple lines...</p>
+<p>But now you can:  if you want to introduce a carriage return in the middle of a statement for cosmetic / clarity purposes, just hit the tab button.  The parser will swallow the tab character and echo back a CRLF and 5 spaces for indentation, without terminating input.  The total character limit of ~255 for the buffer still stands, but this will give a user about 5-6 lines in any case. </p>
+</li>
+<li><p>Comments</p>
+Another standard part of Forth I finally got around to.  ( <comment text> ) as per standard, including inline between valid words, e.g. "1 2 ( blah ) +" will ignore the text in parens and just do the math.
+</li>
+<li><p>'words' reworking and the w@ word</p>
+<p></p>You can now use 'w@ <word name>' to return the address of the length in bytes, characters of the name, and the CFA.'  This is the equivalent of the single tick ' words in standard Forth.</p>
+<p>The 'words' word also pauses every 20 lines (80 words) so it is easier to scan by eyeballs.</p>
+</li>
+<li><p>ANSI support</p>
+This was already here, but for the editor I needed something more modular and robust.  Same basic functions are still available, and I added some convenience constants to use in particular with the 'Acol' word, to change background and foreground colors and other attributes.
+</li>
+<li><p>HyFedit - a screen editor for Hydra-16 and HyForth</p>
+This sub-project will display and allow editing of Forth 'screens', which are 64 x 16 character memory buffers to store and run more complex (than single-line) programs.  ANSI will be heavily used to manage screen navigation and ultimately to add helpful color and other kinds of emphasis to make visualization and production of Forth code easier.  See the hyf_edit.s file for whatever is done with this.  NOT working yet.
+
+</li>
+</ul>
