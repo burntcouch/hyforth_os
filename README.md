@@ -4,6 +4,7 @@ Hydra-16 BIOS + HyForth OS
 <a href="https://github.com/burntcouch/hyforth_os/blob/main/README.md/#updates"> UPDATES </a>
 <p></p>
 <a href="https://github.com/burntcouch/hyforth_os/blob/main/README.md/#buildrun"> BUILDING and RUNNING </a>
+<br>
 This project is an independent fork (not resident in same repository) as Dan Struthers' Hydra-16 hardware project:
 <p> https://github.com/danstruthers/hydra-16 </p>
 
