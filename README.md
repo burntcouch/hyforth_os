@@ -37,9 +37,8 @@ The .bat file generates both a 'paged_rom' image and the main OS image.  The Hyd
 The 'paged_rom' image (one of eight SST39SF040 4Mbit ROMs on the Hydra-16) includes the Forth 'heap' image as well as some 'training data' (a basic compiled Forth library) and a 'bload' (binary library).  Because of some design issues with the Hydra-16 hardware, the paged ROM image (16K) actually gets split into two swapped halves that are mapped to $C000 and $A000 respectively; in other words, if your actual code image is larger than 8K (the BASIC ROM image was about 11K ferinstance) you will have to copy the first 8K at $C000 and the remainder at $A000 (or offset upward by 16K if this is not the first bank) in order for the image to actually be mapped into Hydra-16 memory space continguously from $A000-$DFFF.
 
 The Hydra-16 still boots to Wozmon in this version.  To install the heap into RAM, switch to the correct ROM bank by writing the page # to ZP location $01, then enter 'A003R' to run the COPYTORAM routine.  Then just enter '800R' in WozMon to start HyForth.  See the README for HyForth linked above for more details.
-
-<h1> Updates </h1>
 <a name="updates"></a>
+<h1> Updates </h1>
 
 <h3> 10/22/26 </h3>
 <p>Lots of new things:</p>
