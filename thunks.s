@@ -24,5 +24,10 @@ TH_DISASM:
                 jmp             DISASM              ; $F818
 TH_DISASM_AY:
                 jmp             DISASM_AY           ; $F81B
-TH_MEM_COPY:
-                jmp             MEM_COPY            ; $F81E
+TH_MEMCOPY_AY:
+                jmp             MEMCOPY_AY          ; $F81E
+TH_DUMPREG:
+                stz             $D6
+                jmp             DUMPREG             ; $F821
+TH_next:
+;                                                   ; $F826

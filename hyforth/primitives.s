@@ -1,21 +1,126 @@
 ;
 ; primitives.s
 ;
+
+;----------------------------------------------------------------------
+;  library management
 ;
-;----------------------------------------------------------------------
-; ( -- ) ae exit forth
-def_word "bye", "bye", 0
-    jmp MON_START               ; jump to WOZMON
+def_word "libcnt", "libcnt", 0
+    jsr LIBCNT
+    sta TEMP1
+    stz TEMP1+1
+    jsr spush_0
+    jmp next
+    
+LIBCNT:
+    lda #>lib_jumptable
+    sta TEMP1+1
+    lda #<lib_jumptable
+    sta TEMP1
+    ldy #$FF
+LIBCNTLOOP:
+    iny
+    lda (TEMP1),y
+    iny
+    ora (TEMP1),y          ; entry after last should be $0000
+    bne LIBCNTLOOP
+    tya
+    lsr
+    rts
+    
+def_word "lib", "lib", 0
+    jsr spull_2                 ; nth library
+    lda #>lib_jumptable
+    sta TEMP1+1            
+    ldx TEMP3               ; check that TEMP3 is not neg or out of bounds       
+    dex                     ; need it 0 - LASTLIB-1 indexed
+    bmi LIBNG
+    ;
+    ;
+    jsr GETLIBENTRY
+    tya
+    bne LIBNG
+LIBWLOOP:
+    lda (TEMP0),y      ; TEMP0 should point at name of entry, step through
+    beq LIBWEND       ; entry via y
+    iny
+    bra LIBWLOOP       ; step through name
+LIBWEND:
+    iny                 ; jump past lib type 'C' or 'B'
+    iny
+    lda (TEMP0),y
+    sta TEMP1+1                 ; hi byte of lib address
+    iny
+    lda (TEMP0),y
+    sta TEMP1                  ; lo byte of lib address
+LIBEND:
+    jsr spush_0               ; should have address of first entry of lib n in TEMP1
+LIBNG:
+    jmp next
 
-;----------------------------------------------------------------------
-; ( -- ) ae abort
-def_word "abort", "abort_", 0
-    jmp abort
-
-; ( -- ) resets buffer to INBUF
-def_word "reset", "reset_", 0
-    jmp reset
-
+def_word "libs", "libs", 0
+    jsr print_libtable
+    jmp next
+    
+print_libtable:
+    lda #>lib_jumptable
+    sta TEMP1+1
+    ldx #0
+LIBSLOOP:
+    jsr GETLIBENTRY    ; looks up lib entry #x, sets up TEMP1 and TEMP0, y = 0
+    tya
+    bne LIBSEND
+LIBSWLOOP:
+    lda (TEMP0),y      ; TEMP0 should point at name of entry, step through
+    beq LIBSWEND       ; entry via y
+    iny
+    jsr WRITE_CHAR     ; prints name of library
+    bra LIBSWLOOP
+LIBSWEND:
+    lda #'-'
+    jsr WRITE_CHAR
+    iny
+    lda (TEMP0),y
+    jsr WRITE_CHAR                   ; print type 'C' or 'B'
+    lda #$20
+    jsr WRITE_CHAR
+    iny
+    lda (TEMP0),y
+    jsr WRITE_BYTE                   ; hi byte of lib address
+    iny
+    lda (TEMP0),y
+    jsr WRITE_BYTE                   ; lo byte of lib address
+    WCRLF_np
+    inx
+    beq LIBSEND
+    bra LIBSLOOP
+LIBSEND:
+    rts
+    
+GETLIBENTRY:               ; get entry pointed to by x
+    txa
+    asl a
+    clc
+    adc #<lib_jumptable
+    sta TEMP1
+    bcc LIBSNEXT
+    inc TEMP1+1
+LIBSNEXT:
+    ldy #0
+    lda (TEMP1),y
+    sta TEMP0
+    iny
+    lda (TEMP1),y
+    sta TEMP0+1
+    dey
+    lda (TEMP0),y
+    iny
+    ora (TEMP0),y
+    bne LIBSKIP 
+    rts
+LIBSKIP:
+    dey
+    rts
 ;----------------------------------------------------------------------
 ; ( -- ) ae list of data stack
 def_word ".S", "splist", 0      ; changed from %S
@@ -77,20 +182,28 @@ STKLIST:
     sbc TEMP1
     lsr
     tax                 ; hide in X
-    PRINT_BYTE TEMP1 + 1,TEMP1        ; print addr of pointer
-    PRINT_SPACE
+    lda TEMP1 + 1
+    jsr WRITE_BYTE
+    lda TEMP1
+    jsr WRITE_BYTE
+    lda #$20
+    jsr WRITE_CHAR
     txa
-    PRINT_BYTE         ; print # of entries
-    PRINT_SPACE
+    jsr WRITE_BYTE         ; print # of entries
+    lda #$20
+    jsr WRITE_CHAR
     txa
     beq @ends
     ldy #0
 @loop:
-    PRINT_SPACE
+    lda #$20
+    jsr WRITE_CHAR
     iny
-    PRINT_BYTE {(TEMP1),y}
+    lda (TEMP1), y
+    jsr WRITE_BYTE
     dey
-    PRINT_BYTE {(TEMP1),y}
+    lda (TEMP1), y
+    jsr WRITE_BYTE
     iny
     iny
     dex
@@ -98,22 +211,22 @@ STKLIST:
 @ends:
     rts
 
-;------------------------------- ODUMP AND DUMP ---------------------------------------
-; ( -- ) dumps the user dictionary
-;    ( REMOVED as of 4/19/26 )
-
+;------------------------------- DUMP ----------------------------------
 ; ( -- ) dump memory
 def_word "dump", "dump", 0
     jsr spull_1             ; TEMP2 LSB is # of pages
     jsr spull_0             ; TEMP1 has starting addr
     lda TEMP1+1
-    sta TEMP0+1
+    sta Z_DEBUG+1
+    lda TEMP1
+    and #$F0
+    sta Z_DEBUG
     ldx TEMP2
     bne FDUMPLOOP
     ldx #1                  ; always print at least one page
 FDUMPLOOP:
     jsr DUMPPAGE
-    inc TEMP0+1
+    inc Z_DEBUG+1
 FDUMPGET:
     jsr READ_CHAR           ; wait for char to continue to next page
     bcc FDUMPGET
@@ -252,6 +365,7 @@ NAMELOOP:              ; name
 ; matches.  Addr of word will end up on stack.
 ;
 ; so this will be used like 'w@ words' which will return CFA of 'words'
+;  equivalent of Forth-79 word 'tick' (single quote)
 ;
 def_word "w@", "wfind", 0
 WLOOKUP:
@@ -384,12 +498,7 @@ show_refer:
 ;    rts
 ;
 ;----------------------------------------------------------------------
-;  seek for addr of 'exit' at end of sequence of references
-;  max of 254 references in list
 ;
-;  removed 'seek', was not used in original code
-
-;----------------------------------------------------------------------
 ; ( u -- u ) print top of DS in hexadecimal in MSB:LSB form
 def_word ".", "dot", 0
     lda #$20
@@ -399,16 +508,35 @@ def_word ".", "dot", 0
     jsr WRITE_BYTE
     lda TEMP1 + 1
     jsr WRITE_BYTE
-    jmp this      ; 'this' includes jsr spush_0 and next
-
+    jmp next     ; '.' now consumes top of DS
+;
 ; ( u -- u ) print top of DS in ascii, two bytes, msb first
 def_word ".C", "cdot", 0
-    jsr spull_0
-    lda TEMP1
-    jsr WRITE_BYTE
-    lda TEMP1 + 1
-    jsr WRITE_BYTE
-    jmp this       ; 'this' includes jsr spush_0 and next
+     jsr spull_0
+     ldy #$FF
+     lda TEMP1
+CDOTAGAIN:     
+     tax
+     cmp #$1F
+     bcc UPRINT
+     cmp #$7F
+     bcs UPRINT
+     jsr WRITE_CHAR
+CDOTRTN:
+     lda TEMP1+1
+     iny
+     beq CDOTAGAIN
+     bra CDOTEND
+UPRINT:                ; print unprintable chars as \x<hex> 
+     lda #'\'
+     jsr WRITE_CHAR
+     lda #'x'
+     jsr WRITE_CHAR
+     txa
+     jsr WRITE_BYTE
+     bra CDOTRTN
+CDOTEND:
+     jmp next
 ;
 ;
 ; ( -- )  comments in ()
@@ -475,12 +603,28 @@ def_word ".sz", "szdot", 0
 SZLOOP:
     lda (TEMP2),y
     beq SZEND
-    PRINT_CHAR
+    jsr WRITE_CHAR
     iny
     bra SZLOOP
 SZEND:
     jmp next
 ;
+;  print n bytes from addr
+;
+def_word ".sn", "sndot", 0
+    jsr spull_0    ; length in LSB
+    jsr spull_1    ; addr to print from
+    ldx TEMP1      ; ignore TEMP+1, 256 bytes max
+    ldy #0
+SNLOOP:
+    lda (TEMP2),y
+    jsr WRITE_CHAR
+    iny
+    dex
+    beq SNEND
+    bra SNLOOP
+SNEND:
+    jmp next
 ; ( addr n -- w0 w1 ... w(n-1) )  push n words from memory to stack
 ;
 def_word "dsgetn@", "dsgetn", 0
@@ -666,7 +810,8 @@ def_word "decs!", "decstore", 0
     jmp next
 ;
 ;
-extensions:
+;---------------------------------------------------------------------
+;                     ' extensions ' in original AGSB
 ;---------------------------------------------------------------------
 ; ( w n -- w >> n ) -- shift right
 def_word ">>", "shr", 0
@@ -777,7 +922,7 @@ BITUNWLOOP:
 BITUWSKIP:
     rts
 ;---------------------------------------------------------------------
-; start of dictionary
+;     start of AGSB dictionary
 ;---------------------------------------------------------------------
 core_dict:
 ;---------------------------------------------------------------------
@@ -809,9 +954,8 @@ def_word "nand", "nand", 0
     lda TEMP2 + 1
     and TEMP1 + 1
     eor #$FF           ; and then second.
-                       ; sta TEMP1+1 at 'keeps', then jsr spush_0 and 'next'
-    jmp keeps
-
+    jmp keeps          ; keeps - sta TEMP1+1, then jsr spush_0 and 'next'
+    
 ;---------------------PLUS and MINUS----------------------------------
 ; ( w1 w2 -- w1+w2 )
 def_word "+", "plus", 0
@@ -823,8 +967,7 @@ def_word "+", "plus", 0
     sta TEMP1
     lda TEMP2+1
     adc TEMP1+1
-                    ; 'keeps' = sta TEMP1+1; jsr spush_0; jmp next
-    jmp keeps
+    jmp keeps        ; keeps - sta TEMP1+1, then jsr spush_0 and 'next'
 
 ; ( w1 w2 -- w1-w2 )
 def_word "-", "minus", 0
@@ -836,9 +979,8 @@ def_word "-", "minus", 0
     sta TEMP1
     lda TEMP1+1
     sbc TEMP2+1
-                   ; 'keeps' = sta TEMP1+1; jsr spush_0; jmp next
-    clc            ; not sure why, but just in case?
-    jmp keeps
+    clc              ; clean return since math involved
+    jmp keeps        ; keeps - sta TEMP1+1, then jsr spush_0 and 'next'
 
 ;---------------------------------------------------------------------
 ; ( 0 -- $0000) | ( n -- $FFFF)  normalize boolean - change TOS to $0000 if false, $FFFF if TRUE
@@ -854,7 +996,7 @@ def_word "TRUE", "istrue", 0
 PUSHTRUE:
     lda #$FF
     sta TEMP1
-    jmp keeps
+    jmp keeps         ; keeps - sta TEMP1+1, then jsr spush_0 and 'next'
 ;
 ; ( -- $0000 )
 def_word "FALSE", "isfalse", 0
@@ -864,7 +1006,9 @@ PUSHFALSE:
     jmp this
 ;---------------------------------------------------------------------
 ; ( -- state ) pushes addr of status word on stack
-def_word "s@", "state", 0
+;    changed name to x@ cuz confusion with other DS words
+;
+def_word "x@", "state", 0
     lda #<STATUS
     sta TEMP1
     lda #>STATUS
@@ -872,16 +1016,10 @@ def_word "s@", "state", 0
 
 .ifdef DEBUG
 ;------------------------ADDED for HyForth debugging-------
-; ( -- ) toggle debug
+; ( -- ) toggle debug flag
 def_word "debug", "debug", 0
     lda DFLAG
-    cmp #1
-    beq @make0
-    lda #1
-    bra @store
-@make0:
-    lda #0
-@store:
+    eor #$FF
     sta DFLAG
     jmp next
 .endif

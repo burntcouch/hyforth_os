@@ -807,7 +807,8 @@ NEG_DONE:
 ;
 ; Memory Copy
 ; ZP_TEMP_VEC: From, ZP_TEMP_VEC2: To, .A.Y: Size
-MEM_COPY:
+;
+MEMCOPY_AY:
             phx
             tax
             bne         :+

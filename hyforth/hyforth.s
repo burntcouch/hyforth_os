@@ -97,47 +97,7 @@ makelabel "", label
       WSEQ_np  strlbl
       pla
 .endmacro
-
 ;
-;   ANSI screen stuff
-; <rr>;<cc>f move cursor to rr,cc
-; <cc>m for color/attributes
-; 2J for clear screen
-; H for 'home'
-; <cc>[ABCD] screen moves
-;
-.macro ANSI b1,b2,b3,b4,b5,b6
-      pha
-      lda #27
-      jsr WRITE_CHAR
-      lda #91
-      jsr WRITE_CHAR
-      lda #b1
-      jsr WRITE_CHAR
-.ifnblank b2
-      lda #b2
-      jsr WRITE_CHAR
-.ifnblank b3
-      lda #b3
-      jsr WRITE_CHAR
-.ifnblank b4
-      lda #b4
-      jsr WRITE_CHAR
-.ifnblank b5
-      lda #b5
-      jsr WRITE_CHAR
-.ifnblank b6
-      lda #b6
-      jsr WRITE_CHAR
-.endif 
-.endif 
-.endif
-.endif
-.endif
-      pla
-.endmacro
-
-
 ;---------------------------------------------------------------------
 ;  for error messages
 ;
@@ -168,12 +128,26 @@ werrend:
     WCRLF_np
     rts
 .endmacro
-
+;
+;---------------------------------------------------------------------
+;              library list  - handle like an error/token jumptable
+;
+;                --- this is also how MS-BASIC knows where to send
+;   the code when a tokenized command is invoked.  Inherent limitation
+;   with one-byte tokens (for errors or libraries) is max of 255 entries.
+;
+.macro LIBENTRY libname
+    .byte <libname
+    .byte >libname
+    libcount .set libcount + 1
+.endmacro
+;
 ;---------------------------------------------------------------------
 ; variables for macros
 
 hcount .set 0
 emcount .set 0             ; # of error messages set up
+libcount .set 0
 
 H0000 = 0
 
@@ -238,7 +212,8 @@ RTEND = $FE
 ; both move downwards like other stacks
 ;
 MEMEND = $01FE            ; pointers DOWN from MEMEND+MEMSTK (store-and-decrement)
-MEMTOP = $8000            ; malloc allocates DOWN from MEMTOP
+MEMTOP = $7BF0            ; malloc allocates DOWN from MEMTOP
+SCRBUF = $7C00            ; screen buffer 1K going up
 ;
 ;   types:  <type> <len0 len1> <data data data...>
 ;
@@ -285,14 +260,38 @@ INROM = $A000
 ;                   ZERO PAGE USAGE
 ;----------------------------------------------------------------------
 .segment "ZEROPAGE"
-.org $C8
+;
+.org $B0
 ZPSTART:
+;                 Utilities, some BIOS crossover
+;
+Z_DEBUG:    .res 2             ; dedicated ZP temp for debugger  $B0
+;
+Z_MATH1:    .res 2             ; ZP temp for math routines   $B2  (*, /, */)
+Z_MATH2:    .res 2             ; ZP temp for math routines   $B4  (*, /, */)
+Z_MATH3:    .res 2             ; ZP temp for math routines   $B6  (*, /, */)
+Z_MATH4:    .res 2             ; ZP temp for math/ANSI       $B8  (HEX2DIG, */)
+;
+Z_ANSI1:    .res 2             ; ZP temp for ANSI            $BA
+Z_ANSI2:    .res 2             ; ZP temp for ANSI            $BC
+Z_ANSI3:    .res 2             ; ZP temp for ANSI            $BE
+;
+;                  HyFedit specific
+;
+HFE_BPTR:   .res 2             ; pointer into 1K buffer      $C0
+HFE_CH:     .res 1             ; cursor horizontal (columns) $C2
+HFE_CV:     .res 1             ; cursor vertical (rows)      $C3
+HFE_T0:     .res 1             ; reserved                    $C4
+HFE_T0H:    .res 1             ; reserved                    $C5
+HFE_T1:     .res 1             ; reserved                    $C6
+HFE_T1H:    .res 1             ; reserved                    $C7
+;HFE_T2 is at $FE/$FF  (TEMP7)
 ;
 ;                   HyForth setup stuff
 ;
-TEMP0:                        ;  DUMPREG         $C8
+TEMP0:                    ; DUMPREG, lib/libs    $C8
    .res 2
-TEMP8:                        ;  Hstring macro   $CA
+TEMP8:                        ;  cons and pick   $CA
    .res 2
 TEMP9:                        ;   Imm            $CC
    .res 2
@@ -333,11 +332,8 @@ WORKREG:    .word $0   ; working register                      $EE
 ;
 ;                    TEMP1 - 4
 ;
-mainoff:               ; used for COPYTORAM, MEMCPY
 TEMP1:    .word $0     ; first                                 $F0
-endsoff:               ; used for COPYTORAM, MEMCPY
 TEMP2:    .word $0     ; second                                $F2
-ramstart:              ; used for COPYTORAM, MEMCPY
 TEMP3:    .word $0     ; third  (two bytes)                    $F4
 TEMP4:    .word $0     ; fourth  (two bytes)                   $F6
 ;
@@ -346,12 +342,12 @@ TEMP4:    .word $0     ; fourth  (two bytes)                   $F6
 NXTTOK:     .word $0   ; next token in tib (INBUF)             $F8
 BACKHEAP:   .word $0   ; hold 'here while compile              $FA
 supprint:              ; suppress printing in MEMCPY
-FFLAG:                 ; 'find flag' for wfind entry point
-TEMP5:   .res 1        ;    WORDS, WFIND                       $FC
-TEMP6:   .res 1        ;    WORDS, DIGCONT, TEXTGET            $FD
-TEMP7:   .res 2        ;    AUTOLOAD                           $FE
+TEMP5:   .res 1        ;    WORDS, supprint for MEMCPY         $FC
+TEMP6:   .res 1        ;    WORDS, DIGCOUNT, TEXTGET           $FD
+HFE_T2:                ;   third temp variable for HyFedit
+TEMP7:   .res 2        ;    AUTOLOAD, HyFedit                  $FE
 ;
-; *** $C8-$FF total usage in ZP, including TEMP vars ***
+; *** $B0-$FF total usage in ZP, including TEMP vars ***
 ;
 ;   HYDRA-16 serial/read buffers at $200 and $300 so skip those
 ;
@@ -386,6 +382,10 @@ HYPROMPT:
     .byte "HF>"
     .byte 0
 ;
+HYLIBMSG:
+    .byte $0D, $0A
+    .byte "Libaries:"
+    .byte 0
 .ifdef DEBUG
 WDISP:
     .byte $0D, $0A
@@ -400,8 +400,8 @@ WATDISP:
 ;
 cold:
     cld
-    jsr CLEAR          ; zero out zero page, INBUF, DS, and RT
-
+    jsr CLEAR           ; zero out zero page, INBUF, DS, RT, SCRBUF
+                        ;    
 warm:
 ; linked list of headers
                                 ; initialize HEAP pointers
@@ -425,7 +425,12 @@ warm:
     sty MEMLAST
     ldy #>MEMTOP
     sty MEMLAST+1
-
+    
+    ldy #<SCRBUF                ; initialize screen pointer
+    sty HFEBUF                  ; HFE_BPTR is set up when 
+    ldy #>SCRBUF                ; HFE_COLD is called
+    sty HFEBUF+1                ; done.  SCRBUF already cleared
+    
 ;---------------------------------------------------------------------
 ; various reinitialization points
 ;
@@ -445,7 +450,7 @@ reset:
     ldy #>RT
     sty RTPTR + 1
 
-    lda #1                       ; DEBUG OFF by default
+    lda #$FF                       ; DEBUG OFF by default
     sta DFLAG
     stz ALFLAG                   ; autoload flag OFF
 
@@ -930,13 +935,12 @@ ENGINEEND:
 upper_ram:
    .include "upper.s"
 UPPER_END:
+;------------------------------------------------------------------------
 ;
+;   hyf_edit.s -- the HyFedit screen editor stuff
 ;
-YSOUND_START:
-;.ifdef YSOUND
-;   .include "sound_os.s"
-;.endif
-YSOUND_END:
+   .include "hyf_edit.s"
+HFE_EDIT_END:
 ;
 ;
 ROMCODEEND:                         ; end of all code
@@ -964,7 +968,7 @@ RAMSTART:
 ;        32 bytes reserved for HyFedit (see hyf_edit.s)
 ;
 HFE_RSV:
-HFEWID:        ; offsets to data in RAM
+HFECOLS:        ; offsets to data in RAM
     .byte $40    ; 64 columns w/ $00 or $09 in rightmost
 HFEROWS:
     .byte $10    ; 16 rows
@@ -977,11 +981,38 @@ HFE_TTXT:
     .byte "Generic ScreenXX"
     .byte "->"
     .byte 0, 0
+;--------------------------------------------------------------------
+;      library jump table
+;
+;    see ftrain.s and bload.s for examples of library format details
+;
+LASTLIB = 4
+lib_jumptable:
+    LIBENTRY (LT_FTRAIN + COPYSTART - RAMSTART)
+    LIBENTRY (LT_ANSI + COPYSTART - RAMSTART)
+    LIBENTRY (LT_RAMTEST + COPYSTART - RAMSTART)
+    LIBENTRY (LT_BLOAD + COPYSTART - RAMSTART)
+    LIBENTRY (LT_EDITTEST + COPYSTART - RAMSTART)
+    .byte 0, 0, 0, 0, 0, 0   ; extra padding, dynamically add more libraries
+    .byte 0, 0, 0, 0, 0, 0   
+    .byte 0, 0, 0, 0, 0, 0 
+    .byte 0, 0
+;    
+;
 ;---------------------------------------------------------------------
 ;        primitives.s -- original AGSB hardcoded dictionary
+;----------------------------------------------------------------------
+; ( -- ) ae exit forth
+def_word "bye", "bye", 0
+    jmp MON_START               ; jump to WOZMON
 ;
-primitives:
-.include "primitives.s"
+; ( -- ) ae abort
+def_word "abort", "abort_", 0
+    jmp abort
+;
+; ( -- ) resets buffer to INBUF
+def_word "reset", "reset_", 0
+    jmp reset
 ;
 ;
 ;------------ CRITICAL CORE PRIMITIVES (AGSB and PGS) ----------------
@@ -1156,6 +1187,13 @@ COMPEND:
 ;~~~~~~~~ all done....
     jmp next                     ; and then see below; compiled word will continue until ';'
 ;
+;
+;---------------------------------------------------------------------
+;               must have words...
+; 
+primitives:
+.include "primitives.s"
+;
 ;---------------------ADD IN EXTRA HARDCODED LOGIC / NUMERALS / ETC--
 .ifdef HYWORDS
    .include "hywords.s"
@@ -1180,26 +1218,19 @@ def_word "exit", "exit", 0
 ;
 ends:                            ; end marker of hardcoded primitives
 ;
-;-----------------------------------------------------------------------
 ;
-;
-
 ;-----------------------------------------------------------------------
-;                            TRAINING DATA
+;                            COMPILED LIBRARIES
 ;
 ; include training data
-
+;
 .byte "***HEAPEND***"
-;.org $C000
-    .byte "FTRAIN"
-    .byte 0,0
+;
 .include "ftrain.s"
 ;
-;                            BINARY LOAD
+;-----------------------------------------------------------------------
+;                            BINARY LIBRARIES
 ;
-    .res 16
-    .byte "BLOAD"
-    .byte 0,0
 .include "bload.s"
 ;
 ;  end of hyforth.s
