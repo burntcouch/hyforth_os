@@ -6,8 +6,8 @@ $00     - shared RAM switch
 $01     - paged ROM switch
 $03-$06 -  *** reserved for task switcher ***
 $07-$2E - BIOS / OS stuff
-$2F-$C7 -  *** FREE TO USE ***
-$C8-$FF - HyForth
+$2F-$BF -  *** FREE TO USE ***
+$C0-$FF - HyFedit and HyForth
 
 buffers
 $0100       - stack
@@ -16,9 +16,9 @@ $0300       - INBUF  (Forth input buffer)
 $0400-$047F - DS (Forth data stack)
 $0480-$04FF - RT (Forth return stack)
 $0500-$06FF - MEMSTK (Forth memory allocation stack)
-$0700-$07FF - *** reserved for Forth stuff ***
+$0700-$07FF - Forth scratch PAD
 $0800-$0805 - Forth jump table
-$0806-$2000 - current Forth words heap, working up
+$0806~$2000 - current Forth words heap, working up
 $2000-$7xxx - Forth heap/memory space
 $7xxx-$7FFF - Forth memory heap, working down
 
@@ -31,17 +31,20 @@ $A000-$Bxxx - Forth COPYTORAM, initial heap, training words
     $A000->$0800->$EA00 - Forth cold start
     $A003 - Forth COPYTORAM  (copy RAM image from paged ROM)
     $A100 - $B24x - Forth heap
-    $B24D - autoload training words (ftrain_0:)
-    $B584 - binary load words (bload:)
+    $B3FF - autoload training words (ftrain_0:)
+    $B7xx - binary load words (bload:)
 $Bxxx-$CFFF - *** available for other fun stuff ***
 
-os_rom
+os_rom  ($A00 available space)
+------------------------------
 $E000-$E110 - OS_MAIN, SHELL
-$E111-$E3FF - *** available for shell, initialization ***
+$E111-$E3FF - *** available for shell, initialization ***    ($2D0)
 $E400-$E5FF - sound
-$E600-$E9FF - disassmbler
-$EA00-$F2xx - Forth ROM core
-$F2xx-$F7FF - *** available for use ***
+$E600-$E7AC - disassmbler
+$E800-$E9FF -  *** available for use **                      ($200)
+$EA00-$F334 - Forth ROM core
+$F334~$F500 - HyFedit
+$F500-$F7FF -  *** available for use ***                     ($300)
 $F800-$F821 - thunks (BIOS entry point jump table)
     TH_READ_CHAR           ; $F800
     TH_WRITE_CHAR          ; $F803
@@ -54,9 +57,9 @@ $F800-$F821 - thunks (BIOS entry point jump table)
     TH_DISASM              ; $F818
     TH_DISASM_AY           ; $F81B
     TH_MEM_COPY            ; $F81E     
-$F821-$F83F - *** more room for thunks, etc. ***
+$F821-$F83F - *** more room for thunks, etc. ***               ($60)
 $F840-$FBFF - BIOS
-$FC00-$FDFF - *** more room for bios ***
+$FC00-$FDFF - *** more room for bios ***                      ($200)
 $FE00-$FEFF - Wozmon
 $FF00-$FFxx - IO ports, TUVW registers, interrupt vectors
     T_REGISTER   = $FFF0   (current task selector)

@@ -169,30 +169,40 @@ DISASM_AY:
     rts
 
 DISASM_WM:
-    lda         ZP_WM_XAM
-    sta         ZP_D_XAM
     lda         ZP_WM_XAM + 1
     sta         ZP_D_XAM + 1
-
+    lda         ZP_WM_XAM
+    sta         ZP_D_XAM
+    
 DISASM:
     stz         ZP_D_ICOUNT
     inc         ZP_D_ICOUNT
-
 DISASM_LOOP:
     jsr         _disasm_load_inst
     jsr         _disasm_print_inst_bytes
     lda         ZP_D_STATE
     bne         :+
     jmp         @end_of_print
-
 :
     ldy         #0
     jsr         _disasm_print_padding
-    PRINT_SPACE
-    ldx         ZP_D_INST
-    lda         MN_OFFSETS, x
+    lda   #$20                       ;
+    jsr   WRITE_CHAR                 ; extra space and separator           
+    lda   #'|'                       ; added for readability
+    jsr   WRITE_CHAR                 ;
+    lda   #$20
+    jsr   WRITE_CHAR
+    ldx         ZP_D_INST            ; look up opcode in table.
+    lda         MN_OFFSETS, x        ; cool.  Can do in reverse for assembler
     tax
-    PRINT_CHAR  {MNEMONIC_STR, x}, {MNEMONIC_STR + 1, x}, {MNEMONIC_STR + 2, x}
+    lda   MNEMONIC_STR, x            ; print mnemonic
+    jsr   WRITE_CHAR
+    lda   MNEMONIC_STR+1, x
+    jsr   WRITE_CHAR   
+    lda   MNEMONIC_STR+2, x
+    jsr   WRITE_CHAR
+    
+ ;   PRINT_CHAR  {MNEMONIC_STR, x}, {MNEMONIC_STR + 1, x}, {MNEMONIC_STR + 2, x}
     lda         ZP_D_EXBYTES
     bne         :+
     jmp         @end_of_print               ; one-byte inst prints only mnemonic
@@ -432,3 +442,4 @@ _disasm_zeropage:
 
 _disasm_zp_byte:
     PRINT_BYTE_JMP  {ZP_D_INST, y}
+    

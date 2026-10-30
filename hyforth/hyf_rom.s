@@ -13,29 +13,66 @@ COPYTORAM:
     .byte <h_exit
     .byte >ends
 CTRSTART:
+;
+;    the 10-23-26 1920 version
+;
+;    reworked to used ZP_TEMP_VEC, ZP_TEMP_VEC2, ZP_TEMP_VEC3
+;                     mainoff      endsoff       ramstart
+;
     WCRLF_np
-    WCRLF_np
-    stz supprint               ; let it print
+;    lda #1
+;    sta supprint               ; supress printing of progress
     lda #>COPYMAIN
-    sta mainoff+1
+    sta ZP_TEMP_VEC+1
+    jsr WRITE_BYTE
     lda #<COPYMAIN
-    sta mainoff
-    ;
+    sta ZP_TEMP_VEC
+    jsr WRITE_BYTE
+    lda #'+'
+    jsr WRITE_CHAR
     lda #<COPYENDS
-    sta endsoff
+    sta ZP_TEMP_VEC2
+    jsr WRITE_BYTE
     lda #>COPYENDS
-    sta endsoff+1
+    sta ZP_TEMP_VEC2+1
+    jsr WRITE_BYTE
     ;
     lda #>RAMST
-    sta ramstart+1
+    sta ZP_TEMP_VEC3+1
     lda #<RAMST
-    sta ramstart
-    WCRLF_np
+    sta ZP_TEMP_VEC3
     jsr MEMCPY
+    lda #$20
+    jsr WRITE_CHAR
+    lda #'f'
+    jsr WRITE_CHAR    
+    lda #'i'
+    jsr WRITE_CHAR   
+    lda #'n'
+    jsr WRITE_CHAR   
+    WCRLF_np
     rts
-;;
-WHERESFT:
-    nop
-    bit ftrain_0 + INROM               ; see if is of use
-    nop
+
+;     the 10-22-26 1922 version
+;
+;    WCRLF_np
+;    WCRLF_np
+;    stz supprint               ; let it print
+;    lda #>COPYMAIN
+;    sta ZP_TEMP_VEC+1
+;    lda #<COPYMAIN
+;    sta ZP_TEMP_VEC
+    ;
+;    lda #<COPYENDS
+;    sta ZP_TEMP_VEC2
+;    lda #>COPYENDS
+;    sta ZP_TEMP_VEC2+1
+    ;
+;    lda #>RAMST
+;    sta ZP_TEMP_VEC3+1
+;    lda #<RAMST
+;    sta ZP_TEMP_VEC3
+;    WCRLF_np
+;    jsr MEMCPY
+;    rts  
 ;;

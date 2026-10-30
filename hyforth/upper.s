@@ -122,7 +122,7 @@ jump:                               ; EXECUTE                      ( PRIMITIVE )
 ;
 HYWELCOME:
     .byte $0D, $0A
-    .byte "HyForth 0.912 10-22-2026"
+    .byte "HyForth 0.920 10-28-2026"
     .byte $0D, $0A, 0
 ;
 ;------- used by 'autoload'
@@ -250,25 +250,27 @@ MEMLEN:           ; address in TEMP2
 ;         with MULT16 / DIV16, signs handled by calling word.
 ;         we just do the math here.
 ;
+;    transition to Z_MATH1,2,3,4 to replace use of TEMP1,2,3,4
 ;
-MULT16:                             ; 16 x 16 multiply; TEMP1 and TEMP2 are #'s, TEMP1 will be result
-    stz TEMP3                       ; with TEMP3 as high bytes
-    stz TEMP3+1
+;
+MULT16:                             ; 16 x 16 multiply; Z_MATH1 and Z_MATH2 are #'s, Z_MATH1 will be result
+    stz Z_MATH3                       ; with Z_MATH3 as high bytes
+    stz Z_MATH3+1
     ldx #17
     clc
 MULTLOOP:
-    ror TEMP3+1                     ; RIGHT.  if you need to go backwards, go backwards stupid fuck.
-    ror TEMP3
-    ror TEMP1+1
-    ror TEMP1
+    ror Z_MATH3+1                     ; RIGHT.  if you need to go backwards, go backwards stupid fuck.
+    ror Z_MATH3
+    ror Z_MATH1+1
+    ror Z_MATH1
     bcc MULTDECCNT
     clc
-    lda TEMP2
-    adc TEMP3
-    sta TEMP3
-    lda TEMP2+1
-    adc TEMP3+1
-    sta TEMP3+1
+    lda Z_MATH2
+    adc Z_MATH3
+    sta Z_MATH3
+    lda Z_MATH2+1
+    adc Z_MATH3+1
+    sta Z_MATH3+1
 MULTDECCNT:
     dex
     bne MULTLOOP
@@ -276,64 +278,64 @@ MULTDECCNT:
 
 ;
 ;
-;           16 / 16 divide; TEMP1 and TEMP2 #'s - TEMP3 is 'overflow'
-;           TEMP2 divisor, TEMP1 dividend, TEMP1 + 3 = result + remainder
+;           16 / 16 divide; Z_MATH1 and Z_MATH2 #'s - Z_MATH3 is 'overflow'
+;           Z_MATH2 divisor, Z_MATH1 dividend, Z_MATH1 + 3 = result + remainder
 DIV16:
-    stz TEMP3
-    stz TEMP3+1
+    stz Z_MATH3
+    stz Z_MATH3+1
     ldx #16
 UDIVLP:
-    rol TEMP1
-    rol TEMP1+1
-    rol TEMP3
-    rol TEMP3+1
+    rol Z_MATH1
+    rol Z_MATH1+1
+    rol Z_MATH3
+    rol Z_MATH3+1
 UDIVCHK:
     sec
-    lda TEMP3
-    sbc TEMP2
+    lda Z_MATH3
+    sbc Z_MATH2
     tay
-    lda TEMP3+1
-    sbc TEMP2+1
+    lda Z_MATH3+1
+    sbc Z_MATH2+1
     bcc UDIVCNT
-    sty TEMP3
-    sta TEMP3+1
+    sty Z_MATH3
+    sta Z_MATH3+1
 UDIVCNT:
     dex
     bne UDIVLP
-    rol TEMP1
-    rol TEMP1+1
+    rol Z_MATH1
+    rol Z_MATH1+1
     rts
 ;
-;        32 / 16 divide; TEMP2-TEMP1 / TEMP3 #'s - TEMP4 is 'overflow'
-;        -> TEMP2-TEMP1 + TEMP4 = result + remainder
+;        32 / 16 divide; Z_MATH2-Z_MATH1 / Z_MATH3 #'s - Z_MATH4 is 'overflow'
+;        -> Z_MATH2-Z_MATH1 + Z_MATH4 = result + remainder
 DIV32:
-    stz TEMP4
-    stz TEMP4+1
+    stz Z_MATH4
+    stz Z_MATH4+1
     ldx #16
 UDIV32LP:
-    rol TEMP1
-    rol TEMP1+1
-    rol TEMP2
-    rol TEMP2+1
-    rol TEMP4
-    rol TEMP4+1
+    rol Z_MATH1
+    rol Z_MATH1+1
+    rol Z_MATH2
+    rol Z_MATH2+1
+    rol Z_MATH4
+    rol Z_MATH4+1
 UDIV32CHK:
     sec
-    lda TEMP4
-    sbc TEMP3
+    lda Z_MATH4
+    sbc Z_MATH3
     tay
-    lda TEMP4+1
-    sbc TEMP3+1
+    lda Z_MATH4+1
+    sbc Z_MATH3+1
     bcc UDIV32CNT
-    sty TEMP4
-    sta TEMP4+1
+    sty Z_MATH4
+    sta Z_MATH4+1
 UDIV32CNT:
     dex
     bne UDIV32LP
-    rol TEMP1
-    rol TEMP1+1
-    rol TEMP2
-    rol TEMP2+1
+    rol Z_MATH1
+    rol Z_MATH1+1
+    rol Z_MATH2
+    rol Z_MATH2+1
     rts
 ;
 ;     galois32o - LSFR psuedo-random # generator
@@ -479,21 +481,21 @@ TX2END:
 
 ;-----------------------   NUMBER CONVERSIONS
 ;
-DEC2ASCII:       ;  X is # - return as two digits in TEMP3, TEMP3+1
+DEC2ASCII:       ;  X is # - return as two digits in Z_MATH3, Z_MATH3+1
     lda #'0'
-    sta TEMP3+1
+    sta Z_MATH3+1
     txa
-    sta TEMP3
+    sta Z_MATH3
 D2ASCLOOP:
     sec
     sbc #$0A
     bcc D2ASCNEXT
-    inc TEMP3+1
+    inc Z_MATH3+1
     bra D2ASCLOOP
 D2ASCNEXT:
     clc
     adc #$3A
-    sta TEMP3
+    sta Z_MATH3
     rts
 
 .ifdef numbers
@@ -647,38 +649,38 @@ H2NUM: .byte $27,$10
  .byte $03,$E8
  .byte $00,$64
  .byte $00,$0A
-HEX2DEC:                            ; low/high in A,Y - use X, TEMP1, TEMP3, TEMP4, TEMP6
-    sty TEMP3+1
-    sta TEMP3
+HEX2DEC:                            ; low/high in A,Y - use X, TEMP1, Z_MATH2-4
+    sty Z_MATH2+1
+    sta Z_MATH2
     ldx #0
 H2DDIV10:
     lda H2NUM,x
-    sta TEMP4+1
+    sta Z_MATH3+1
     inx
     lda H2NUM,x
-    sta TEMP4
+    sta Z_MATH3
     inx
-    stz TEMP6
+    stz Z_MATH4
 H2DLOOP:
-    lda TEMP3+1
-    cmp TEMP4+1
+    lda Z_MATH2+1
+    cmp Z_MATH3+1
     bcc  H2DSK1
     bne  H2DSK0
-    lda TEMP3
-    cmp TEMP4
+    lda Z_MATH2
+    cmp Z_MATH3
     bcc  H2DSK1
 H2DSK0:
-    lda TEMP3
+    lda Z_MATH2
     sec
-    sbc TEMP4
-    sta TEMP3
-    lda TEMP3+1
-    sbc TEMP4+1
-    sta TEMP3+1
-    inc TEMP6
+    sbc Z_MATH3
+    sta Z_MATH2
+    lda Z_MATH2+1
+    sbc Z_MATH3+1
+    sta Z_MATH2+1
+    inc Z_MATH4
     bra H2DLOOP
 H2DSK1:
-    lda TEMP6
+    lda Z_MATH4
     clc
     adc #'0'
     sta TEMP1
@@ -690,7 +692,7 @@ H2DSK1:
     beq H2DFIN
     jmp H2DDIV10
 H2DFIN:
-    lda TEMP3
+    lda Z_MATH2
     clc
     adc #'0'
     sta TEMP1
@@ -703,10 +705,11 @@ H2DFIN:
 ;--------------------------------- CLEAR ------------------------------
 ;
 ;  zero out $C8 - $FF, meet and greet
-;  zero out INBUF also
+;  zero out INBUF
+;  and clear SCRBUF
 ;
 CLEAR:
-    lda #1
+    lda #$FF
     sta DFLAG                       ; debug OFF by default
 zpclear:
     ldx #ZPSTART                    ; whoops, this is all the ZP that is used
@@ -725,17 +728,49 @@ stackslp:                           ; and then clear out DS / RT
     sta  DS,x
     inx
     bne  stackslp
+        ; 
+    jsr CLR_SCREENBUF               ; it does this
         ;  meet and greet
     ldy  #0
 hywelclp:
     lda  HYWELCOME,y
     beq  CLREXIT
-    PRINT_CHAR
+    jsr WRITE_CHAR
     iny
     bra  hywelclp
 CLREXIT:
+    jsr print_libtable
     rts
-;
+
+CLR_SCREENBUF:
+;               clear screen buffer;  16 rows of 63 + 1 columns
+    lda #$10
+    sta TEMP5                       ; count rows from 16
+    lda #<SCRBUF
+    sta TEMP0
+    lda #>SCRBUF
+    sta TEMP0 + 1    
+clrscrbuf0:
+    lda #$20
+    ldx #$3F                        ; count down from 63
+    ldy #0
+clrscrbuf1:
+    sta (TEMP0),y
+    iny
+    dex
+    bne clrscrbuf1
+    lda #0
+    sta (TEMP0),y
+    lda TEMP0
+    clc
+    adc #$40
+    bcc clrscrbuf2
+    inc TEMP0+1
+clrscrbuf2:
+    sta TEMP0
+    dec TEMP5
+    bne clrscrbuf0
+    rts
 ;
 .ifdef DEBUG
 ;      argh.
@@ -758,6 +793,10 @@ DUMPREG:            ; dump registers safely and print
     phy                         ; -6
     lda   DFLAG
     beq   DPFCHECK
+    jsr   WRITE_BYTE
+    lda   #'!'
+    jsr   WRITE_CHAR
+    WCRLF
     jmp   DREGNXT
 DPFCHECK:
     ldy   #0
@@ -769,7 +808,7 @@ DUMPLP0:
     iny
     bra   DUMPLP0
 DUMPCON:
-    tsx                         ; -6
+    tsx                         ; -6  - keeping tack of back-stack steps
     txa
     clc
     adc   #6
@@ -813,17 +852,17 @@ DUMPSKy:
     jsr WRITE_CHAR
     dex                         ; -3
     lda $0100,x
-    jsr WRITE_BYTE       ; print A
+    jsr WRITE_BYTE              ; print A
     lda #'/'
     jsr WRITE_CHAR 
     dex                         ; -4
     lda $0100,x
-    jsr WRITE_BYTE                  ; print X
+    jsr WRITE_BYTE              ; print X
     lda #'/'
     jsr WRITE_CHAR 
     dex                         ; -5
     lda $0100,x
-    jsr WRITE_BYTE       ; print Y
+    jsr WRITE_BYTE              ; print Y
     WCRLF_np
     ldy   #0
 DUMPLP1:                        ; print message
@@ -833,6 +872,7 @@ DUMPLP1:                        ; print message
     iny
     bra   DUMPLP1
 DREGLP1:
+    stz   Z_DEBUG               ; clear for dumping pages below
     jsr   READ_CHAR             ; wait for a key
     bcc   DREGLP1
     cmp   #'s'              ; print out stacks?
@@ -867,37 +907,45 @@ DUMPTIB:                            ; dump TIB
     php
     pha
     lda #>INBUF
-    sta TEMP0+1
+    sta Z_DEBUG+1
     jmp DUMPPDBG
 DUMPSTACK:                          ; dump DS/RT stack area
     php
     pha
     lda #>DS
-    sta TEMP0+1
+    sta Z_DEBUG+1
     jmp DUMPPDBG
 DUMPZP:                             ; dump ZP
     php
     pha
-    stz TEMP0+1
+    stz Z_DEBUG+1
     jmp DUMPPDBG
 .endif
 
 DUMPPAGE:                           ; general purpose page dumper
-                                    ; TEMP0 starts at zero, TEMP0+1 is page #
+                                    ; Z_DEBUG starts masked at $F0, Z_DEBUG+1 is page #
     php
     pha
 DUMPPDBG:
     ldy #0
-    sty TEMP0
 DUMPLOOP:
-    lda TEMP0+1
-    jsr WRITE_BYTE
     tya
+    clc
+    adc Z_DEBUG
+    pha
+    bcc DUMPSK2
+    lda Z_DEBUG+1
+    inc
+    .byte $2C                    ; skip 2 bytes
+DUMPSK2:
+    lda Z_DEBUG+1
+    jsr WRITE_BYTE
+    pla
     jsr WRITE_BYTE
     lda #':'
     jsr WRITE_CHAR 
 DPLOOP2:
-    lda (TEMP0), y
+    lda (Z_DEBUG), y
     jsr WRITE_BYTE
     lda #$20
     jsr WRITE_CHAR              ; print space between columns
@@ -915,7 +963,7 @@ DPSKIP:
     sbc #$10                    ; subtract 16 to rewind the line
     tay
 DPPLOOP:
-    lda (TEMP0), y              ; printable ascii
+    lda (Z_DEBUG), y              ; printable ascii
     cmp #$20
     bcc PPERIOD
     cmp #$7F
@@ -942,34 +990,38 @@ DUMPSTKEND:
     plp
     rts
 ;
-;    load mainoff (TEMP1 $F0), ramstart (TEMP3 $F4), and endsoff (TEMP2 $F2)
+;    load mainoff ZP_TEMP_VEC -> ZP_TEMP_VEC2, ZP_TEMP_VEC3 is end of copy
 ;     with current ROM offsets (main = start, ends = finish)
 ;     and ramstart with destination corresponding to main.
-;     Set 'supprint' <> 0 (TEMP5 $FC) to suppress printing of progress bar.
+;     Set 'supprint' <> 0 (TEMP5 $FC) to suppress printing of progress bar from Forth
+;
+;    reworked to used ZP_TEMP_VEC, ZP_TEMP_VEC2, ZP_TEMP_VEC3
+;                     mainoff      endsoff       ramstart
 ;
 MEMCPY:
     ldy  #0
 COPYLOOP:
-    lda (mainoff),y
-    sta (ramstart),y
-    lda mainoff
-    cmp endsoff
+    lda (ZP_TEMP_VEC),y
+    sta (ZP_TEMP_VEC3),y
+    lda ZP_TEMP_VEC
+    cmp ZP_TEMP_VEC2
     bne SKIP1
-    lda mainoff+1
-    cmp endsoff+1
+    lda ZP_TEMP_VEC+1
+    cmp ZP_TEMP_VEC2+1
     beq CPRTS
 SKIP1:
     lda supprint
     bne SKIP01
-    PRINT_CHAR #'.'
+    lda #'.'
+    jsr WRITE_CHAR
 SKIP01:
-    inc mainoff
+    inc ZP_TEMP_VEC
     bne SKIP2
-    inc mainoff + 1
+    inc ZP_TEMP_VEC + 1
 SKIP2:
-    inc ramstart
+    inc ZP_TEMP_VEC3
     bne SKIP3
-    inc ramstart+1
+    inc ZP_TEMP_VEC3+1
 SKIP3:
     bra COPYLOOP
 CPRTS:
@@ -984,13 +1036,13 @@ ANSIHDR:
     jsr WRITE_CHAR
     rts
 
-ANSIONEDIG:   ;two ASCII digits in TEMP3
-    lda TEMP3 + 1
+ANSIONEDIG:   ;two ASCII digits in Z_ANSI1
+    lda Z_ANSI1 + 1
     cmp #$30
     beq ansi_scr_00
     jsr WRITE_CHAR
 ansi_scr_00:
-    lda TEMP3
+    lda Z_ANSI1
     jsr WRITE_CHAR
     rts
 
@@ -1002,33 +1054,29 @@ ANSICLS:
     jsr WRITE_CHAR
     rts    
     
-ANSISCR:      ; .... and another two in TEMP4
+ANSISCR:      ; assumes Z_ANSI1 AND Z_ANSI2 have digits 
+              ; one or two digit ASCII #'s already
     jsr ANSIHDR
     jsr ANSIONEDIG
     lda #';'
     jsr WRITE_CHAR
-    lda TEMP4 + 1
-    cmp #$30
-    beq ansi_scr_01
-    jsr WRITE_CHAR
-ansi_scr_01:
-    lda TEMP4
-    jsr WRITE_CHAR
+    lda Z_ANSI2
+    sta Z_ANSI1
+    lda Z_ANSI2+1
+    sta Z_ANSI1+1
+    jsr ANSIONEDIG
     lda #'f'    
     jsr WRITE_CHAR
     rts
     
-ANSICOL:
-    jsr ANSIHDR
+ANSICOL:                 ; assumes Z_ANSI1 has digits
+    jsr ANSIHDR      
     jsr ANSIONEDIG
     lda #'m'    
     jsr WRITE_CHAR
     rts
-        
-;
-;
-   .include "hyf_edit.s"
-HFE_EDIT_END:
 ;
 ; ---------------- end of upper.s
+;
+;   hyf_edit.s is loaded in hyforth.s directly after this
 ;

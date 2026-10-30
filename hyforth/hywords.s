@@ -5,7 +5,10 @@
 ;
 ;----------------------UTILITIES--------------------------------------
 def_word "cr", "crlf", 0
-    PRINT_CRLF
+    lda #$0D
+    jsr WRITE_CHAR
+    lda #$0A
+    jsr WRITE_CHAR
     jmp next
 ;
 def_word ">in", "inptr", 0                  ; CURBUF - pointer into INBUF (TIB)
@@ -24,7 +27,7 @@ def_word "here", "here", 0                   ; NEXTHEAP addr onto stack
     lda #NEXTHEAP
     bra REGIN
 ;
-def_word "back", "back", 0                   ; NEXTHEAP addr onto stack
+def_word "back", "back", 0                   ; backup of NEXTHEAP addr onto stack
     lda #BACKHEAP
     bra REGIN
 ;
@@ -36,7 +39,7 @@ def_word "rp", "rp", 0                       ; RTPTR pointer addr onto stack
     lda #RTPTR
     bra REGIN
 ;
-def_word "memptr", "memptr", 0
+def_word "memptr", "memptr", 0               ; memory area pointer onto stack
     lda MEMPTR
     sta TEMP1
     lda MEMPTR+1
@@ -112,6 +115,7 @@ def_word "spc", "spc", 0
     sta TEMP1
     stz TEMP1+1
     jmp this
+;
 ;----------------------------------------------
 ; (? -- ?)      -  LIT -
 ;                - ': lit rp @ @ dup 2 + rp @ ! @ ;'
@@ -125,8 +129,8 @@ def_word "lit", "literal", 0
     iny
     lda (INSTPTR),y
     sta TEMP1+1
-    jsr spush_0
-    ldx #INSTPTR  ; 'skip' (IP += 2)
+    jsr spush_0   ; [IP] PUSH DS
+    ldx #INSTPTR  ; IP += 2
     lda #2
     jsr addwx
     jmp next
@@ -339,7 +343,6 @@ ONEHEX:
 DOWITHONE:
     sta TEMP1
     stz TEMP1+1
-;     jsr spush_0
     jmp this
 
 ; ( -- n ) numeral 2
@@ -411,7 +414,6 @@ def_word "-1", "negone", 0
     lda #$FF
     sta TEMP1
 DOWITHNEG:
-    ; sta TEMP1+1
     jmp keeps
 
 ; ( -- n ) numeral 0
@@ -914,9 +916,8 @@ CLSKIP:
 ;
 ;  BLOAD  -- see example in 'bload.s'
 ;
-;   note, only loads ONE word at the moment
+; (a -- )       load native code from memory, double zero term'd
 ;
-; (a -- )       load native code from memory, zero term'd
 def_word "bload", "bload", 0
 BLOAD_IN:
     WSEQ_raw BLOADMSG
@@ -1018,30 +1019,33 @@ def_word "Acls", "Acls", 0
 ;
 ; (c r -- )      ANSI screen position ESC[<r>;<c>f
 def_word "Ascr", "Ascr", 0
-    jsr ANSIHDR
     jsr spull_0
     ldx TEMP1
-    jsr DEC2ASCII         ; digits end up in TEMP3
-    jsr ANSIONEDIG         
-    lda #';'
-    jsr WRITE_CHAR
+    jsr DEC2ASCII         ; digits end up in Z_MATH3
+    lda Z_MATH3
+    sta Z_ANSI1
+    lda Z_MATH3+1
+    sta Z_ANSI1+1        
     jsr spull_0
     ldx TEMP1
-    jsr DEC2ASCII         ; digits end up in TEMP3
-    jsr ANSIONEDIG
-    lda #'f'
-    jsr WRITE_CHAR
+    jsr DEC2ASCII         ; digits end up in Z_MATH3
+    lda Z_MATH3
+    sta Z_ANSI2
+    lda Z_MATH3+1
+    sta Z_ANSI2+1      
+    jsr ANSISCR
     jmp next
 ;
 ; (c -- )      ANSI attributes ESC[<c>m
 def_word "Acol", "Acol", 0
-    jsr ANSIHDR
     jsr spull_0
     ldx TEMP1
     jsr DEC2ASCII         ; digits end up in TEMP3
-    jsr ANSIONEDIG
-    lda #'m'
-    jsr WRITE_CHAR    
+    lda Z_MATH3
+    sta Z_ANSI1
+    lda Z_MATH3+1
+    sta Z_ANSI1+1 
+    jsr ANSICOL    
     jmp next
 .endif   ; ANSIOK
 ;
@@ -1116,61 +1120,69 @@ def_word "max", "max16", 0
 
 ;
 ; (ux um -- rh rl)      16x16 multiply, result in reverse order
-; faster if TEMP2 (um) is smaller of two.  Need a MIN/MAX swap routine!
+; faster if Z_MATH2 (um) is smaller of two.  Need a MIN/MAX swap routine!
 ;
 def_word "*", "mult16", 0
-    jsr spull_1
-    jsr spull_0
-    lda TEMP1            ; handle zeros  3/22 1320
-    ora TEMP1+1
+    ldy #Z_MATH2
+    jsr spull
+    ldy #Z_MATH1
+    jsr spull
+    lda Z_MATH1            ; handle zeros  3/22 1320
+    ora Z_MATH1+1
     beq m16zero          ; if either is 0-0, can skip to end
-    lda TEMP2
-    ora TEMP2+1
-    beq m16zero          ; TEMP2 is zero?  same deal.
+    lda Z_MATH2
+    ora Z_MATH2+1
+    beq m16zero          ; Z_MATH2 is zero?  same deal.
     jsr MULT16
     bra m16push
 m16zero:
-    stz TEMP1
-    stz TEMP1+1
-    stz TEMP3
-    stz TEMP3+1
+    stz Z_MATH1
+    stz Z_MATH1+1
+    stz Z_MATH3
+    stz Z_MATH3+1
 m16push:
-    jsr spush_2           ; MSbyte
-    jsr spush_0           ; push LSbyte in TEMP1 on top
+    ldy #Z_MATH3
+    jsr spush           ; MSbyte
+    ldy #Z_MATH1
+    jsr spush           ; push LSbyte in Z_MATH1 on top
     jmp next
 
 ;
 ; (ux um -- r m)      16x16 divide, result + MOD
 ;
 def_word "/", "div16", 0
-    jsr spull_1
-    jsr spull_0
-    lda TEMP1            ; handle zeros  3/22 1320
-    ora TEMP1+1
+    ldy #Z_MATH2
+    jsr spull
+    ldy #Z_MATH1
+    jsr spull
+    lda Z_MATH1            ; handle zeros  3/22 1320
+    ora Z_MATH1+1
     beq d16zero         ; shortcut!
-    lda TEMP2
+    lda Z_MATH2
     bne d16skip0
-    ora TEMP2+1
+    ora Z_MATH2+1
     bne d16skip1
     jmp div0err                     ; divide by zero error
 d16skip0:
     cmp #1
     bne d16skip1
-    lda TEMP2+1
+    lda Z_MATH2+1
     bne d16skip1
-    bra d16rzero                   ; dividing by 1, just return TEMP1
+    bra d16rzero                   ; dividing by 1, just return Z_MATH1
 d16skip1:
-    jsr DIV16                      ; results TEMP2, remainder TEMP3
+    jsr DIV16                      ; results Z_MATH2, remainder Z_MATH3
     jmp d16done
 d16zero:
-    stz TEMP1
-    stz TEMP1+1
+    stz Z_MATH1
+    stz Z_MATH1+1
 d16rzero:
-    stz TEMP3
-    stz TEMP3+1
+    stz Z_MATH3
+    stz Z_MATH3+1
 d16done:
-    jsr spush_2        ; remainder first
-    jsr spush_0        ; result on top
+    ldy #Z_MATH3
+    jsr spush        ; remainder first
+    ldy #Z_MATH1
+    jsr spush        ; result on top
     jmp next
 ;
 ;                      divide by zero error
@@ -1184,89 +1196,96 @@ div0err:                      ; pop jsr off stack, throw error
 ; (u1 u2 ud -- rl rh m)      16x16/16 mult-divide, result + MOD
 ;
 def_word "*/", "mdiv32", 0
-    ldy #TEMP4           ; so we can use TEMP3 below
-    jsr spull            ; divisor
-    jsr spull_0          ; mult 1
-    jsr spull_1          ; mult 2
-    lda TEMP1            ; handle zeros  3/22 1320
-    ora TEMP1+1
+    ldy #Z_MATH4           ; so we can use Z_MATH3 below
+    jsr spull              ; divisor
+    ldy #Z_MATH1
+    jsr spull              ; mult 1
+    ldy #Z_MATH2
+    jsr spull              ; mult 2
+    ;
+    lda Z_MATH1            ; handle zeros  3/22 1320
+    ora Z_MATH1+1
     beq d32zero         ; shortcut!
-    lda TEMP2
-    ora TEMP2+1
+    lda Z_MATH2
+    ora Z_MATH2+1
     beq d32zero         ; shortcut!
-    lda TEMP4
+    lda Z_MATH4
     bne d32skip0
-    ora TEMP4+1
+    ora Z_MATH4+1
     bne d32skip1
     jmp div0err                     ; divide by zero error
 d32skip0:
     cmp #1
     bne d32skip1
-    lda TEMP4+1
+    lda Z_MATH4+1
     bne d32skip1
-    bra d32rzero                   ; dividing by 1, just return TEMP1
+    bra d32rzero                   ; dividing by 1, just return Z_MATH1
 d32skip1:
-    jsr MULT16                     ; results TEMP3/TEMP1
-    lda TEMP3                      ; do-si-do
-    sta TEMP2
-    lda TEMP3+1
-    sta TEMP2+1
-    lda TEMP4                      ; move divisor to TEMP3
-    sta TEMP3
-    lda TEMP4+1
-    sta TEMP3+1
-;   jsr DIV32                      ; results TEMP2/TEMP1, remainder TEMP4
+    jsr MULT16                     ; results Z_MATH3/Z_MATH1
+    lda Z_MATH3                      ; do-si-do
+    sta Z_MATH2
+    lda Z_MATH3+1
+    sta Z_MATH2+1
+    lda Z_MATH4                      ; move divisor to Z_MATH3
+    sta Z_MATH3
+    lda Z_MATH4+1
+    sta Z_MATH3+1
+;   jsr DIV32                      ; results Z_MATH2/Z_MATH1, remainder Z_MATH4
     jsr MDIV32
     jmp d32done
 d32zero:
-    stz TEMP1
-    stz TEMP1+1
-    stz TEMP2
-    stz TEMP2+1
+    stz Z_MATH1
+    stz Z_MATH1+1
+    stz Z_MATH2
+    stz Z_MATH2+1
 d32rzero:
-    stz TEMP4
-    stz TEMP4+1
+    stz Z_MATH4
+    stz Z_MATH4+1
 d32done:
-    ldy #TEMP4
+    ldy #Z_MATH4
     jsr spush        ; remainder first
-    jsr spush_1        ; msb next
-    jsr spush_0        ; lsb on top
+    ldy #Z_MATH2
+    jsr spush         ; msb next
+    ldy #Z_MATH1
+    jsr spush        ; lsb on top
     jmp next
     
-;        32 / 16 divide; TEMP2-TEMP1 / TEMP3 #'s - TEMP4 is 'overflow'
-;        -> TEMP2-TEMP1 + TEMP4 = result + remainder
+;        32 / 16 divide; Z_MATH2-Z_MATH1 / Z_MATH3 #'s - Z_MATH4 is 'overflow'
+;        -> Z_MATH2-Z_MATH1 + Z_MATH4 = result + remainder
 MDIV32:
-    stz TEMP4
-    stz TEMP4+1
+    stz Z_MATH4
+    stz Z_MATH4+1
     ldx #32
 UMDIV32LP:
-    rol TEMP1
-    rol TEMP1+1
-    rol TEMP2
-    rol TEMP2+1
-    rol TEMP4
-    rol TEMP4+1
+    rol Z_MATH1
+    rol Z_MATH1+1
+    rol Z_MATH2
+    rol Z_MATH2+1
+    rol Z_MATH4
+    rol Z_MATH4+1
 UMDIV32CHK:
     sec
-    lda TEMP4
-    sbc TEMP3
+    lda Z_MATH4
+    sbc Z_MATH3
     tay
-    lda TEMP4+1
-    sbc TEMP3+1
+    lda Z_MATH4+1
+    sbc Z_MATH3+1
     bcc UMDIV32CNT
-    sty TEMP4
-    sta TEMP4+1
+    sty Z_MATH4
+    sta Z_MATH4+1
 UMDIV32CNT:
     dex
     bne UMDIV32LP
-    rol TEMP1
-    rol TEMP1+1
-    rol TEMP2
-    rol TEMP2+1
+    rol Z_MATH1
+    rol Z_MATH1+1
+    rol Z_MATH2
+    rol Z_MATH2+1
     rts    
 ;
 ;
 ; ( hex -- d1 d2 d3 d4 d5 )
+;  converts a word into a reverse order ascii digit sequence
+;
 def_word "xdrv", "xdrv", 0
     jsr spull_0
     lda TEMP1
@@ -1278,15 +1297,18 @@ def_word "xdrv", "xdrv", 0
 ;
 ; (as ae ad -- )    copy from $as thru $ae to $ad
 def_word "memcpy", "memcpy", 0
-    jsr spull_2              ; dest addr
-    jsr spull_1              ; end
-    jsr spull_0              ; start
-    lda TEMP1+1
-    cmp TEMP2+1
+    ldy #ZP_TEMP_VEC3
+    jsr spull              ; dest addr
+    ldy #ZP_TEMP_VEC2
+    jsr spull              ; end
+    ldy #ZP_TEMP_VEC
+    jsr spull              ; start
+    lda ZP_TEMP_VEC+1
+    cmp ZP_TEMP_VEC2+1
     bcc MEMCPYDOIT
     bne MEMCPYEND
-    lda TEMP1
-    cmp TEMP2
+    lda ZP_TEMP_VEC
+    cmp ZP_TEMP_VEC2
     bcs MEMCPYEND
 MEMCPYDOIT:
     lda #1
@@ -1309,24 +1331,41 @@ def_word "free", "free", 0
     jmp next
 ;
 ; (daddr n -- ) start disassembly from daddr, do it
-; $F600 is entry point --A+Y for starting address, C=1 for multiple opcodes, X for # of codes
+; $F600 is entry point for DISASM_AY (low/high addr), C=1 for multiple opcodes, X for # of codes
+;  ..or, since it's not much fun figuring out why WozMon is picky, use the regular DISASM
+;  entry point instead.  simpler, and just shoe-horn address into Z_D_XAM, and run the loop here.
+;
 def_word "disasm", "disasm", 0
-    jsr spull_1    ; # of instructions (??)
+    jsr spull_1    ; # of instructions to print
     jsr spull_0    ; addr
-    ldx TEMP2
-    cpx #$FE
+    lda TEMP2
+    cmp #$FE
     bcs DISEND
     lda #1           ; and ZP_D_STATE has to be =1 in order to show mnemonics etc
     sta ZP_D_STATE
+    lda TEMP1+1
+    sta ZP_D_XAM+1   ; gotta write the address here, since WozMon doesn't
     lda TEMP1
-    ldy TEMP1+1
-    sec              ; set the carry to make sure multiple ops returned
-    jsr DISASM_AY
+    sta ZP_D_XAM
+DISLOOP:
+     lda ZP_D_XAM+1
+     jsr WRITE_BYTE   ; weird shit ensues if I try to do it in Wozmon/DISASM
+     lda ZP_D_XAM
+     jsr WRITE_BYTE    
+     lda #':'
+     jsr WRITE_CHAR  
+     clc
+     jsr DISASM
+     WCRLF
+     dec TEMP2
+     beq DISSKIP
+     bra DISLOOP
+DISSKIP:     
     lda ZP_D_XAM
     sta TEMP1
     ldy ZP_D_XAM+1
     sty TEMP1+1
-    jsr spush_0     ; push last address on stack?
+    jsr spush_0     ; push last address on stack, in case want to continue
 DISEND:
     jmp next
 
@@ -1442,11 +1481,11 @@ def_word "mlen", "mlen", 0
 ;
 ;                        word definitions for Yamaha 2151 sound chip
 ;
-def_word "sndinit", "sndinit", 0
+def_word "yinit", "yinit", 0
     jsr SOUND_INIT
     jmp next
 
-def_word "sndtest", "sndtest", 0
+def_word "ytest", "ytest", 0
     jsr SOUND_TEST
     jmp next
 
@@ -1462,7 +1501,148 @@ YMGOOD:
     jmp PUSHTRUE
 .endif
 ;
+;----------------------------------------------------------------------------
+;                     HFA - HyForth mini-assembler stuff
+;  mnemonic string addr
+def_word "fa_ms@", "fa_ms", 0
+    lda #<MNEMONIC_STR
+    sta TEMP1
+    lda #>MNEMONIC_STR
+    sta TEMP1+1
+    jsr spush_0
+    jmp next
 ;
+;  mnemonic offset table addr
+;
+def_word "fa_mo@", "fa_mo", 0
+    lda #<MN_OFFSETS
+    sta TEMP1
+    lda #>MN_OFFSETS
+    sta TEMP1+1
+    jsr spush_0
+    jmp next
+;
+;----------------------------------------------------------------------------
+;                     HyFedit - editor stuff
+def_word "fedisp", "fedisp", 0
+ ;   jsr spull_0
+ ;   lda TEMP1
+ ;   sta HFEBUF
+ ;   lda TEMP1+1
+ ;   sta HFEBUF+1
+    jsr HFE_WARM
+    jmp next
+;
+;    
+def_word "febuf", "febuf", 0
+    lda DSPTR                   ; if nothing in stack...
+    cmp #DSEND                 
+    bne FEBUF_RESET            ; then set FEBUF to SCRBUF
+    jsr spull_0
+    ldy TEMP1
+    sty HFEBUF
+    ldy TEMP1+1
+    sty HFEBUF+1
+    bra FEBUF_END
+FEBUF_RESET:    
+    ldy #<SCRBUF                ; initialize screen pointer
+    sty HFEBUF                  ; HFE_BPTR is set up when 
+    ldy #>SCRBUF                ;   HFE_COLD is called.
+    sty HFEBUF+1                
+FEBUF_END:
+    jmp next
+;
+;   copy data into current SCRBUF 
+;   
+def_word "fedit", "fedit", 0
+    jsr spull_0
+    lda HFEBUF
+    sta HFE_BPTR
+    lda HFEBUF+1
+    sta HFE_BPTR+1
+    lda HFEROWS
+    sta TEMP5
+FEDIT_LP2:
+    ldy #$FF
+FEDIT_LP0:
+    iny
+    cpy HFECOLS
+    beq FEDIT_EOL
+    ;
+    lda (TEMP1),y
+    beq  FEDIT_CLDONE
+    cmp #9
+    beq  FEDIT_CLDONE
+    ;
+    sta (HFE_BPTR),y
+    bra FEDIT_LP0
+FEDIT_CLDONE:
+    phy
+    lda #$20
+    sta (HFE_BPTR),y           ; print spc instead of \0
+FEDIT_LP1:
+    iny
+    cpy HFECOLS
+    beq FEDIT_EOL
+    sta (HFE_BPTR),y
+    bra FEDIT_LP1
+FEDIT_EOL:
+    lda #0
+    dey
+    sta (HFE_BPTR),y    
+    lda HFE_BPTR
+    clc
+    adc #$40
+    bcc FEDIT_SK0
+    inc HFE_BPTR+1
+FEDIT_SK0:
+    sta HFE_BPTR
+    pla              ; from backed up Y
+    inc
+    clc
+    adc TEMP1
+    bcc FEDIT_SK1
+    inc TEMP1+1
+FEDIT_SK1:
+    sta TEMP1
+    dec TEMP5
+    bne FEDIT_LP2
+;
+    jmp next
+;
+;    
+def_word "feclr", "feclr", 0
+    jsr CLR_SCREENBUF
+    jmp next
+;
+;    
+def_word "feadd", "feadd", 0
+    jmp next
+;
+;    
+def_word "ferow!", "ferow_g", 0
+    jsr spull_0
+    lda TEMP1
+    sta HFE_CV
+    jmp next
+;
+;    
+def_word "fecol!", "fecol_g", 0
+    jsr spull_0
+    lda TEMP1
+    sta HFE_CH
+    jmp next
+;
+;
+def_word "ferc@", "ferc_get", 0
+    stz TEMP1+1
+    lda HFE_CV
+    sta TEMP1
+    jsr spush_0
+    lda HFE_CH
+    sta TEMP1
+    jsr spush_0
+    jmp next
 ;----------------------------------------------------------------------------
 HYWORDS_END:
 ;  end hywords.s
