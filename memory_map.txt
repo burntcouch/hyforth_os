@@ -6,45 +6,48 @@ $00     - shared RAM switch
 $01     - paged ROM switch
 $03-$06 -  *** reserved for task switcher ***
 $07-$2E - BIOS / OS stuff
-$2F-$BF -  *** FREE TO USE ***
-$C0-$FF - HyFedit and HyForth
+$2F-$AF -  *** FREE TO USE ***
+$B0-$FF - Debug, Math, ANSI, HyFedit and HyForth
 
-buffers
-$0100       - stack
+buffers and Forth stacks
+$0100       - 6502 stack
 $0200       - INPUT_BUFFER (serial / input buffer)
-$0300       - INBUF  (Forth input buffer)
-$0400-$047F - DS (Forth data stack)
-$0480-$04FF - RT (Forth return stack)
-$0500-$06FF - MEMSTK (Forth memory allocation stack)
-$0700-$07FF - Forth scratch PAD
-$0800-$0805 - Forth jump table
-$0806~$2000 - current Forth words heap, working up
-$2000-$7xxx - Forth heap/memory space
-$7xxx-$7FFF - Forth memory heap, working down
+$0300       - WOZ_IN  (buffer for Wozmon)
+$0400-$04FF - INBUF  (Forth input buffer)
+$0500-$057F - DS (Forth data stack)
+$0580-$05FF - RT (Forth return stack)
+$0600-$07FF - MEMSTK (Forth memory allocation stack)
+$0800-$08FF - Forth scratch PAD
+$0900-$09FF - clipboard/command history
+Forth in RAM
+$0A00-$0A05 - Forth startup
+$0A06-$0A48 - editor vars, library jump table, err/msg jump table
+$0A48~$2200 - current Forth words heap, working up
+$2200-$7BFF - Forth heap (working up) <-> memory space (working down)  $5A00 (20Kb+)
+$7C00-$7FFF - Forth screen buffer
 
 paged_ram
-$8000-$9FFF - **!! not used cuz paged RAM area unreliable !!**
+$8000-$9FFF - **!! not used cuz some banks of shared RAM area unreliable !!**
 
 paged_rom
     HyForth 0.91 ROM image:
 $A000-$Bxxx - Forth COPYTORAM, initial heap, training words
-    $A000->$0800->$EA00 - Forth cold start
+    $A000->$0800->$EC00 - Forth cold start
     $A003 - Forth COPYTORAM  (copy RAM image from paged ROM)
-    $A100 - $B24x - Forth heap
-    $B3FF - autoload training words (ftrain_0:)
-    $B7xx - binary load words (bload:)
-$Bxxx-$CFFF - *** available for other fun stuff ***
+    $A100 - $B622 - Forth heap
+    $B622 - $BF4E - sound demo, instrument patches, etc
+    $B74E - $BE66 - autoload core, extras, ANSI, tests, binary load tests
+$BE66-$CFFF - *** available for other fun stuff ***
 
-os_rom  ($A00 available space)
+os_rom  (~$890 available space)
 ------------------------------
 $E000-$E110 - OS_MAIN, SHELL
-$E111-$E3FF - *** available for shell, initialization ***    ($2D0)
-$E400-$E5FF - sound
-$E600-$E7AC - disassmbler
-$E800-$E9FF -  *** available for use **                      ($200)
-$EA00-$F334 - Forth ROM core
-$F334~$F500 - HyFedit
-$F500-$F7FF -  *** available for use ***                     ($300)
+$E111-$E2FF - *** available for shell, initialization ***    ($1D0)
+$E300-$E656 - utilites - sound init, debug, memcpy, math     ($120)
+$E800-$EB80 - disassmbler                                    ($80)
+$EC00~$F318 - Forth ROM core
+$F318~$F4EE - HyFedit
+$F5xx-$F7FF -  *** available for use ***                     ($300)
 $F800-$F821 - thunks (BIOS entry point jump table)
     TH_READ_CHAR           ; $F800
     TH_WRITE_CHAR          ; $F803
@@ -56,8 +59,10 @@ $F800-$F821 - thunks (BIOS entry point jump table)
     TH_CLEAR_SCR           ; $F815
     TH_DISASM              ; $F818
     TH_DISASM_AY           ; $F81B
-    TH_MEM_COPY            ; $F81E     
-$F821-$F83F - *** more room for thunks, etc. ***               ($60)
+    TH_MEMCOPY             ; $F81E
+    TH_MEMCOPY_AY          ; $F821
+    TH_DUMPREG             ; $F824    
+$F825-$F83F - *** more room for thunks, etc. ***               ($20)
 $F840-$FBFF - BIOS
 $FC00-$FDFF - *** more room for bios ***                      ($200)
 $FE00-$FEFF - Wozmon

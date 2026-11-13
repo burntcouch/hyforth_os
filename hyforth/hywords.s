@@ -39,7 +39,11 @@ def_word "rp", "rp", 0                       ; RTPTR pointer addr onto stack
     lda #RTPTR
     bra REGIN
 ;
-def_word "memptr", "memptr", 0               ; memory area pointer onto stack
+def_word "mp", "mp", 0                       ; MEMPTR addr on stack
+    lda #MEMPTR
+    bra REGIN
+;
+def_word "memptr", "memptr", 0               ; memory area pointer target on stack ( 'mp @')
     lda MEMPTR
     sta TEMP1
     lda MEMPTR+1
@@ -66,8 +70,30 @@ def_word "r>", "r_to_s", 0
 ;   BRANCH / ?BRANCH -- neither currently work.  Ugh
 ;
 ;
+;                                ; AGSB:  : branch rp @ @ dup @ + rp @ ! ;
 ;def_word "bbra", "bbra", 0        ; [IP] = IP  next
+;    jsr spull_0
+;    lda #RPTR
+;    sta TEMP2            ; rp
+;    stz TEMP2+1
+;    ldy #0
+;    lda (TEMP2), y       ; @
+;    sta TEMP3
+;    iny
+;    lda (TEMP2), y
+;    sta TEMP3+1
+;    dey
+;    lda (TEMP3), y       ; @
+;    sta TEMP2
+;    iny
+;    lda (TEMP3), y
+;    sta TEMP2+1
+;    jsr spush_1
+;    
+;    
+;    rts
 ;
+;                                ; AGSB: : branch? bool not rp @ @ @ 2 - and rp @ @ + 2 + rp @ ! ;
 ;def_word "?bra", "qbra", 0      ; POP PSP  0= IF skip ELSE [IP] = IP THEN next
 ;
 ;def_word "?nbra", "qnbra", 0      ; POP PSP  0 <> IF skip ELSE [IP] = IP THEN next
@@ -1229,9 +1255,8 @@ d32skip1:
     lda Z_MATH4                      ; move divisor to Z_MATH3
     sta Z_MATH3
     lda Z_MATH4+1
-    sta Z_MATH3+1
-;   jsr DIV32                      ; results Z_MATH2/Z_MATH1, remainder Z_MATH4
-    jsr MDIV32
+    sta Z_MATH3+1                   
+    jsr MDIV32              ; results Z_MATH2/Z_MATH1, remainder Z_MATH4
     jmp d32done
 d32zero:
     stz Z_MATH1
@@ -1283,13 +1308,12 @@ UMDIV32CNT:
     rts    
 ;
 ;
-; ( hex -- d1 d2 d3 d4 d5 )
-;  converts a word into a reverse order ascii digit sequence
+; ( hex -- paddr )
+;  converts a word from hex to decimal, puts on PAD, returns address
 ;
 def_word "xdrv", "xdrv", 0
-    jsr spull_0
-    lda TEMP1
-    ldy TEMP1+1
+    ldy #Z_MATH2
+    jsr spull
     jsr HEX2DEC
     jmp next
 ;
@@ -1331,7 +1355,7 @@ def_word "free", "free", 0
     jmp next
 ;
 ; (daddr n -- ) start disassembly from daddr, do it
-; $F600 is entry point for DISASM_AY (low/high addr), C=1 for multiple opcodes, X for # of codes
+; $F800 is entry point for DISASM (low/high addr), C=1 for multiple opcodes, X for # of codes
 ;  ..or, since it's not much fun figuring out why WozMon is picky, use the regular DISASM
 ;  entry point instead.  simpler, and just shoe-horn address into Z_D_XAM, and run the loop here.
 ;
@@ -1403,61 +1427,15 @@ SCDUMMY:
 ;
 ;
 ; ( paddr -- )
-def_word "mktemp", "mktemp", 0
-    jsr spull_1       ; get mptr in TEMP2
-    jsr MEMLEN        ; len in TEMP1, maddr in TEMP3
-    ldy #0
-    lda (TEMP3),y
-    ora #$80          ; set high bit on type byte
-    sta (TEMP3),y
-    jmp next
-;
-;   ( -- )  --- 'deallocate' last memory item in stack if marked 'temp'
-;
-def_word "purge0", "purge0", 0
-    lda MEMPTR
-    sta TEMP2
-    lda MEMPTR+1
-    sta TEMP2+1
-    cmp #>(MEMSTK+MEMEND)
-    bcc PURGECONT
-    bne PURGEEND
-    lda TEMP2
-    cmp #<(MEMSTK+MEMEND)
-    bcs PURGEEND
-PURGECONT:
-    lda TEMP2
-    clc
-    adc #2
-    bcc  PURGESK00
-    inc TEMP2+1
-PURGESK00:
-    jsr MEMLEN        ; len in TEMP1, maddr in TEMP3
-    ldy #0
-    lda (TEMP3),y
-    and #$80          ; mask off all but temp bit
-    
-    jsr DUMPREG
-    
-    beq  PURGEEND
-    lda TEMP2         ; change pointers if temp
-    sta MEMPTR
-    lda TEMP2+1
-    sta MEMPTR+1
-    lda TEMP3
-;    clc
-;    adc #3
-;    bcc  PURGESK01
-;    inc TEMP3+1
-;PURGESK01:
-;    clc
-;    adc TEMP1
-    sta MEMLAST
-    lda TEMP3+1
-;    adc TEMP1+1
-    sta MEMLAST+1
-PURGEEND:
-    jmp next
+;def_word "mktemp", "mktemp", 0
+;    jsr spull_1       ; get mptr in TEMP2
+;    jsr MEMLEN        ; len in TEMP1, maddr in TEMP3
+;    ldy #0
+;    lda (TEMP3),y
+;    ora #$80          ; set high bit on type byte
+;    sta (TEMP3),y
+;    jmp next
+
 ;
 ;
 ; ( bytes type -- staddr )
@@ -1525,13 +1503,8 @@ def_word "fa_mo@", "fa_mo", 0
 ;----------------------------------------------------------------------------
 ;                     HyFedit - editor stuff
 def_word "fedisp", "fedisp", 0
- ;   jsr spull_0
- ;   lda TEMP1
- ;   sta HFEBUF
- ;   lda TEMP1+1
- ;   sta HFEBUF+1
-    jsr HFE_WARM
-    jmp next
+    jsr HFE_WARM                    ; note: as of 11/4/26, only diff between HFE_WARM and _COLD
+    jmp next                        ; is a flag set to say which entry point was used.  May be more use later.
 ;
 ;    
 def_word "febuf", "febuf", 0
@@ -1615,25 +1588,68 @@ def_word "feclr", "feclr", 0
     jsr CLR_SCREENBUF
     jmp next
 ;
-;    
-def_word "feadd", "feadd", 0
-    jmp next
+;    ADD TEXT FROM STRING TO BUFFER
 ;
-;    
+def_word "feadd", "feadd", 0
+    jsr spull_0                  ; get addr of string to add, in TEMP1
+    lda HFEROWS
+    dec
+    cmp HFE_CV
+    bcc  FEADDNEXT               ; failed bounds check
+    lda HFE_CV
+    sta TEMP2
+    jsr FELIN                   ; row in TEMP2 -> address, destroys Y  
+    jsr FECPY                    ; src addr in TEMP1 returns # of chars copied in Y
+    sty TEMP1                    ; reuse TEMP1 for chars copied
+    stz TEMP1+1
+    jsr spush_0                  ; push # of chars
+    inc HFE_CV                 ; update cursor row pos
+    lda #0
+    sta HFE_CH                 ; and columns too
+FEADDNEXT:
+    jmp next
+
+def_word "felin", "felin", 0       ; calc address in buffer for a given line and column
+    jsr spull_1                    ; row in TEMP2
+    jsr spull_2                    ; column in TEMP3
+    lda TEMP2
+    cmp HFECOLS                    ; do bounds checking first
+    beq FELNXT
+    bcs FELNXT
+    lda TEMP3
+    cmp HFEROWS
+    beq FELNXT
+    bcs FELNXT      
+    jsr FELIN                   ; addr will end up in TEMP2
+    lda TEMP2
+    clc
+    adc TEMP3                    ; now add column to addr
+    sta TEMP2
+    bcc FEL2SK
+    inc TEMP2+1
+FEL2SK:
+    jsr spush_1
+    rts
+FELNXT:
+    clc
+    jmp next
+
+    
+;    SET CURRENT VERTICAL CURSOR POS - row
 def_word "ferow!", "ferow_g", 0
     jsr spull_0
     lda TEMP1
     sta HFE_CV
     jmp next
 ;
-;    
+;    SET CURRENT HORIZONTAL CURSOR POS - column    
 def_word "fecol!", "fecol_g", 0
     jsr spull_0
     lda TEMP1
     sta HFE_CH
     jmp next
 ;
-;
+;    GET COORDINATES OF CURSOR
 def_word "ferc@", "ferc_get", 0
     stz TEMP1+1
     lda HFE_CV

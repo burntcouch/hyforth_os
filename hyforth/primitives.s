@@ -36,7 +36,7 @@ def_word "lib", "lib", 0
     dex                     ; need it 0 - LASTLIB-1 indexed
     bmi LIBNG
     ;
-    ;
+    ;                       ; bounds checking?
     jsr GETLIBENTRY
     tya
     bne LIBNG
@@ -586,6 +586,15 @@ ORDNONE:
 ;
 ; (addr -- )  -------  print sz string using new allocated RAM space
 ;
+def_word ".rsz", "rszdot", 0
+    jsr spull_1
+    ldy #0
+    jmp SZLOOP
+    
+def_word ".psz", "pszdot", 0
+    jsr spull_1
+    jmp PADSZ
+
 def_word ".sz", "szdot", 0
     jsr spull_0    ; will have MEMPTR addr
     ldy #0
@@ -599,8 +608,9 @@ def_word ".sz", "szdot", 0
     and #$7F       ; mask off temp flag
     cmp #MEM_SZ
     bne SZEND
+PADSZ:             ; print zero term'd string at TEMP2, +3
     ldy #3
-SZLOOP:
+SZLOOP:            ; print zero term'd string at TEMP2 (make sure to zero Y first!)
     lda (TEMP2),y
     beq SZEND
     jsr WRITE_CHAR
@@ -625,6 +635,32 @@ SNLOOP:
     bra SNLOOP
 SNEND:
     jmp next
+;
+;--------------------------------------------------------------------
+;   PAD words
+;                
+;              push pad pointer val on stack
+def_word "pad@", "padfetch"
+    lda PADPTR
+    sta TEMP1
+    lda PADPTR+1
+    sta TEMP1+1
+    jsr spush_0
+    jmp next
+;
+;              clear pad area
+def_word "padclr", "padclr", 0
+    jsr PADINIT
+    jmp next
+;
+;              store zero term'd string to pad, return address
+; (szaddr - paddr)
+def_word "pad!", "padstore", 0  
+    jsr CPYPAD
+    jmp next
+;
+; -------------- various functions to copy data between memory and stack
+;
 ; ( addr n -- w0 w1 ... w(n-1) )  push n words from memory to stack
 ;
 def_word "dsgetn@", "dsgetn", 0

@@ -9,20 +9,14 @@
 ;
 ;    Library entries can be ':' definitions or regular commands. 
 ;
-LT_FTRAIN:
-.byte "FTRAIN"
+LT_FCORE:
+.byte "FCORE"
 .byte 0
 .byte "C"
 .byte >(ftrain_0 + COPYSTART - RAMSTART)
 .byte <(ftrain_0 + COPYSTART - RAMSTART)
 ftrain_0:
-.byte "q^Loading ftrain libary...^ .sz"
-.byte 0
-.byte ": 2* dup + ;"
-.byte 0
-.byte ": pi* lit [ 355 , ] lit [ 113 , ] */ ;"   ; multiply by pi
-.byte 0
-.byte ": f* dup @ 3 + @ swap @ 5 + @ */ ;"       ; multiply times a stored constant
+.byte "q^Loading Forth core library...^ .sz"
 .byte 0
 .byte ": ?branch bool not rp @ @ @ 2 - and rp @ @ + 2 + rp @ ! ;  : branch rp @ @ dup @ + rp @ ! ;"
 .byte 0
@@ -47,6 +41,23 @@ ftrain_0:
 .byte ": loop lit r> , lit r> , lit lit , 1 , lit + , lit 2dup , lit = , lit ?branch , here @ - , lit 2drop , ; I"
 .byte 0
 .byte ": i rp @ 4 + @ ;  : j rp @ 8 + @ ;  : k rp @ lit [ 12 , ] + @ ;"
+.byte 0, 0                           
+ftrain_end0:
+;
+LT_FEXTRA:
+.byte "FEXTRA"
+.byte 0
+.byte "C"
+.byte >(f_extra + COPYSTART - RAMSTART)
+.byte <(f_extra + COPYSTART - RAMSTART)
+f_extra:
+.byte "q^Loading extras library...^ .sz"
+.byte 0
+.byte ": 2* dup + ;"
+.byte 0
+.byte ": pi* lit [ 355 , ] lit [ 113 , ] */ ;"   ; multiply by pi
+.byte 0
+.byte ": f* dup @ 3 + @ swap @ 5 + @ */ ;"       ; multiply times a stored constant
 .byte 0
 .byte ": mdump memptr 2 + @ 1 dump ;"
 .byte 0
@@ -55,8 +66,11 @@ ftrain_0:
 .byte ": | lit [ 256 , ] / ;"
 .byte 0
 .byte ": || lit [ 256 , ] * swap drop + ;"
-.byte 0, 0                               ; to mark end?
-ftrain_end0:
+.byte 0
+.byte ": sz@ 1 + 2 * memptr + @ 3 + ;"           ; obtain address for a string on mem stack
+.byte 0, 0
+f_extra_end:
+;
 LT_ANSI:
 .byte "ANSI"
 .byte 0
@@ -64,7 +78,7 @@ LT_ANSI:
 .byte >(ansi_col + COPYSTART - RAMSTART)
 .byte <(ansi_col + COPYSTART - RAMSTART)
 ansi_col:
-.byte "q^Loading ANSI attribute libary...^ .sz"
+.byte "q^Loading ANSI attribute library...^ .sz"
 .byte 0
 .byte "30 cons Ablk 31 cons Ared 32 cons Agrn 33 cons Aylw 34 cons Ablu 35 cons Amag xS"
 .byte 0

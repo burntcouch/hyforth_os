@@ -53,26 +53,3 @@ CTRSTART:
     WCRLF_np
     rts
 
-;     the 10-22-26 1922 version
-;
-;    WCRLF_np
-;    WCRLF_np
-;    stz supprint               ; let it print
-;    lda #>COPYMAIN
-;    sta ZP_TEMP_VEC+1
-;    lda #<COPYMAIN
-;    sta ZP_TEMP_VEC
-    ;
-;    lda #<COPYENDS
-;    sta ZP_TEMP_VEC2
-;    lda #>COPYENDS
-;    sta ZP_TEMP_VEC2+1
-    ;
-;    lda #>RAMST
-;    sta ZP_TEMP_VEC3+1
-;    lda #<RAMST
-;    sta ZP_TEMP_VEC3
-;    WCRLF_np
-;    jsr MEMCPY
-;    rts  
-;;

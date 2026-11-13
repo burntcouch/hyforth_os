@@ -2,4 +2,6 @@
 .segment "SHELL"
 
 SHELL_MAIN:
-            jsr     MON_START
+             jsr COPYTORAM                  ; COPYTORAM
+             jmp RAMSTART                   ; forth_main -> F_cold
+ ;           jsr     MON_START

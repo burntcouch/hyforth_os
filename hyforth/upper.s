@@ -2,9 +2,11 @@
 ;   upper.s  - utility functions for HyForth - eventually ROM resident
 ;
 ;---------------------------------------------------------------------
-;  error messaging
+;  error / system messaging
+;           set ERRFLAG to appropriate error code (hyforth.s preamble),
+;      print error/system message, then clear ERRFLAG and ERRPTR again.
 ;
-wrterror:
+WERROR:
     lda #>err_jumptable
     sta ERRPTR+1
     lda ERRFLAG
@@ -24,17 +26,8 @@ ERREND:
     sta ERRPTR+1
     rts
 ;
-;
-err_jumptable:
-    .res 2
-    ERR_entry RPTR_ERR              ; RT stack full/empty  - error $01
-    ERR_entry SPTR_ERR              ; DS stack full/empty  - error $02
-    ERR_entry DIV_ERR               ; divide by zero - error $03
-    ERR_entry OOM_ERR               ; out of memory  - error $04
-    ERR_entry UKW_ERR               ; no existing word - error $05
-    ERR_entry SEC_ERR               ; writing to dangerous RAM areas - error $06
-    ERR_entry SYS_ERR               ; error on return from SYSCALL - error $07
-LASTERR = 7
+;err_jumptable:    moved to RAM space (hyforth.s) to facilitate custom
+;   system messaging
 ;
 ;  error messages
 RPTR_ERR:
@@ -58,6 +51,9 @@ SEC_ERR:
 SYS_ERR:
     .byte " !SYS ERR!"
     .byte 0
+PAD_ERR:
+    .byte " !PAD OOM!"
+    .byte 0
 
 ;-------------------------------------------------------------
 ;
@@ -73,8 +69,10 @@ unnest:                             ; EXIT - done with previous word, on to next
     ldy #INSTPTR
     jsr rpull                       ; IP = [RTPTR], RTPTR += 2
 
-next:                               ;    go on to next word; IP is pointing at next entry in data field of word
-; WORKREG = (INSTPTR) ; INSTPTR += 2
+next:                               ;    go on to next word; IP is pointing at next entry in CFA of word
+                                    ; or first entry in CFA of next word.
+                                    ;
+                                    ; WORKREG = (INSTPTR) ; INSTPTR += 2
     ldx #INSTPTR
     ldy #WORKREG
     jsr copyfrom                    ; W = [IP], IP += 2  ( and either ENTER or EXECUTE )
@@ -86,15 +84,16 @@ pick:                               ;        'THE SWITCHER' - COMPILED OR PRIMIT
     bne PRINTWSKIP                  ; print W and [W] etc if DEBUG
     WSEQ_raw WDISP
     lda WORKREG+1
-    PRINT_BYTE
+    jsr WRITE_BYTE
     lda WORKREG
-    PRINT_BYTE
+    jsr WRITE_BYTE
     WSEQ_raw WATDISP
     ldy #0
     lda (WORKREG),y
-    PRINT_BYTE
+    jsr WRITE_BYTE
 PRINTWSKIP:
 .endif
+;
 ; .. use old-fashioned way AND new tricks
 ;  ( otherwise known as THE SWITCH )
 ;
@@ -122,7 +121,7 @@ jump:                               ; EXECUTE                      ( PRIMITIVE )
 ;
 HYWELCOME:
     .byte $0D, $0A
-    .byte "HyForth 0.920 10-28-2026"
+    .byte "HyForth 0.930 11-12-2026"
     .byte $0D, $0A, 0
 ;
 ;------- used by 'autoload'
@@ -158,8 +157,60 @@ ALNOTDONE:
     dey
     rts
 ;
-;-------- malloc and mlen
+;--------------------------------------------------------------------------
+;
+;  PAD management and MALLOC
+;
+;  padinit, cpypad, etc.
+;
+PADINIT:
+    ldy #<PAD                    ; first entry of PAD
+    sty PADPTR                   ; is $0000 (no previous item)
+    stz PAD
+    ldy #>PAD
+    sty PADPTR+1
+    stz PAD+1
+    rts
 
+CPYPAD:
+    jsr spull_1
+NEWPAD:                            ; first stab at new PAD item setup
+                                   ; address of temp string in TEMP2, zero term'd
+    lda PADPTR
+    sta TEMP1
+    lda PADPTR+1                   ; backup PADPTR to TEMP1
+    sta TEMP1+1
+    inc PADPTR
+    inc PADPTR                     ; skip over previous address and length
+    inc PADPTR
+    ldy #$FF
+NEWPADLP0:                         
+    iny
+    lda (TEMP2),y
+    sta (PADPTR),y
+    bne NEWPADLP0                ; copy string
+    iny
+    tya                      
+    ldy #2
+    sta (TEMP1),y              ; store length
+    tay
+    clc
+    adc PADPTR                   ; advance PTR to start of next entry
+    sta PADPTR
+    bcc NEWPADSK0
+    inc PADPTR+1
+NEWPADSK0:
+    ldy #0
+    lda TEMP1
+    sta (PADPTR),y               ; write previous entry address
+    iny                          ; at head of next entry
+    lda TEMP1+1
+    sta (PADPTR),y
+    jsr spush_0                   ; push address of item on stack
+    rts
+;
+;-------- malloc and mlen
+;  
 MALLOC:
     ;  TEMP1 and TEMP2 should have bytes / record type if 'jsr MALLOC'
     ;  uses TEMP3, y, x, a
@@ -230,7 +281,7 @@ MALCONT:                   ; now store MEMLAST at MEMPTR
 MALLOCEND:
     rts    
 ; 
-MEMLEN:           ; address in TEMP2
+MEMLEN:           ; address from mem stack in TEMP2
      ldy #0
      lda (TEMP2),y
      sta TEMP3
@@ -244,260 +295,243 @@ MEMLEN:           ; address in TEMP2
      lda (TEMP3),y
      sta TEMP1+1
      rts
+;-----------------------------------------------------------------------------------
+;                                TEXTGET / TXG3
+;   get escaped, delimited text from INBUF, store in temp or permanent memory
+;    'token' has set NXTTOK to starting address in INBUF.
 ;
-;-------------------------------------------------------------
-;                MATH routines
-;         with MULT16 / DIV16, signs handled by calling word.
-;         we just do the math here.
+;  uses TEMP1, TEMP2, TEMP3 (MALLOC only?), TEMP4, TEMP5, TEMP6, x, y
+;    TEMP1 starts as length, then as dest address (pushed on stack to end)
+;    TEMP2 as record type, then as modified dest address during copy
+;    TEMP3 stomped by MALLOC ('Q'), not affect by 'q' option
+;    TEMP4 counts esc chars, 4+1 flag for PAD vs memory dest
+;    TEMP5 and TEMP6 are bookends of NXTTOK offset
+;    y used as index throughout in various read/cpy operations
+;    x at end to copy back so parser knows how many chars to blank out if all goes well
 ;
-;    transition to Z_MATH1,2,3,4 to replace use of TEMP1,2,3,4
+;   Original TEXTGET code (TXG2) still stored in 11/12/26, 9:41AM version
 ;
+;          copy/escape - translate escaped chars
 ;
-MULT16:                             ; 16 x 16 multiply; Z_MATH1 and Z_MATH2 are #'s, Z_MATH1 will be result
-    stz Z_MATH3                       ; with Z_MATH3 as high bytes
-    stz Z_MATH3+1
-    ldx #17
-    clc
-MULTLOOP:
-    ror Z_MATH3+1                     ; RIGHT.  if you need to go backwards, go backwards stupid fuck.
-    ror Z_MATH3
-    ror Z_MATH1+1
-    ror Z_MATH1
-    bcc MULTDECCNT
-    clc
-    lda Z_MATH2
-    adc Z_MATH3
-    sta Z_MATH3
-    lda Z_MATH2+1
-    adc Z_MATH3+1
-    sta Z_MATH3+1
-MULTDECCNT:
-    dex
-    bne MULTLOOP
-    rts
-
+;      will modify this sometime to require and handle escaped
+;    two-digit hex values, ie \EE and such.
 ;
+;  NOTE:  if a \0 or \00 is in middle of string, TEXTGET WILL 
+;    copy it correctly, but...it may not print or copy right
+;    with other functions that expect proper z-termination.
 ;
-;           16 / 16 divide; Z_MATH1 and Z_MATH2 #'s - Z_MATH3 is 'overflow'
-;           Z_MATH2 divisor, Z_MATH1 dividend, Z_MATH1 + 3 = result + remainder
-DIV16:
-    stz Z_MATH3
-    stz Z_MATH3+1
-    ldx #16
-UDIVLP:
-    rol Z_MATH1
-    rol Z_MATH1+1
-    rol Z_MATH3
-    rol Z_MATH3+1
-UDIVCHK:
+;  table includes all chars from $20 to $46 inclusive
+;    $30-$39 -> trunc'd to $0x, $41-$46 to $0A-$0F
+;    $22 is dbl-quote, $1B (\@) is escape char
+;
+TXHEXTBL:
+    .byte " !"
+    .byte $22
+    .byte "#$%&'()*+,-./"
+    .byte $00, $01, $02, $03, $04, $05, $06, $07, $08, $09
+    .byte ":;<=>?"
+    .byte $1B, $0A, $0B, $0C, $0D, $0E, $0F
+    
+TXCPYESC:
+    iny 
+    lda (NXTTOK),y
+    cmp #$20                    ; is this a single hex digit
+    bcc TXCPYSK                 ; or the escape char '\@'?
+    cmp #$47
+    beq TXCPYSK
+    bcs TXCPYSK
     sec
-    lda Z_MATH3
-    sbc Z_MATH2
-    tay
-    lda Z_MATH3+1
-    sbc Z_MATH2+1
-    bcc UDIVCNT
-    sty Z_MATH3
-    sta Z_MATH3+1
-UDIVCNT:
-    dex
-    bne UDIVLP
-    rol Z_MATH1
-    rol Z_MATH1+1
+    sbc #$20                    ; if so, lookup substitute
+    tax
+    lda TXHEXTBL,x
+TXCPYSK:
+    dec TEMP2                    ; adjust TEMP2 so we are 
+    bcs TXDECT2SK                ; not printing the extra '\'
+    dec TEMP2+1
+TXDECT2SK:
     rts
 ;
-;        32 / 16 divide; Z_MATH2-Z_MATH1 / Z_MATH3 #'s - Z_MATH4 is 'overflow'
-;        -> Z_MATH2-Z_MATH1 + Z_MATH4 = result + remainder
-DIV32:
-    stz Z_MATH4
-    stz Z_MATH4+1
-    ldx #16
-UDIV32LP:
-    rol Z_MATH1
-    rol Z_MATH1+1
-    rol Z_MATH2
-    rol Z_MATH2+1
-    rol Z_MATH4
-    rol Z_MATH4+1
-UDIV32CHK:
-    sec
-    lda Z_MATH4
-    sbc Z_MATH3
-    tay
-    lda Z_MATH4+1
-    sbc Z_MATH3+1
-    bcc UDIV32CNT
-    sty Z_MATH4
-    sta Z_MATH4+1
-UDIV32CNT:
-    dex
-    bne UDIV32LP
-    rol Z_MATH1
-    rol Z_MATH1+1
-    rol Z_MATH2
-    rol Z_MATH2+1
+;  end of TXG2  (new text capture)
+;
+;-------------- TXG3 -  new version of TEXTGET
+;
+TXG3:
+    jmp TX3GETTIB                 ; TEMP1 will have length, TEMP2 dest addr of string
+                                  ; TEMP6 has starting index in buffer, TEMP5 end index
+;                                   
+TX3TIBDONE:                       ; 
+    ;                   now we switch between q (PAD) and Q (MALLOC)
+    ;
+    lda TEMP4+1
+    cmp #'Q'
+    beq TX3mCONT                ; 'q' or 'Q' ?
+    ;
+    ;  if 'q':
+    lda TEMP1
+    ldy #2
+    sta (PADPTR),y              ; copy length to PAD
+    lda PADPTR                  ; and then copy ptr location
+    sta TEMP2
+    sta TEMP1                    ; copy for pushing later
+    lda PADPTR+1
+    sta TEMP2+1
+    sta TEMP1+1                  ; copy for pushing later
+    ;
+    bra TX3tCONT
+    ;
+    ;    if 'Q':
+TX3mCONT:
+    jsr MALLOC                      ; TEMP1 now has address on mem stack, length already written
+    ldy #0
+    lda (TEMP1),y
+    sta TEMP2
+    iny
+    lda (TEMP1),y                   ; and make a copy of address for copy 
+    sta TEMP2+1                     ; operation from input buffer below.
+    ; continue
+TX3tCONT:
+    jmp TX3STRCPY
+TX3STRCOPYDONE:                   ; copy string and translate escaped chars
+    lda TEMP4+1
+    cmp #'Q'
+    beq TX3mCONT2                ; 'q' or 'Q' ?
+    ldy #2                       ; 'q', so finish updating and incrementing PADPTR
+    lda (PADPTR),y               ; get length
+    inc a
+    inc a
+    inc a
+    clc
+    adc PADPTR
+    sta PADPTR
+    bcc TX3tUPD
+    inc PADPTR+1
+TX3tUPD:
+    ldy #0
+    lda TEMP1
+    sta (PADPTR),y
+    iny
+    lda TEMP1+1
+    sta (PADPTR),y
+;    
+TX3mCONT2:
+    jmp TX3FIXTIB
+TX3NOGOOD:
+    sec                             ; C=1, no text, so process as token
+TX3END:
     rts
 ;
-;     galois32o - LSFR psuedo-random # generator
+;--
 ;
-;  -- boilerplate --
-; 6502 LFSR PRNG - 32-bit
-; Brad Smith, 2019
-; http://rainwarrior.ca
-;
-;
-galois32o:
-    ; rotate the middle bytes left
-    ldy RSEED+2                     ; will move to RSEED+3 at the end
-    lda RSEED+1
-    sta RSEED+2
-    ; compute RSEED+1 ($C5>>1 = %1100010)
-    lda RSEED+3                     ; original high byte
-    lsr
-    sta RSEED+1                     ; reverse: 100011
-    lsr
-    lsr
-    lsr
-    lsr
-    eor RSEED+1
-    lsr
-    eor RSEED+1
-    eor RSEED+0                     ; combine with original low byte
-    sta RSEED+1
-    ; compute RSEED+0 ($C5 = %11000101)
-    lda RSEED+3                     ; original high byte
-    asl
-    eor RSEED+3
-    asl
-    asl
-    asl
-    asl
-    eor RSEED+3
-    asl
-    asl
-    eor RSEED+3
-    sty RSEED+3                     ; finish rotating byte 2 into 3
-    sta RSEED+0
-    rts
-;-------------------------------------------------------------------
-;              get delimited text from INBUF, store in string
-;
-;
-;  uses TEMP1, TEMP2, TEMP3, TEMP5, TEMP6, X, Y
-;
-TEXTGET:
+TX3GETTIB:
+    stz TEMP4                       ; to count escape '\' chars
+    stz TEMP4+1                     ; flag for PAD vs memory storage
     stz TEMP1+1                     ; will store length here
     lda #$04
     sta TEMP2                       ; record type is 'sz'
     stz TEMP2+1
     stz TEMP6                       ; to save y for later copy
     ldy #1                          ; skip len of first token
-TX2SKSPC:
+TX3SKSPC:
     lda (NXTTOK),y
     cmp #$20                        ; skip leading spaces
-    bne TX2SK00
+    bne TX3SK00
     iny
-    bra TX2SKSPC
-TX2SK00:
-    cmp #'q'
-    bne TX2NOGOOD
+    bra TX3SKSPC
+TX3SK00:
+    cmp #'q'                        ; text will go to PAD
+    bne TX3SK_Q
+    bra TX3SK_q
+TX3SK_Q:
+    cmp #'Q'                        ; text will got to memory
+    bne TX3NOGOOD
+TX3SK_q:
+;    and #$40                        ; mask off q vs Q bits
+    sta TEMP4+1                     ; store q or Q
     iny
     lda (NXTTOK),y
     cmp #'^'
-    bne TX2NOGOOD
+    bne TX3NOGOOD
     iny
-    sty TEMP6                       ; temp6 stores pos of first char
-TX2SCAN:
+    sty TEMP6                       ; TEMP6 stores pos of first char
+TX3SCAN:
     lda (NXTTOK),y                  ; find delimiting '^'
+    cmp #'\'
+    bne TX3SK04
+    inc TEMP4
+TX3SK04:
+    cmp #'^'                       
+    bne TX3SK03                    ; handle escaped ^ only
+    dey                            ; other escaped chars handled when copied to 
+    lda (NXTTOK),y                 ; MALLOC'd address (see TX2COPYLOOP below)
     iny
-    cmp #'^'
-    beq TX2FOUND
+    cmp #'\'
+    bne TX3FOUND
+TX3SK03:
+    iny                             ; get index back after checking for \^
     tya
     clc
     adc NXTTOK
     cmp #MAXSTR
-    bcs TX2NOGOOD
-    bra TX2SCAN
-TX2FOUND:
-    dey
-    sty TEMP5                       ; temp5 pos+1 last letter
+    bcs TX3NOGOOD
+    bra TX3SCAN
+TX3FOUND:                         ; quoted text found.  Now do some math.
+    sty TEMP5                       ; TEMP5 is pos+1 last letter
     tya
     sec
-    sbc TEMP6
+    sbc TEMP6                       ; and TEMP6 is where we started, so...
+    sec
+    sbc TEMP4                       ; subtract escape (\) chars
     sta TEMP1                       ; and this should be the length
-    inc TEMP1                       ; and add one for zero at end
-
-    jsr MALLOC                      ; TEMP1 now has address on mem stack
-
-    ldy #0
-    lda (TEMP1),y
-    sta TEMP2
-    iny
-    lda (TEMP1),y
-    sta TEMP2+1                     ; address in memory area
-
-    ; now for math.  NXTTOK ptr needs to be ref'd with same y
-    ; as TEMP2, so we need to match them up...and we are hitting
-    ; the record at +3, so....TEMP6 is start
+    inc TEMP1 
+    jmp TX3TIBDONE
+;
+;--
+;
+;   now for math.  NXTTOK ptr needs to be ref'd with same y
+;    as TEMP2, so we need to match them up...and we are hitting
+;    the record at +3, so....TEMP6 is start
+TX3STRCPY:
     lda TEMP2
     sec
     sbc TEMP6
-    bcs TX2SK01
+    bcs TX3SK01
     dec TEMP2+1
-TX2SK01:
+TX3SK01:
     clc
     adc #3
-    bcc TX2SK02
+    bcc TX3SK02
     inc TEMP2+1
-TX2SK02:
+TX3SK02:
     ldy TEMP6
-TX2CPYLOOP:
+TX3CPYLOOP:
     lda (NXTTOK),y
+    cmp #'\'
+    bne  TX3CPY0
+    jsr TXCPYESC                   ; handle escaped chars (translate using table below)
+TX3CPY0:
     sta (TEMP2),y
     iny
     cpy TEMP5
-    bne TX2CPYLOOP
-TX2SK99:
+    bne TX3CPYLOOP
+;
     lda #0
     sta (TEMP2),y                   ; put zero on end
     jsr spush_0                     ; push address from mem stack on DS
-    lda TEMP5
-    sec
+    jmp TX3STRCOPYDONE
+;
+;
+TX3FIXTIB:
+    lda TEMP5                       ; now get the length of statement in TIB back
+    sec                             ; so can return in X
     sbc TEMP6
     clc
     adc #4
-    tax
-    clc
-    jmp TX2END
-TX2NOGOOD:
-    sec
-TX2END:
-    rts
+    tax                             ; calc and bring back length to X
+    clc                             ; C=0 means all good, so tell parser to cleanup buffer
+    jmp TX3END
 ;
-;  end of TXG2  (new text capture)
 ;
-
-
-
-;-----------------------   NUMBER CONVERSIONS
 ;
-DEC2ASCII:       ;  X is # - return as two digits in Z_MATH3, Z_MATH3+1
-    lda #'0'
-    sta Z_MATH3+1
-    txa
-    sta Z_MATH3
-D2ASCLOOP:
-    sec
-    sbc #$0A
-    bcc D2ASCNEXT
-    inc Z_MATH3+1
-    bra D2ASCLOOP
-D2ASCNEXT:
-    clc
-    adc #$3A
-    sta Z_MATH3
-    rts
-
 .ifdef numbers
 ;------------------------
 ;      CONVERT DIGITS, PUSH on DS
@@ -645,13 +679,23 @@ GETDIG_ERR:                         ; pass carry set for no digit
     rts
 ;  end of new number conv
 ;
-H2NUM: .byte $27,$10
- .byte $03,$E8
- .byte $00,$64
- .byte $00,$0A
-HEX2DEC:                            ; low/high in A,Y - use X, TEMP1, Z_MATH2-4
-    sty Z_MATH2+1
-    sta Z_MATH2
+H2NUM: 
+ .byte $27,$10                ; 10000
+ .byte $03,$E8                ; 1000
+ .byte $00,$64                ; 100
+ .byte $00,$0A                ; 10
+HEX2DEC:                            ; uses X, TEMP1, Z_MATH1,2,3,4
+    lda PADPTR
+    sta TEMP1
+    lda PADPTR+1
+    sta TEMP1+1
+    lda #0
+    sta Z_MATH1                   ; flag for first non-zero digit
+    
+    inc PADPTR
+    inc PADPTR
+    inc PADPTR                     ; we'll come back to write length
+    ldy #0
     ldx #0
 H2DDIV10:
     lda H2NUM,x
@@ -679,29 +723,189 @@ H2DSK0:
     sta Z_MATH2+1
     inc Z_MATH4
     bra H2DLOOP
-H2DSK1:
+H2DSK1:    
+    lda Z_MATH1
+    bne  H2DSK2
+    lda Z_MATH4
+    beq  H2DSK3
+    inc Z_MATH1
+H2DSK2:
     lda Z_MATH4
     clc
     adc #'0'
-    sta TEMP1
-    stz TEMP1+1
-    phx
-    jsr spush_0                      ; remember!  A/X both destroyed with push and pull!
-    plx
+    sta (PADPTR),y
+    iny
+H2DSK3:
     cpx #8
     beq H2DFIN
-    jmp H2DDIV10
+    jmp H2DDIV10                      ; back to top of loop
 H2DFIN:
     lda Z_MATH2
     clc
     adc #'0'
-    sta TEMP1
-    stz TEMP1+1
-    jsr spush_0
+    sta (PADPTR),y
+    iny                                  
+    lda #0                           ; write 0 on end of string, oops!
+    sta (PADPTR),y
+    iny
+    phy                               ; will pull back to A here in a bit
+    tya
+    clc
+    adc PADPTR
+    sta PADPTR
+    bcc H2DSK4
+    inc PADPTR+1
+H2DSK4:
+    jsr spush_0                       ; push address of string
+;   update length and PADPTR
+    pla                               ; pull back pushed Y
+    ldy #2
+    sta (TEMP1),y                     ; copy length
+    ldy #0
+    lda TEMP1
+    sta (PADPTR),y                    ; and copy address of prev 
+    iny                               ; entry here before leaving
+    lda TEMP1+1
+    sta (PADPTR),y
     rts
 ;
 ;
 .endif    ; numbers
+;
+;--------------------------------------------------------------
+;                     ctrl check  - s, c, x, v
+;
+;         ctrl-s - copy TIB 0 to y to current screen buffer line
+;         ctrl-c - copy TIB 0 to y to PAD
+;         ctrl-v - pull last PAD entry and overwrite TIB starting at y (bounds check)
+;         ctrl-x - copy TIB 0 to y to PAD, clear TIB
+;
+CTRLCHECK:                   ; A has last key entered, Y is current position in TIB
+    pha
+    cmp #$13      ; ctrl-s
+    beq DOCTRLS
+    cmp #$03      ; ctrl-c
+    beq JMPCTRLC
+    cmp #$16      ; ctrl-v   - TIBEND should be check when adding into TIB
+    beq JMPCTRLV
+    cmp #$18      ; ctrl-x
+    beq JMPCTRLX
+    clc             ; fell through, return
+CTRLEND:
+    pla
+    rts
+    
+DOCTRLS:
+    sec
+    jmp CTRLEND
+
+JMPCTRLV:
+    jmp DOCTRLV
+JMPCTRLC:
+    jmp DOCTRLC    
+JMPCTRLX:
+    jmp DOCTRLX
+    
+DOCTRLC:
+    sty TEMP5
+    lda PADPTR
+    sta TEMP1
+    lda PADPTR+1                   ; backup PADPTR to TEMP1
+    sta TEMP1+1
+    ldy #2
+    lda TEMP5                      ; write the length while we're here
+    sta (PADPTR),y
+    lda #2
+    clc
+    adc PADPTR
+    sta PADPTR
+    bcc DOCCSK0
+    inc PADPTR+1
+DOCCSK0:
+    ldy #1
+DOCCLOOP:                         
+    lda (TIB),y
+    sta (PADPTR),y
+    iny
+    cpy TEMP5
+    bne  DOCCLOOP
+    lda #0
+    sta (PADPTR),y            ; write zero at end
+    lda TEMP5
+    inc a
+    clc
+    adc PADPTR
+    sta PADPTR
+    bcc  DOCCSK1
+    inc PADPTR+1
+DOCCSK1:
+    ldy #0
+    lda TEMP1
+    sta (PADPTR),y
+    iny
+    lda TEMP1+1
+    sta (PADPTR),y
+    ldy TEMP5                     ; restore y
+    sec
+    jmp CTRLEND
+    
+DOCTRLV:
+    sty TEMP5      ; backup Y
+    lda TIB+1
+    sta TEMP1+1
+    tya
+    clc
+    adc TIB
+    sta TEMP1
+    bcc DOCV_SK0
+    inc TEMP1+1    
+DOCV_SK0:
+    ldy #0
+    lda (PADPTR),y          ; we want PREVIOUS ITEM addr, not current 
+    sta TEMP2               ; pointer addr
+    iny
+    lda (PADPTR),y
+    sta TEMP2+1
+    ora TEMP2               ; are we at zero?
+    bne  DOCV_SK1   
+    ldy TEMP5               ; if at zero, bail out.  restore Y
+    sec                     ; and return 
+    jmp  CTRLEND 
+DOCV_SK1:
+    lda TEMP2
+    clc
+    adc #3                 ; skip over address and length now
+    sta TEMP2
+    bcc  DOCV_SK2
+    inc TEMP2+1
+DOCV_SK2:
+    ldy #$FF
+DOCV_LP0:
+    iny
+    cpy TIBEND
+    beq  DOCV_END
+    lda (TEMP2),y
+    sta (TEMP1),y
+    beq DOCV_END
+    jsr WRITE_CHAR      ; remember to write to the screen!
+    bra DOCV_LP0
+DOCV_END:
+    iny
+    lda #$20
+    sta (TEMP1),y        ; tokenizer won't work w/o an extra space?
+    jsr WRITE_CHAR       ;
+    tya
+    inc a
+    clc
+    adc TEMP5
+    tay
+    sec
+    jmp CTRLEND
+    
+DOCTRLX:
+    sec
+    jmp CTRLEND
+   
 ;--------------------------------- CLEAR ------------------------------
 ;
 ;  zero out $C8 - $FF, meet and greet
@@ -752,16 +956,17 @@ CLR_SCREENBUF:
     sta TEMP0 + 1    
 clrscrbuf0:
     lda #$20
-    ldx #$3F                        ; count down from 63
+    ldx HFECOLS                       ; count down from 63
+    dex
     ldy #0
 clrscrbuf1:
     sta (TEMP0),y
     iny
     dex
-    bne clrscrbuf1
-    lda #0
-    sta (TEMP0),y
-    lda TEMP0
+    bne clrscrbuf1               ; and 64th col is zero, so...
+    lda #0                       ; all rows zero term'd but
+    sta (TEMP0),y                ; don't know if really need
+    lda TEMP0                    ; to clear rows this way or not, yet.
     clc
     adc #$40
     bcc clrscrbuf2
@@ -772,260 +977,7 @@ clrscrbuf2:
     bne clrscrbuf0
     rts
 ;
-.ifdef DEBUG
-;      argh.
-;   Include DEBUG code here
-;
-;
-;  debug stuff   ------------------------------ DUMPREG ---------------------
-;
-DUMPTXT1:
-        .byte "SP/PC/nv-bdizc/A/X/Y -> "
-        .byte 0
-DUMPMSG1:
-        .byte "<spc> to continue, x for Wozmon, z for ZP, t for TIB, s for stacks"
-        .byte $0D, $0A, 0
-
-DUMPREG:            ; dump registers safely and print
-    php                         ; -3
-    pha                         ; -4
-    phx                         ; -5
-    phy                         ; -6
-    lda   DFLAG
-    beq   DPFCHECK
-    jsr   WRITE_BYTE
-    lda   #'!'
-    jsr   WRITE_CHAR
-    WCRLF
-    jmp   DREGNXT
-DPFCHECK:
-    ldy   #0
-    WCRLF_np
-DUMPLP0:
-    lda   DUMPTXT1, y
-    beq   DUMPCON
-    jsr  WRITE_CHAR
-    iny
-    bra   DUMPLP0
-DUMPCON:
-    tsx                         ; -6  - keeping tack of back-stack steps
-    txa
-    clc
-    adc   #6
-    jsr WRITE_BYTE      ; print stack pointer b4 jump
-    lda #'/'
-    jsr WRITE_CHAR 
-    inx                         ; -5
-    inx                         ; -4
-    inx                         ; -3
-    inx                         ; -2
-    inx                         ; -1
-    lda   $0100,x               ; get PC LSB
-    tay
-    inx                         ; 0
-    lda $0100,x
-    jsr WRITE_BYTE        ; get PC MSB
-    tya
-    jsr WRITE_BYTE
-    lda #'/'
-    jsr WRITE_CHAR 
-        ;   whew
-        ;
-    dex                         ; -1
-    dex                         ; -2
-    lda   $0100,x               ; get status byte
-    ldy   #8
-DUMPLP2:
-    rol
-    pha
-    bcc   DUMPSKx               ; NV-BDIZC
-    lda   #'1'
-    bra   DUMPSKy
-DUMPSKx:
-    lda   #'0'
-DUMPSKy:
-    jsr WRITE_CHAR                  ; print y-th bit
-    pla
-    dey
-    bne   DUMPLP2
-    lda #'/'
-    jsr WRITE_CHAR
-    dex                         ; -3
-    lda $0100,x
-    jsr WRITE_BYTE              ; print A
-    lda #'/'
-    jsr WRITE_CHAR 
-    dex                         ; -4
-    lda $0100,x
-    jsr WRITE_BYTE              ; print X
-    lda #'/'
-    jsr WRITE_CHAR 
-    dex                         ; -5
-    lda $0100,x
-    jsr WRITE_BYTE              ; print Y
-    WCRLF_np
-    ldy   #0
-DUMPLP1:                        ; print message
-    lda   DUMPMSG1, y
-    beq   DREGLP1
-    jsr   WRITE_CHAR
-    iny
-    bra   DUMPLP1
-DREGLP1:
-    stz   Z_DEBUG               ; clear for dumping pages below
-    jsr   READ_CHAR             ; wait for a key
-    bcc   DREGLP1
-    cmp   #'s'              ; print out stacks?
-    bne   DREGSK3
-    jsr   DUMPSTACK
-DREGSK3:
-    cmp   #'z'              ; print out zp?
-    bne  DREGSK5
-    jsr  DUMPZP
-DREGSK5:
-    cmp   #'t'              ; print out INBUF?
-    bne  DREGSK4
-    jsr  DUMPTIB
-DREGSK4:
-    cmp   #'x'
-    bne   DREGELSE
-    jsr   $FE00                 ; go to Wozmon if necc
-DREGELSE:
-    cmp   #$0D                 ; continue on enter
-    beq   DREGNXT
-    jmp   DPFCHECK              ; otherwise print eveything again
-DREGNXT:
-    ply                         ; and restore everything
-    plx
-    pla
-    plp
-    rts
-;
-;   subs for particular pages
-;
-DUMPTIB:                            ; dump TIB
-    php
-    pha
-    lda #>INBUF
-    sta Z_DEBUG+1
-    jmp DUMPPDBG
-DUMPSTACK:                          ; dump DS/RT stack area
-    php
-    pha
-    lda #>DS
-    sta Z_DEBUG+1
-    jmp DUMPPDBG
-DUMPZP:                             ; dump ZP
-    php
-    pha
-    stz Z_DEBUG+1
-    jmp DUMPPDBG
-.endif
-
-DUMPPAGE:                           ; general purpose page dumper
-                                    ; Z_DEBUG starts masked at $F0, Z_DEBUG+1 is page #
-    php
-    pha
-DUMPPDBG:
-    ldy #0
-DUMPLOOP:
-    tya
-    clc
-    adc Z_DEBUG
-    pha
-    bcc DUMPSK2
-    lda Z_DEBUG+1
-    inc
-    .byte $2C                    ; skip 2 bytes
-DUMPSK2:
-    lda Z_DEBUG+1
-    jsr WRITE_BYTE
-    pla
-    jsr WRITE_BYTE
-    lda #':'
-    jsr WRITE_CHAR 
-DPLOOP2:
-    lda (Z_DEBUG), y
-    jsr WRITE_BYTE
-    lda #$20
-    jsr WRITE_CHAR              ; print space between columns
-    iny
-    tya
-    and #$0F                    ; 00001111
-    beq  DPSKIP
-    bra  DPLOOP2
-DPSKIP:
-    lda #$20
-    jsr WRITE_CHAR
-    phy
-    tya
-    sec
-    sbc #$10                    ; subtract 16 to rewind the line
-    tay
-DPPLOOP:
-    lda (Z_DEBUG), y              ; printable ascii
-    cmp #$20
-    bcc PPERIOD
-    cmp #$7F
-    bcs PPERIOD
-    jsr WRITE_CHAR
-    bra DPPSKIP
-PPERIOD:
-    lda #'.'
-    jsr WRITE_CHAR
-DPPSKIP:
-    iny
-    tya
-    and #$0F
-    beq DPPEND
-    bra DPPLOOP
-DPPEND:
-    ply
-    WCRLF_np
-    tya                         ; need this to check y = 0
-    bne DUMPLOOP
-DUMPSTKEND:
-    WCRLF_np
-    pla
-    plp
-    rts
-;
-;    load mainoff ZP_TEMP_VEC -> ZP_TEMP_VEC2, ZP_TEMP_VEC3 is end of copy
-;     with current ROM offsets (main = start, ends = finish)
-;     and ramstart with destination corresponding to main.
-;     Set 'supprint' <> 0 (TEMP5 $FC) to suppress printing of progress bar from Forth
-;
-;    reworked to used ZP_TEMP_VEC, ZP_TEMP_VEC2, ZP_TEMP_VEC3
-;                     mainoff      endsoff       ramstart
-;
-MEMCPY:
-    ldy  #0
-COPYLOOP:
-    lda (ZP_TEMP_VEC),y
-    sta (ZP_TEMP_VEC3),y
-    lda ZP_TEMP_VEC
-    cmp ZP_TEMP_VEC2
-    bne SKIP1
-    lda ZP_TEMP_VEC+1
-    cmp ZP_TEMP_VEC2+1
-    beq CPRTS
-SKIP1:
-    lda supprint
-    bne SKIP01
-    lda #'.'
-    jsr WRITE_CHAR
-SKIP01:
-    inc ZP_TEMP_VEC
-    bne SKIP2
-    inc ZP_TEMP_VEC + 1
-SKIP2:
-    inc ZP_TEMP_VEC3
-    bne SKIP3
-    inc ZP_TEMP_VEC3+1
-SKIP3:
-    bra COPYLOOP
-CPRTS:
-    rts
+;-------------------------------------------------------------------
 ;
 ;  ANSI CLS, cursor reposition, and color change
 ;
@@ -1045,7 +997,8 @@ ansi_scr_00:
     lda Z_ANSI1
     jsr WRITE_CHAR
     rts
-
+;
+CLEAR_SCR:
 ANSICLS:
     jsr ANSIHDR
     lda #'2'    

@@ -182,6 +182,7 @@ ERR_MEM := $04     ; memory not-avail
 ERR_UKW := $05     ; unknown word
 ERR_SEC := $06     ; security error, ie dangerous address write
 ERR_SYS := $07     ; return from system call error
+ERR_PAD := $08
   ; warnings
 WRN_SEC := $86     ; security
 WRN_MEM := $84     ; memory alloc
@@ -214,6 +215,8 @@ RTEND = $FE
 MEMEND = $01FE            ; pointers DOWN from MEMEND+MEMSTK (store-and-decrement)
 MEMTOP = $7BF0            ; malloc allocates DOWN from MEMTOP
 SCRBUF = $7C00            ; screen buffer 1K going up
+
+PADEND = $00              ; PAD+PADEND, up with PADPTR - increment and store
 ;
 ;   types:  <type> <len0 len1> <data data data...>
 ;
@@ -261,15 +264,20 @@ INROM = $A000
 ;----------------------------------------------------------------------
 .segment "ZEROPAGE"
 ;
-.org $B0
+.org $A0
 ZPSTART:
+                 ;   16 bytes for PAD and clipboard
+                 ;
+PADPTR:     .res 2             ; pointer in stack               $A0
+.res 14                        ; reserved fer later
+;
 ;                 Utilities, some BIOS crossover
 ;
 Z_DEBUG:    .res 2             ; dedicated ZP temp for debugger  $B0
 ;
-Z_MATH1:    .res 2             ; ZP temp for math routines   $B2  (*, /, */)
-Z_MATH2:    .res 2             ; ZP temp for math routines   $B4  (*, /, */)
-Z_MATH3:    .res 2             ; ZP temp for math routines   $B6  (*, /, */)
+Z_MATH1:    .res 2             ; ZP temp for math routines   $B2  (*, /, */, felin)
+Z_MATH2:    .res 2             ; ZP temp for math routines   $B4  (*, /, */, felin)
+Z_MATH3:    .res 2             ; ZP temp for math routines   $B6  (*, /, */, felin)
 Z_MATH4:    .res 2             ; ZP temp for math/ANSI       $B8  (HEX2DIG, */)
 ;
 Z_ANSI1:    .res 2             ; ZP temp for ANSI            $BA
@@ -317,6 +325,9 @@ ALFLAG:            ; autoload flag               $DF
    .res 1
 ;
 ;                   internal Forth
+;   NOTE:  do NOT change the order of the first eight words;
+;     AGSB's 'training' words assume that STATUS -> WORKREG
+;     are consecutive and in below sequence.
 ;
 STATUS:     .word $0   ; state at lsb, last size+flag at msb   $E0
 CURBUF:     .word $0   ; CURBUF next free byte in TIB          $E2
@@ -355,27 +366,31 @@ TEMP7:   .res 2        ;    AUTOLOAD, HyFedit                  $FE
 ;                   FORTH STACKS
 ;----------------------------------------------------------------------
 .segment "BUFFERS"
-INBUF:
+INBUF:                                      ;    $400
       .res 256
-DS:                          ; data stack (S)
+DS:                          ; data stack (S)    $500
       .res 126
       .res 2
-RT:                          ; return stack (R)
-      .res 126
+RT:                          ; return stack (R)  $580
+      .res 126 
       .res 2
-MEMSTK:                      ; memory manager
+MEMSTK:                      ; memory manager    $600
       .res 510
       .res 2
+PAD:                         ; pad memory         $800
+      .res 256
+CLIP:
+      .res 256               ; clipboard / command history $900
 ;
 ;
-.segment "FORTH_ROM"              ; regular core
+.segment "FORTH_ROM"              ; regular core $EC00 and RAM segment at $0A00 now
 ;
 ;
 ; ************ the real deal...
 ;
 
 forth_main:
-    jmp cold
+    jmp F_cold
     jmp COPYTORAM
 HYPROMPT:
     .byte $0D, $0A
@@ -398,20 +413,19 @@ WATDISP:
 ;
 ;
 ;
-cold:
+F_cold:                         ; cold start - clears EVERYTHING
     cld
-    jsr CLEAR           ; zero out zero page, INBUF, DS, RT, SCRBUF
-                        ;    
-warm:
-; linked list of headers
+    jsr CLEAR                   ; zero out zero page, INBUF, DS, RT, SCRBUF
+                                ;    
                                 ; initialize HEAP pointers
-    lda INROM+3                 ; standard 'heap' now sitting in ROM
+    lda INROM+3                 ; standard 'heap' has been copied to RAM
     sta LASTHEAP + 1            ; and 'switcher' ('exit') code handles
-                                ; the rest.
-    lda INROM+4
+                                ; the rest, with 'nest', 'unnest', 'keeps' 'next', 'jump'
+                                ; 'spull', 'spush', 'comma' etc. all in ROM
+    lda INROM+4                 ; wherever THAT ends up.
     sta LASTHEAP
                                 ; next heap free cell
-    lda INROM+5                 ; ends stored here in ROM also
+    lda INROM+5                 ; along with 'ends'
     inc a
     sta NEXTHEAP + 1
     stz NEXTHEAP
@@ -434,7 +448,8 @@ warm:
 ;---------------------------------------------------------------------
 ; various reinitialization points
 ;
-reset:
+F_warm:                          ; warm start.  Clears TIB, DS, RT, and PAD
+reset:                           ; leaves heap, memory area, and screen buffer alone
     ldy #INBUF_end
     sty TIBEND
     ldy #<INBUF
@@ -449,21 +464,23 @@ reset:
     sty DSPTR + 1
     ldy #>RT
     sty RTPTR + 1
-
-    lda #$FF                       ; DEBUG OFF by default
+    
+    jsr PADINIT                  ; clear PAD
+    
+    lda #$FF                     ; DEBUG OFF by default
     sta DFLAG
     stz ALFLAG                   ; autoload flag OFF
-
+    
 abort:                            ; clear DS (clear data stack)
     ldy #<DSEND
     sty DSPTR
 
 errrtn:                          ; return from error w/o clearing DS
-quit:                             ; clear RT
-    ldy #<RTEND
+quit:                           
+    ldy #<RTEND                  ; clear RT
     sty RTPTR
 
-    jsr wrterror                 ; print any error messages
+    jsr WERROR                   ; print any error messages, clear error flags
     ldy #0                       ; reset INBUF
     lda #0
     sta (TIB),y                  ; clear INBUF stuff
@@ -613,26 +630,31 @@ GETLOOP:
     cpy #$FF
     bne GETREADLOOP
     ldy #1
-GETREADLOOP:
-    jsr READ_CHAR_NE
+GETREADLOOP:            ; character read loop
+    jsr READ_CHAR_NE    ; read with no echo, so we can write back what we want
     bcc GETREADLOOP
+    ;
+    ;  will check here for ctrl-a,c,v,x
+    jsr CTRLCHECK
+    bcs GETREADLOOP
+    ;
     cmp #$09         ; handle tab
     bne GETLNNOTAB
-    WCRLF
+    WCRLF             ; yup, was a tab
     lda #$20          ; CRLF and indent
     jsr WRITE_CHAR
     jsr WRITE_CHAR
     jsr WRITE_CHAR
     jsr WRITE_CHAR
     jsr WRITE_CHAR
-    bra GETLOOP
+    bra GETLOOP      ; will store a space rather than tab
 GETLNNOTAB:    
-    jsr WRITE_CHAR
+    jsr WRITE_CHAR    ; just write back what we got
     cmp #$0D
     beq GETLNEND
     cmp #$08         ; handle backspace
     bne GETLOOP
-    dey
+    dey              ; yup, backing up
     dey
     lda (TIB), y      ; make sure prev char not overwritten
     bra GETLOOP
@@ -653,6 +675,9 @@ GETLNSKIPCRLF:          ; SKIP to here if don't want CRLF
     sta CURBUF
 
 ;------------------AWKWARD Brazilian english comment here...-----------
+;
+;    **** docs for 'token', the linchpin of the parser ***
+;
 ; in place every token,
 ; the counter is placed at last space before word
 ; no rewinds
@@ -715,7 +740,7 @@ TOKENDONE:  ; find size and store it;
     bra TOKCLR0
 .endif  ; 'numbers'
 CHKFERTXT:
-    jsr TEXTGET         ; returns length +4 in X
+    jsr TXG3            ; TEXTGET - new version, WORKS!
     bcs TOKENEND
     ldy #0
     lda #$20
@@ -960,7 +985,7 @@ COPYSTART := $A100              ; marks beginning of copy in ROM space
 ;-----------------------------------------------------------------------
 ;           BELOW ENDS UP IN RAM after COPYTORAM has run
 ;-----------------------------------------------------------------------
-.segment "FORTH_CODE"
+.segment "FORTH_CODE"             ; at $0A00 now
 RAMSTART:
     jmp forth_main             ; MAIN program start
     jmp reset
@@ -986,24 +1011,58 @@ HFE_TTXT:
 ;
 ;    see ftrain.s and bload.s for examples of library format details
 ;
-LASTLIB = 4
+LASTLIB = 6
 lib_jumptable:
-    LIBENTRY (LT_FTRAIN + COPYSTART - RAMSTART)
+    LIBENTRY (LT_FCORE + COPYSTART - RAMSTART)
+    LIBENTRY (LT_FEXTRA + COPYSTART - RAMSTART)
     LIBENTRY (LT_ANSI + COPYSTART - RAMSTART)
     LIBENTRY (LT_RAMTEST + COPYSTART - RAMSTART)
     LIBENTRY (LT_BLOAD + COPYSTART - RAMSTART)
     LIBENTRY (LT_EDITTEST + COPYSTART - RAMSTART)
     .byte 0, 0, 0, 0, 0, 0   ; extra padding, dynamically add more libraries
     .byte 0, 0, 0, 0, 0, 0   
-    .byte 0, 0, 0, 0, 0, 0 
-    .byte 0, 0
-;    
+    .byte 0, 0, 0, 0, 0, 0, 0, 0    ; keep it to 16 entries if possible
+lib_jumps_end:
+;
+;--------------------------------------------------------------------
+;
+;    error/system msg jump table  - see upper.s for ERR messages
+;
+LASTERR = 7 
+err_jumptable:
+    .res 2                    ; padding for ???
+    ERR_entry RPTR_ERR              ; RT stack full/empty  - error $01
+    ERR_entry SPTR_ERR              ; DS stack full/empty  - error $02
+    ERR_entry DIV_ERR               ; divide by zero - error $03
+    ERR_entry OOM_ERR               ; out of memory  - error $04
+    ERR_entry UKW_ERR               ; no existing word - error $05
+    ERR_entry SEC_ERR               ; writing to dangerous RAM areas - error $06
+    ERR_entry SYS_ERR               ; error on return from SYSCALL - error $07
+    ERR_entry PAD_ERR               ; PAD out of memory - error $08
+    .byte 0, 0, 0, 0, 0, 0   ; extra padding, dynamically add more messages
+    .byte 0, 0, 0, 0, 0, 0   
+    .byte 0, 0                     ; keep to 16 entries
+err_jumps_end:
 ;
 ;---------------------------------------------------------------------
-;        primitives.s -- original AGSB hardcoded dictionary
+;        primitives -- original AGSB hardcoded dictionary
+;
+;    In addition to the below, hardcoded words continue 
+;     in primitives.s and hywords.s
+;
 ;----------------------------------------------------------------------
 ; ( -- ) ae exit forth
 def_word "bye", "bye", 0
+    lda #'F'
+    jsr WRITE_CHAR
+    lda #'W'
+    jsr WRITE_CHAR
+    lda #'-'
+    jsr WRITE_CHAR
+    lda #>F_warm
+    jsr WRITE_BYTE
+    lda #<F_warm
+    jsr WRITE_BYTE
     jmp MON_START               ; jump to WOZMON
 ;
 ; ( -- ) ae abort
@@ -1219,12 +1278,16 @@ def_word "exit", "exit", 0
 ends:                            ; end marker of hardcoded primitives
 ;
 ;
+;
+.byte "***HEAPEND***"
+;-----------------------------------------------------------------------
+;                            SOUND DEMOS
+;
+.include "sound.s"
 ;-----------------------------------------------------------------------
 ;                            COMPILED LIBRARIES
 ;
 ; include training data
-;
-.byte "***HEAPEND***"
 ;
 .include "ftrain.s"
 ;

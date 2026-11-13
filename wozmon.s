@@ -2,9 +2,11 @@
 ;   Taken mostly from Steve Wozniak's Apple 1 Monitor for the 6502, or WOZMON
 ;
 .debuginfo
-.segment "BUFFERS"
-IN:
-                .res            $100
+;.segment "BUFFERS"
+;IN:
+;                .res            $100
+;
+;      NOPE, WOZ_IN instead, set up in 'bios.s'
 ;
 .segment "WOZMON"
 ;
@@ -26,7 +28,10 @@ MON_START:
                 bpl             @get_next_char  ; Auto ESC if line longer than 127.
 
 @is_start:
-                PRINT_CRLF
+                lda #$0D
+                jsr WRITE_CHAR
+                lda #$0A
+                jsr WRITE_CHAR
 
 @get_line:
                 jsr             WRITE_PROMPT
@@ -39,7 +44,7 @@ MON_START:
 @get_next_char:
                 jsr             READ_CHAR
                 bcc             @get_next_char
-                sta             IN,y            ; Add to text buffer.
+                sta             WOZ_IN,y            ; Add to text buffer.
                 cmp             #$0D
                 bne             @not_cr
                 ldy             #$FF            ; Reset text index.  Will iny shortly...
@@ -59,7 +64,7 @@ MON_START:
                 iny                             ; Advance text index.
 
 @next_item:
-                lda             IN,y            ; Get character.
+                lda             WOZ_IN,y            ; Get character.
                 cmp             #$0D      ; CR?
                 beq             @get_line       ; Yes, done with this line.
                 cmp             #'.'
@@ -81,14 +86,11 @@ MON_START:
                 bcc             @not_tuvw
                 cmp             #'X'        ; R, S, T, U, V, or W
                 bcs             @not_tuvw
-                cmp             #'S'
-                bne             @not_spawn
-                lda             ZP_WM_XAM
-                ldy             ZP_WM_XAM + 1
-                jsr             SPAWN_TASK
-                bra             MON_START
-
-@not_spawn:
+;                cmp             #'S'               ; no 'SPAWN' for now
+;                bne             @not_spawn
+;                jmp             SPAWN_TASK        ; see bios.s - do nothing
+             
+@not_spawn:                            ; TUVW falls through to here
                 clc
                 adc             #($F0 - 'T'); T=FFF0, U=FFF1, V=FFF2, W=FFF3
                 sta             ZP_WM_HVP       ;
@@ -106,7 +108,7 @@ MON_START:
                 stx             ZP_WM_HVP + 1   ; ...and High byte.
 
 @next_hex:
-                lda             IN,y            ; Get character for hex test.
+                lda             WOZ_IN,y            ; Get character for hex test.
                 eor             #'0'            ; Map digits to $0-9.
                 cmp             #$0A            ; Digit?
                 bcc             @is_digit       ; Yes.
@@ -164,10 +166,16 @@ MON_START:
                 bne             @set_addr       ; Loop unless X = 0.
 
 @print_next_addr:
-                PRINT_CRLF
-                PRINT_BYTE      ZP_WM_XAM + 1, ZP_WM_XAM   ; Print 'examine index'
-                PRINT_CHAR      #':'                      ; ...+ COLON
-
+                lda #$0D
+                jsr WRITE_CHAR
+                lda #$0A
+                jsr WRITE_CHAR
+                lda ZP_WM_XAM+1
+                jsr WRITE_BYTE
+                lda ZP_WM_XAM                    ; Print 'examine index'
+                jsr WRITE_BYTE
+                lda #':'
+                jsr WRITE_CHAR                   ; ...+ COLON
 @print_data:
                 phy
                 jsr             DISASM_WM       ; DISASM

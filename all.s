@@ -7,7 +7,7 @@
                                            ; I want these HERE so I can easily change the banner to reflect the
                                            ; latest version.
 .segment "BIOS"
-NamedHString HYDRA_WELCOME, "HYDRA-16 v1.8Da.02"          ; 10/22/26 <- update the date!
+NamedHString HYDRA_WELCOME, "HYDRA-16 v1.8Da.1112"          ; 11/11/26 <- update the date!
 
 .include "bios.s"
 .include "thunks.s"
@@ -18,5 +18,5 @@ NamedHString HYDRA_WELCOME, "HYDRA-16 v1.8Da.02"          ; 10/22/26 <- update t
 .include "wozmon.s"
 ;.include "mmu.s"
 .include "shell.s"
-.include "sound.s"
+.include "utes.s"
 .include "os_main.s"

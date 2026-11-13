@@ -1,14 +1,22 @@
+;
+;   bios.s
+;
 .debuginfo
+.feature org_per_seg
+;
+.segment "STACK"    ; I'm assuming this is to define $0100-$01FF so cc65 doesn't put anything here.
+;
+.segment "BUFFERS"
+INPUT_BUFFER:                                ;    $200, for serial input
+                .res            $100
+WOZ_IN: 
+                .res            $100         ;    $300 for WOZMON
+                                     
+.segment "BIOS"
 
 SER_SEND_STATUS_READY = 0
 SER_SEND_STATUS_BUSY  = 1
 SER_SEND_STATUS_ERROR = $FF
-
-.segment "BUFFERS"
-INPUT_BUFFER:
-                .res            $100
-
-.segment "BIOS"
 ;
 ; usually ends up at $F840  (see os_rom_C02.cfg)
 ;
@@ -124,8 +132,8 @@ WRITE_HEX:
                 phx
                 tax
                 lda             HEX_MAP,x
-                .byte           $22                        ; skip a byte (over phx below)
-
+                .byte           $24                        ; skip a byte (over phx below)
+                                                           ; changed from $22 (PGS 11/8/26)
 ; Output a character (from the A register) to the serial interface.
 ;
 ; Modifies: flags
@@ -179,6 +187,15 @@ WRITE_DELAY:
 WRITE_CRLF:
                 PRINT_CHAR_JMP  #$0D, #$0A
 
+WRITE_P2:
+                lda #$0D
+                jsr WRITE_CHAR
+                lda #$0A
+                jsr WRITE_CHAR
+                lda #'>'
+                jsr WRITE_CHAR
+                rts
+                
 WRITE_PROMPT:
                 PRINT_CRLF
                 PRINT_CHAR      #'T'
@@ -219,11 +236,6 @@ INIT_BUFFER:
                 lda           ZP_READ_PTR
                 sta           ZP_WRITE_PTR
                 rts
-
-; Escape sequences
-CLEAR_SCR:
-                PRINT_ESC_SEQ #'[', #'2', #'J'
-                PRINT_ESC_SEQ_JMP #'[', #'0', #';', #'0', #'f'
 
 ; Set up the SPI interface registers on the VIA
 SPI_INIT:
@@ -701,150 +713,13 @@ VIA_IRQ_HANDLER:
 ;  BIOS stuff that was in tasks.s, math.s, mmu.s
 ;  Dummy/substitute subroutines to obviate math.s, tasks.s, mmu.s
 ;
-
-SPAWN_TASK:   rts
+SPAWN_TASK:                   ; a place holder for now, just goes back to Wozmon
+                lda             ZP_WM_XAM
+                ldy             ZP_WM_XAM + 1
+                jmp  MON_START
 ;
 ;
-;
-; MATH
-MOD_10:
-            ldx             #0
-            cmp             #0
-            bmi             @negative
-            cmp             #100
-            bmi             @pos_loop
-            ldx             #10
-            sec
-            sbc             #100
-
-@pos_loop:
-            cmp             #10
-            bmi             @pos_end
-            inx
-            sec
-            sbc             #10
-            bpl             @pos_loop
-
-@pos_end:
-            rts
-
-@negative:
-            cmp             #$A6            ; -90
-            bpl             @neg_start
-            adc             #$A6
-
-@neg_start:
-            clc
-
-@neg_loop:
-            adc             #10
-            bmi             @neg_loop
-            rts
-
-REM_10:
-            ldx             #0
-            cmp             #0
-            bmi             @negative
-            cmp             #100
-            bmi             @positive
-            sbc             #100
-            ldx             #10
-
-@positive:
-            sec
-
-@pos_loop:
-            inx
-            sbc             #10
-            beq             @pos_end
-            bpl             @pos_loop
-            dex
-            adc             #10
-
-@pos_end:
-            rts
-
-@negative:
-            cmp             #$9B            ; -99
-            bpl             @neg_start
-            adc             #$9B
-            ldx             #$F6            ; -10
-
-@neg_start:
-            clc
-
-@neg_loop:
-            dex
-            adc             #10
-            bmi             @neg_loop
-            beq             @neg_end
-            inx
-            sec
-            sbc             #10
-
-@neg_end:
-            rts
-
-DIV_10:
-            jsr             REM_10
-            pha
-            tya
-            ply
-            rts
-
-ABS:
-            cmp             #0
-            bcs             NEG_DONE
-
-NEGATE:
-            eor             #$FF
-            inc
-
-NEG_DONE:
-            rts
-;
-;
-;
-; Memory Copy
-; ZP_TEMP_VEC: From, ZP_TEMP_VEC2: To, .A.Y: Size
-;
-MEMCOPY_AY:
-            phx
-            tax
-            bne         :+
-            tya
-            beq         @done                               ; copy zero bytes?  Done!
-:
-            PRINT_CRLF
-            PRINT_BYTE  ZP_TEMP_VEC + 1
-            PRINT_BYTE  ZP_TEMP_VEC
-            PRINT_CHAR  #'-', #'>'
-            PRINT_BYTE  ZP_TEMP_VEC2 + 1
-            PRINT_BYTE  ZP_TEMP_VEC2
-
-@loop:
-            lda         (ZP_TEMP_VEC)
-            sta         (ZP_TEMP_VEC2)
-            PRINT_CHAR  #'.'
-            dex
-            bne         :+
-            tya
-            beq         @done
-            dey
-:
-            inc         ZP_TEMP_VEC
-            bne         :+
-            inc         ZP_TEMP_VEC + 1
-:
-            inc         ZP_TEMP_VEC2
-            bne         :+
-            inc         ZP_TEMP_VEC2 + 1
-:
-            bra         @loop
-
-@done:
-            plx
-            rts            
+;        
 ;
 ; Non-maskable interrupt handler (same as maskable interrupt handler for now)
 NMI_HANDLER:

@@ -124,14 +124,15 @@ HFE_WARM:
   bra hfe_warmover                    ; skip over next inst 
 HFE_COLD:
   stz HFE_T0H
+  stz HFE_CH                  ; set cursor position
+  stz HFE_CV
 hfe_warmover: 
   lda HFEBUF+1
   sta HFE_BPTR+1
   lda HFEBUF                   ; find out where screen buffer is
   sta HFE_BPTR
   jsr HFE_SCRINIT
-  stz HFE_CH                  ; set cursor position
-  stz HFE_CV
+
   jmp HFE_START
 
 HFE_START:
@@ -194,7 +195,8 @@ HFE_SK1:
 ;
 hfe_draw_dline:
   lda HFECOLS
-  adc #3
+  clc
+  adc #4
   tax
 hfe_ddloop:
   lda #'-'
@@ -362,6 +364,74 @@ hfe_place_cur:
   sta TEMP4
   jsr ANSISCR
   rts
+;
+;   Forth heap subroutines  
+;   
+FECPY:                    ; copy a z-termed string from an addr in TEMP1
+    ldy #0
+    bra FECPYLP
+FECPY_TOC:
+    ldy HFE_CH
+    lda TEMP1
+    sec
+    sbc HFE_CH
+    bcs  FECPYLP
+    dec TEMP1+1
+FECPYLP:                         ; assumes zero term'd string
+    lda (TEMP1),y
+    sta (TEMP2),y
+    beq FEADDEND
+    tya
+    inc
+    inc                         
+    cmp HFECOLS                  ; max of 63 chars, rest trunc'd off
+    beq FEADDEND                 ; this will be fixed for something more flexible
+    iny
+    bra FECPYLP
+FEADDEND:
+    iny
+    lda #0
+    sta (TEMP2),y                ; write zero at end of line
+    dey
+    sty TEMP1
+    stz TEMP1+1
+    rts 
+;  
+;    
+FELIN:           ; CALC ROW ADDRESS IN BUFFER, from TEMP2
+    stz TEMP2+1
+    lda TEMP2
+    and #$0F                     ; max rows are 16, mask off anything else
+    clc
+    rol
+    rol
+    rol                          ; multiply times 64                
+    rol
+    bcc  M40SK0
+    rol TEMP2+1
+M40SK0:
+    rol
+    bcc  M40SK1
+    rol TEMP2+1
+M40SK1:
+    rol
+    bcc  M40SK2
+    rol  TEMP2+1
+M40SK2:
+    clc
+    adc HFEBUF
+    bcc  FEADDSK3
+    inc TEMP2+1
+FEADDSK3:    
+    sta TEMP2    
+    lda HFEBUF+1
+    clc
+    adc TEMP2+1                  ; dest address in TEMP2
+    sta TEMP2+1
+    rts
+    
+;
+HFE_END:
 ;
 ; end of hyf_edit.S
 ;
