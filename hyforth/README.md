@@ -14,7 +14,7 @@
 
 <p>Essentially, we want to generate a RAM image of the running HyForth image at $0A00 by switching to the ROM, running the COPYTORAM routine (at approximately $A000), then starting HyForth at $0A00 through WozMon.  The input buffer stack (TIB) is the entire page at $0400, with the DS and RT stacks splitting $0500-$05FF.  Currently the end of the hardcoded word dictionary runs from $0A60 to about $2200, with user-compiled words extending above that.</p>
 
-<p>If you are just using the Hydra-16 simulator (included in the project in the ./sim folder) then you can use the rom images created with the cc65 'make' and '.cfg' files to create the OS-ROM and paged-ROM images with no trouble; if actually have Hydra-16 hardware....</p>
+<p>If you are just using the Hydra-16 simulator (included in the project in the ./sim folder) then you can use the rom images created with the cc65 'make' and '.cfg' files, install them in the 'tmp' folder in the sim, then off you go.  But if actually have Hydra-16 hardware....</p>
 
 <p>The Hydra-16 maps ROM chips into one of 256 16K banks, any one of which will show up at $A000 depending on the selected bank.  These are selected by putting the bank # at zeropage address $01...more or less.  The 'more' is that they work, the 'less' is that you have to find the bank.  Due to a flaw in the design of the 1.8C vesion of Hydra-16 (only one with extant hardware), you have to offset the upload of your ROM image by $2000, and then copy any data that spills over <base address + $4000> back to the $0000 offset of your base address for the bank.</p>
 
