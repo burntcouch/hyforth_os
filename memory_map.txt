@@ -39,15 +39,15 @@ $A000-$Bxxx - Forth COPYTORAM, initial heap, training words
     $B74E - $BE66 - autoload core, extras, ANSI, tests, binary load tests
 $BE66-$CFFF - *** available for other fun stuff ***
 
-os_rom  (~$890 available space)
+os_rom  (~$700 available space)
 ------------------------------
 $E000-$E110 - OS_MAIN, SHELL
 $E111-$E2FF - *** available for shell, initialization ***    ($1D0)
 $E300-$E656 - utilites - sound init, debug, memcpy, math     ($120)
 $E800-$EB80 - disassmbler                                    ($80)
-$EC00~$F318 - Forth ROM core
-$F318~$F4EE - HyFedit
-$F5xx-$F7FF -  *** available for use ***                     ($300)
+$EC00~$F4BC - Forth ROM core
+$F4BC~$F692 - HyFedit
+$F6xx-$F7FF -  *** available for use ***                     ($160)
 $F800-$F821 - thunks (BIOS entry point jump table)
     TH_READ_CHAR           ; $F800
     TH_WRITE_CHAR          ; $F803
