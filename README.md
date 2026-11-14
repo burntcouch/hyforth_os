@@ -66,8 +66,8 @@ $00     - shared RAM switch
 $01     - paged ROM switch
 $03-$06 -  *** reserved for task switcher ***
 $07-$2E - BIOS / OS stuff
-$2F-$AF -  *** FREE TO USE ***
-$B0-$FF - Debug, Math, ANSI, HyFedit and HyForth
+$2F-$9F - *** FREE TO USE ***
+$A0-$FF - PAD, Debug, Math, ANSI, HyFedit and HyForth
 
 buffers and Forth stacks
 $0100       - 6502 stack
@@ -82,7 +82,7 @@ $0900-$09FF - clipboard/command history
 Forth in RAM
 $0A00-$0A05 - Forth startup
 $0A06-$0A48 - editor vars, library jump table, err/msg jump table
-$0A48~$2200 - current Forth words heap, working up
+$0A60~$2200 - current Forth words heap, working up
 $2200-$7BFF - Forth heap (working up) <-> memory space (working down)  $5A00 (20Kb+)
 $7C00-$7FFF - Forth screen buffer
 
