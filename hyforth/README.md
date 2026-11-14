@@ -110,6 +110,24 @@ HF>
 <h4>ADDITIONAL STUFF:</h4>  <p>This is the largest category.  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'. '*' always gives a 32 bit result with the LSW on top of the stack.  The Forth workhorse '*/' is also implemented, and I found a very small and well-tested 32-bit Galois random generator that is also included.  All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.</p>
 
 <p>This group also includes a lot of debugging tools, including a disassembler ('disasm'), 'syscall' for system calls, some ANSI screen functions ('Ascr', 'Acls', 'Acol'), and the basic parts of the memory manager: 'malloc', 'mlen'.  The addition of the PAD area allows a meaningful distinction between temporary and permanent data, and the 'padclr', 'pad@' and 'pad!' words manipulate that area.</p>
+----------------DISASM OUTPUT----------------------------
+<pre>
+
+HF>$1298 10 disasm
+1298: 8A       | TXA
+1299: 12 05    | ORA  ($05)
+129B: 64 65    | STZ  $65
+129D: 62       | NOP
+129E: 75 67    | ADC  $67,Y
+12A0: A5 D6    | LDA  $D6
+12A2: 49 FF    | EOR  #$FF
+12A4: 85 D6    | STA  $D6
+12A6: 4C 45 EF | JMP  $EF45
+12A9: 98       | TYA
+
+</pre>
+---------------------------------------------------------
+
 
 <p>'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable. 'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.</p>
 -----------------DUMP OUTPUT------------------------------
@@ -137,6 +155,44 @@ HF>$17E0 1 dump
 
 <h4>META-COMPILED WORDS:</h4>  <p>The traditional Forth conditionals and loop structures are NOT easy to implement in native code using AGSB's engine, so for now these are loaded (using 'cload' or 'autoload'). These include 'if', 'then', 'else', 'do', 'loop', 'begin', 'again', 'repeat', 'until', and 'while', as well as the 'i/j/k' loop indexes.</p>
 
+
+<p>HyFedit</p>
+<pre>
+HF>libs
+...
+EDITTEST-C BD56
+
+HF>$BD56 fedit
+
+HF>fedisp
+--------------------------------------------------------------------
+|                    <-Generic ScreenXX->                          |
+--------------------------------------------------------------------
+|0|This is a test                                                  |
+|1| Yeah a test                                                    |
+|2|  What a test!                                                  |
+|3|   What a test!                                                 |
+|4|    What a test!                                                |
+|5|     sez Pat...woot, woot, I fuguered this out?   Yez.          |
+|6|                                                                |
+|7|                                                                |
+|8|                                                                |
+|9|                                                                |
+|A|                                                                |
+|B|                                                                |
+|C|                                                                |
+|D|                                                                |
+|E|                                                                |
+|F|                                                                |
+--------------------------------------------------------------------
+
+HF>
+</pre>
+<p>
+Traditional Forths included a 'screen'; a more-or-less full featured screen editor that served as a method of writing Forth code, editing it, saving it, loading and storing it for future use.  Forth-79 and later versions stipulated the screen as 1024 bytes in RAM, or about 16 rows by 64 characters of text.  This amount of memory was also called a 'block' (a lot of MS-DOS and CP/M machines used 512 or 1024 bytes as a basic sector size for mass storage devices).</p>
+<p>HyFedit is a hybrid of the remembered-but-not-revered MS-DOS 'edlin' application and a Forth 'screen' or 'block'.  Along with a 'display' (fedisp) utility to show the current state of the screen, there are Forth words to clear, move data from/to, add and delete lines from, and even 'run' (execute as Forth code) a line or page of text in the buffer.</p>
+<p>HyFedit is an ongoing project and many of the functions described above are still in the development stage.  A 6502 assembler will also be implemented in HyForth using the screen editor as the basic IDE for native machine code development for the Hydra-16 hardware.</p>
+
 <h3>USAGE:</h3> the # conversion and string capture functions in the interpreter diverge a bit from standard Forth. As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a word.</p>
 
 <p>Strings are even more divergent. The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc. Instead, the q^/Q^...^ pair should be used; this construct creates a zero-terminated string and stores it in either the PAD or in tandem with 'malloc' to allocate memory for it. 'malloc' returns the handle (double indirection) of the string on the memory stack (see below). The '.sz' (or '.psz' for a PAD item) word will print the string on the screen if the address of the pointer to the string is on the top of the stack. You can store the address as a constant or in a variable to use it otherwise.</p>
@@ -152,17 +208,18 @@ HF>$17E0 1 dump
 <p>Memory manager: 'malloc' is the main word to allocate memory for data types more complicated than variables and constants, which are still implemented as in traditional Forth, ie either the address or the value are returned from a single 16-bit word store inline within the instance.  'malloc' created items can be up to 64K in size, and space in the item header is also available to implement data types at some point, if needed.</p>
 
 <p>'memptr' returns the current value of the pointer on the memory stack; it uses the same 'store' and 'decrement' strategy as the DS and RT stacks, so 'memptr' always returns the stack position that the NEXT allocated item's address will be stored in.  'mlen' is a general purpose function that returns the length of a 'malloc'-created item.</p>
-=======================================================================
+
 
 =======================================================================
-My partners in this project, including Dan Struthers and others involved 
+<h3>Acknowledgements and etc (~4/1/2026) </h3>
+<p>My partners in this project, including Dan Struthers and others involved 
 with testing and development for the Hydra-16 hardware and ROM design 
-(https://github.com/danstruthers/hydra-16/tree/V1.8C), will be moving the 
+(https://github.com/danstruthers/hydra-16/tree/V1.8C), will be moving [DONE] the 
 functional core of HyForth entirely to ROM, along with a binary that will
-load the base training data to make it a fully functional language.
+load the base training data to make it a fully functional language.</p>
 
-In the meantime...please be free to take a look at this port and adapt it 
-as necessary for your favority 6502-based SoC.  More when....
+<p>In the meantime...please be free to take a look at this port and adapt it 
+as necessary for your favorite 6502-based SBC.  More when....</p>
 </pre>
 <p>  
 #see below for original intro from Sr. Barcellos
