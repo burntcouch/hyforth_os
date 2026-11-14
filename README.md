@@ -44,6 +44,96 @@ The 'paged_rom' image (one of eight SST39SF040 4Mbit ROMs on the Hydra-16) inclu
 The Hydra-16 still boots to Wozmon in this version.  To install the heap into RAM, switch to the correct ROM bank by writing the page # to ZP location $01, then enter 'A006R' (WAS 'A003' last week!  TAKE NOTE.)  to run the COPYTORAM routine.  Then just enter '800R' in WozMon to start HyForth.  See the README for HyForth linked above for more details.
 <a name="updates"></a>
 <h1> Updates </h1>
+<h3> 11/13/26 </h3>
+<h4> Memory map changes:</h4>
+<p>(SEE BELOW)</p>
+<p> After a lot of dragging and chopping and screaming of strangling subroutines, I managed to reorganize the non-BIOS area of OS-ROM ($E000-$F800) so that the basic OS utilities (not directly BIOS relate) such as MEMCPY, DISASM, DUMPPAGE, DUMPREG, the math routines, and the basic Yamaha sound init and utility functions were all wedged together above the shell/OS-init segment.</p>
+<p> HyForth is also considerably bigger as a result of the more robust parser as well as the addition of the PAD, HyFedit, and the ANSI functions. </p>
+<br>
+<p>The lower end of the task RAM area has also changed quite a bit:  HyForth uses a little more zeropage now ($A0-$FF0) and the PAD uses the formerly 'reserved' page from $700 up.  Wozmon's input buffer now permanently resides at $300 instead of floating around and stomping on things, and the starting address of the Forth cold-start entry point, some jump tables, and the Forth heap now begin at $0A00.  This still leaves a page below for a larger PAD if that becomes neccesary.
+</p>
+<p>I am also slowly hacking through the main OS and BIOS code to eliminate the use of a lot of PRINT_xxx macros.  Macros may be very useful but too much cleverness results in extremely obfuscated code, and I prefer verbosity over trickiness any day of the week.</p>
+<pre>
+-------------------
+MEMORY MAP as assembled, 10/15/25
+-------------------
+zeropage
+$00     - shared RAM switch
+$01     - paged ROM switch
+$03-$06 -  *** reserved for task switcher ***
+$07-$2E - BIOS / OS stuff
+$2F-$AF -  *** FREE TO USE ***
+$B0-$FF - Debug, Math, ANSI, HyFedit and HyForth
+
+buffers and Forth stacks
+$0100       - 6502 stack
+$0200       - INPUT_BUFFER (serial / input buffer)
+$0300       - WOZ_IN  (buffer for Wozmon)
+$0400-$04FF - INBUF  (Forth input buffer)
+$0500-$057F - DS (Forth data stack)
+$0580-$05FF - RT (Forth return stack)
+$0600-$07FF - MEMSTK (Forth memory allocation stack)
+$0800-$08FF - Forth scratch PAD
+$0900-$09FF - clipboard/command history
+Forth in RAM
+$0A00-$0A05 - Forth startup
+$0A06-$0A48 - editor vars, library jump table, err/msg jump table
+$0A48~$2200 - current Forth words heap, working up
+$2200-$7BFF - Forth heap (working up) <-> memory space (working down)  $5A00 (20Kb+)
+$7C00-$7FFF - Forth screen buffer
+
+paged_ram
+$8000-$9FFF - **!! not used cuz some banks of shared RAM area unreliable !!**
+
+paged_rom
+    HyForth 0.91 ROM image:
+$A000-$Bxxx - Forth COPYTORAM, initial heap, training words
+    $A000->$0800->$EC00 - Forth cold start
+    $A003 - Forth COPYTORAM  (copy RAM image from paged ROM)
+    $A100 - $B622 - Forth heap
+    $B622 - $BF4E - sound demo, instrument patches, etc
+    $B74E - $BE66 - autoload core, extras, ANSI, tests, binary load tests
+$BE66-$CFFF - *** available for other fun stuff ***
+
+os_rom  (~$700 available space)
+------------------------------
+$E000-$E110 - OS_MAIN, SHELL
+$E111-$E2FF - *** available for shell, initialization ***    ($1D0)
+$E300-$E656 - utilites - sound init, debug, memcpy, math     ($120)
+$E800-$EB80 - disassmbler                                    ($80)
+$EC00~$F4BC - Forth ROM core
+$F4BC~$F692 - HyFedit
+$F6xx-$F7FF -  *** available for use ***                     ($160)
+$F800-$F821 - thunks (BIOS entry point jump table)
+    TH_READ_CHAR           ; $F800
+    TH_WRITE_CHAR          ; $F803
+    TH_WRITE_BYTE          ; $F806
+    TH_WRITE_HEX           ; $F809
+    TH_WRITE_HEX_MASK      ; $F80C
+    TH_WRITE_HSTRING       ; $F80F
+    TH_WRITE_CRLF          ; $F812
+    TH_CLEAR_SCR           ; $F815
+    TH_DISASM              ; $F818
+    TH_DISASM_AY           ; $F81B
+    TH_MEMCOPY             ; $F81E
+    TH_MEMCOPY_AY          ; $F821
+    TH_DUMPREG             ; $F824    
+$F825-$F83F - *** more room for thunks, etc. ***               ($20)
+$F840-$FBFF - BIOS
+$FC00-$FDFF - *** more room for bios ***                      ($200)
+$FE00-$FEFF - Wozmon
+$FF00-$FFxx - IO ports, TUVW registers, interrupt vectors
+    T_REGISTER   = $FFF0   (current task selector)
+    U_REGISTER   = $FFF1   (current shared-ram macro page)
+    V_REGISTER   = $FFF2   (interrupt vector selector)
+    W_REGISTER   = $FFF3   (BIOS page selector)
+    $FFF4-$FFF9   *** reserved for future use ***
+    NMI Vector   = $FFFA
+    Reset Vector = $FFFC
+    IRQ Vector   = $FFFE
+
+  
+</pre>
 
 <h3> 10/22/26 </h3>
 <p>Lots of new things:</p>
