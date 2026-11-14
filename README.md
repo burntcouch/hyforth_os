@@ -32,6 +32,10 @@ The root folder of the repos has the basic OS code, (I am excluding the hardware
 <p>...which assumes that your 'os_rom_C02.bin' and 'paged_rom_C02.bin' files are in '/tmp'.  You've been warned.</p>
 <a name="buildrun"></a>
 <h1> Building and running</h1>
+<p>11/13/26 - more minor changes</p>
+<p> With the use of the simulator, I've increased my dev cycle quite a bit, with generally minimal resulting chaos.</p>
+<p> Due to the expansion and reorganization of the OS-ROM area and added parsing and editing functions in HyForth, RAM use is also slightly different.  The new 'running' procedure is...'boot the Hydra-16', ie the old COPYTORAM + RAMSTART procudure ($A000R + $800$) is now autoomatic.  HyForth now starts at $A00 in RAM rather than lower down, and the zero page use and buffers hog up some extra room.  The screen editor buffer also now occupies the top 1K of task RAM with memory items allocated by 'malloc' below that.  Free memory between the top of the 'heap' and the bottom of the 'screen' area is still around 20Kb before adding more words or data.</p>
+
 <p>10/22/26 - very minor updates</p>
 <p>The cc65 .cfg file for this project has been simplified in name to 'os_rom.cfg'.  This file handles all the details of the memory map and what files are generated for what sections of memory, etc.  The corresponding output files are now called 'os_rom.bin' and 'paged_rom.bin' rather than the more clunky '....C02.bin' versions.  The make file is now just 'make.bat' in corresponding fashion.</p>
 <p>---------------------------------------------------------------------------</p>
