@@ -14,7 +14,7 @@
 
 <p>Essentially, we want to generate a RAM image of the running HyForth image at $0A00 by switching to the ROM, running the COPYTORAM routine (at approximately $A000), then starting HyForth at $0A00 through WozMon.  The input buffer stack (TIB) is the entire page at $0400, with the DS and RT stacks splitting $0500-$05FF.  Currently the end of the hardcoded word dictionary runs from $0A60 to about $2200, with user-compiled words extending above that.</p>
 
-<p>If you are just using the Hydra-16 simulator (included in the project in the ./sim folder) then you can use the rom images created with the cc65 'make' and '.cfg' files, install them in the 'tmp' folder in the sim, then off you go.  But if actually have Hydra-16 hardware....</p>
+<p>If you are just using the Hydra-16 simulator (included in the project in the ./sim folder) then you can use the rom images created with the cc65 'make' and '.cfg' files to create the OS-ROM and paged-ROM images with no trouble; if actually have Hydra-16 hardware....</p>
 
 <p>The Hydra-16 maps ROM chips into one of 256 16K banks, any one of which will show up at $A000 depending on the selected bank.  These are selected by putting the bank # at zeropage address $01...more or less.  The 'more' is that they work, the 'less' is that you have to find the bank.  Due to a flaw in the design of the 1.8C vesion of Hydra-16 (only one with extant hardware), you have to offset the upload of your ROM image by $2000, and then copy any data that spills over <base address + $4000> back to the $0000 offset of your base address for the bank.</p>
 
@@ -30,6 +30,53 @@
 
 =======================================================================
 
+<h3> What IS HyForth?</h3>
+
+HyForth is a direct descendant of Alvaro G. S. Barcellos' MilliForth project.  AGSB intended MilliForth to be small enough to easily fit on a memory contstrained  8-bit SBC.  Size rather than efficiency was the intention, and the original MilliForth assembled image ran in as little as 400 bytes of RAM on the 6502.  The '02 is a good target for this kind of project because of its small, RISC-like instruction set and the 'zeropage' RAM area that almost acts like a set of 256 high-speed registers.
+
+MilliForth has a very small core of basic Forth words; just enough functionality to 'meta-compile' almost any other traditional Forth 'word' using that core.  HyForth uses the same interpret/compile/execute engine as MilliForth, with considerable alterations, but the current engine is still ~ 1100 bytes.  Unlike the original MilliForth, the HyForth engine has minimal bounds checking, error capture and messaging, connection points for libraries, a screen editor, and text and number capture.
+
+The HyForth 'heap', on the other hand, is quite a bit larger than the MilliForth one.  Many of the 'training' or meta-compiled words are now hard-coded into 6502 binaries, with the exception of the condtional and loop structures.  The traditional stack manipulation words like 'dup', 'swap', 'over', 'rot' are now hard-coded, along with a great many core functions like 'lit' (LITERAL), 'var' (VARIABLE) and 'cons' (CONSTANT).
+
+HyForth words can be roughly tossed into four categories:  critical/core (AGSB core), primitive, standard Forth, and 'additional'.
+
+<h4>CORE:</h4>  Starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness: 'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'.  The core also includes a lot of words to manipulate the internal state of the Forth stacks and state variables:  'rp' (return stack), 'sp' (data stack), 's@' (status flag), 'in>/>in' (input buffer), and so on.
+
+<h4>PRIMITIVES:</h4> 
+Also all of the comparatives (=, not, <, >, >=, <=) are defined, as well as the basic logic functions (and, or, nand, xor). 'negate' and 'invert' as defined in traditional Forth have been changed to 'neg' and 'not', and AGSB's '0#' was changed to 'bool' (to convert the top-of-the-stack value to its boolean equivalent).  True and false values are still $FFFF and $0000 respectively.
+
+Note on numbers:  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'. Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).
+
+<h4>ADDITIONAL STUFF:</h4>  This is the largest category.  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'. '*' always gives a 32 bit result with the LSW on top of the stack.  The Forth workhorse '*/' is also implemented, and I found a very small and well-tested 32-bit Galois random generator that is also included.  All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.
+
+This group also includes a lot of debugging tools, including a disassembler ('disasm'), 'syscall' for system calls, some ANSI screen functions ('Ascr', 'Acls', 'Acol'), and the basic parts of the memory manager: 'malloc', 'mlen'.  The addition of the PAD area allows a meaningful distinction between temporary and permanent data, and the 'padclr', 'pad@' and 'pad!' words manipulate that area.
+
+'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable. 'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.
+
+Lastly, you will see 'cload', 'autoload' and 'bload'. These three words are the essential for loading extra 'meta-compiler' word libraries as well as binary libraries.
+
+<h4>META-COMPILED WORDS:</h4>  the traditional Forth conditionals and loop structures are NOT easy to implement in native code using AGSB's engine, so for now these are loaded (using 'cload' or 'autoload'). These include 'if', 'then', 'else', 'do', 'loop', 'begin', 'again', 'repeat', 'until', and 'while', as well as the 'i/j/k' loop indexes.
+
+<h3>USAGE:</h3> the # conversion and string capture functions in the interpreter diverge a bit from standard Forth. As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a word.
+
+Strings are even more divergent. The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc. Instead, the q^/Q^...^ should be used; this construct creates a zero-terminated string and stores it in either the PAD or in tandem with 'malloc' to allocate memory for it. 'malloc' returns the handle (double indirection) of the string on the memory stack (see below). The '.sz' (or '.psz' for a PAD item) word will print the string on the screen if the address of the pointer to the string is on the top of the stack. You can store the address as a constant or in a variable to use it otherwise.
+
+EXAMPLE: Q^this is a test.^ cons astr .sz
+
+... this will print 'this is a test.'. Using 'astr' in a compiled word will return the string handle as described above.
+
+The PAD: a small buffer is set aside specifically 
+
+Memory manager: 'malloc' is the main word to allocate memory for data types more complicated than variables and constants, which are still implemented as in traditional Forth, ie either the address or the value are returned from a single 16-bit word store inline within the instance.
+
+'memptr' returns the current value of the pointer on the memory stack; it uses the same 'store' and 'decrement' strategy as the DS and RT stacks, so 'memptr' always returns the stack position that the NEXT allocated item's address will be stored in.
+
+'mlen' is a general purpose function that returns the length of a 'malloc'-created item.
+
+'mktemp' marks an item in the memory storage area as temporary, while 'purge' (work in progress) will remove temporary items in the memory stack and reorganize the stack to re-use deallocated space.
+
+
+=======================================================================
 My partners in this project, including Dan Struthers and others involved 
 with testing and development for the Hydra-16 hardware and ROM design 
 (https://github.com/danstruthers/hydra-16/tree/V1.8C), will be moving the 
