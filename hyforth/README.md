@@ -31,7 +31,19 @@
 =======================================================================
 
 <h3> What IS HyForth?</h3>
+-----------------------------------
+<pre>
+HyForth 0.930 11-12-2026
+FCORE-C B763
+FEXTRA-C BA08
+ANSI-C BB20
+RAMTEST-C BCAF
+BLOAD-B BDF5
+EDITTEST-C BD56
 
+HF>
+</pre>
+-----------------------------------
 <p>HyForth is a direct descendant of Alvaro G. S. Barcellos' MilliForth project.  AGSB intended MilliForth to be small enough to easily fit on a memory contstrained  8-bit SBC.  Size rather than efficiency was the intention, and the original MilliForth assembled image ran in as little as 400 bytes of RAM on the 6502.  The '02 is a good target for this kind of project because of its small, RISC-like instruction set and the 'zeropage' RAM area that almost acts like a set of 256 high-speed registers.</p>
 
 <p>MilliForth has a very small core of basic Forth words; just enough functionality to 'meta-compile' almost any other traditional Forth 'word' using that core.  HyForth uses the same interpret/compile/execute engine as MilliForth, with considerable alterations, but the current engine is still ~ 1100 bytes.  Unlike the original MilliForth, the HyForth engine has minimal bounds checking, error capture and messaging, connection points for libraries, a screen editor, and text and number capture.</p>
@@ -39,6 +51,54 @@
 <p>The HyForth 'heap', on the other hand, is quite a bit larger than the MilliForth one.  Many of the 'training' or meta-compiled words are now hard-coded into 6502 binaries, with the exception of the condtional and loop structures.  The traditional stack manipulation words like 'dup', 'swap', 'over', 'rot' are now hard-coded, along with a great many core functions like 'lit' (LITERAL), 'var' (VARIABLE) and 'cons' (CONSTANT).</p>
 
 <p>HyForth words can be roughly tossed into four categories:  critical/core (AGSB core), primitive, standard Forth, and 'additional'.</p>
+-------------LIST OF CURRENT FORTH WORDS-----------------------
+<pre>
+ 1F17: exit       | 1EFC: ferc@      | 1EE9: fecol!     | 1ED6: ferow!     |
+ 1EA0: felin      | 1E73: feadd      | 1E65: feclr      | 1E06: fedit      |
+ 1DDC: febuf      | 1DCD: fedisp     | 1DB6: fa_mo@     | 1D9F: fa_ms@     |
+ 1D84: ywrite     | 1D76: ytest      | 1D68: yinit      | 1D55: mlen       |
+ 1D3D: malloc     | 1D00: syscall    | 1CAC: disasm     | 1C92: free       |
+ 1C60: memcpy     | 1C4E: xdrv       | 1BB4: */         | 1B69: /          |
+ 1B35: *          | 1B1A: max        | 1AED: min        | 1AC8: rand32     |
+ 1ABB: rand       | 1A9A: rseed      | 1A7D: Acol       | 1A50: Ascr       |
+ 1A43: Acls       | 19B5: bload      | 1952: cload      | 1935: autoload   |
+ 18D9: snip       | 18A5: pick       | 1878: 2over      | 1867: 2drop      |
+ 184B: 2dup       | 1832: tuck       | 1820: nip        | 1807: over       |
+ 17EC: rot        | 17D7: xR         | 17C2: xS         | 17B5: drop       |
+ 17A6: dup        | 178B: swap       | 1770: <          | 1754: >=         |
+ 1736: <=         | 1716: >          | 1705: 0=         | 16EC: =          |
+ 16D2: <>         | 16B3: neg        | 169D: not        | 1684: xor        |
+ 166C: or         | 1653: and        | 1649: %1         | 163F: %0         |
+ 1635: $F         | 162B: $E         | 1621: $D         | 1617: $C         |
+ 160D: $B         | 1603: $A         | 15F7: -9         | 15EB: -8         |
+ 15DF: -7         | 15D3: -6         | 15C7: -5         | 15BB: -4         |
+ 15AF: -3         | 15A3: -2         | 1598: 0          | 1590: $0         |
+ 1584: -1         | 157B: 9          | 1571: $9         | 1568: 8          |
+ 155E: $8         | 1555: 7          | 154B: $7         | 1542: 6          |
+ 1538: $6         | 152F: 5          | 1525: $5         | 151C: 4          |
+ 1512: $4         | 1509: 3          | 14FF: $3         | 14F6: 2          |
+ 14EC: $2         | 14DF: 1          | 14D7: $1         | 1438: cons       |
+ 13B5: var        | 1397: lit        | 1388: spc        | 1377: cells      |
+ 1363: c!         | 1350: c@         | 133A: in>        | 132A: r>         |
+ 131A: >r         | 1308: memptr     | 12FF: mp         | 12F6: rp         |
+ 12ED: sp         | 12E2: back       | 12D7: here       | 12CC: last       |
+ 12BB: >in        | 12A9: cr         | 1298: debug      | 128A: x@         |
+ 127B: FALSE      | 126D: TRUE       | 125A: bool       | 1241: -          |
+ 1229: +          | 120B: nand       | 11F9: emit       | 11E9: key        |
+ 11A3: cbit       | 1181: sbit       | 1153: tbit       | 1136: <<         |
+ 1119: >>         | 1102: decs!      | 10A7: rdcstk!    | 107A: dcstk!     |
+ 1048: dwstk!     | 1009: dsget@     | 0FD6: dsgetn@    | 0FC9: pad!       |
+ 0FBA: padclr     | 0FA5: pad@       | 0F87: .sn        | 0F5A: .sz        |
+ 0F4D: .psz       | 0F3E: .rsz       | 0F09: ord        | 0EF0: (          |
+ 0EBE: .C         | 0EA5: .          | 0E0B: w@         | 0D46: words      |
+ 0D18: dump       | 0CB1: .R         | 0C9F: ?R         | 0C84: ?S         |
+ 0C56: .S         | 0BE6: libs       | 0BB6: lib        | 0B8B: libcnt     |
+ 0B57: :          | 0B3B: ;          | 0B1F: ,          | 0B14: ]          |
+ 0B0B: [          | 0AED: I          | 0ACF: @          | 0ABB: !          |
+ 0AB3: ;$         | 0AAB: :$         | 0A9E: exec       | 0A93: reset      |
+ 0A88: abort      | 0A66: bye        |
+</pre>
+---------------------------------------------------------------
 
 <h4>CORE:</h4>  Starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness: 'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'.  The core also includes a lot of words to manipulate the internal state of the Forth stacks and state variables:  'rp' (return stack), 'sp' (data stack), 's@' (status flag), 'in>/>in' (input buffer), and so on.</p>
 
@@ -52,25 +112,47 @@
 <p>This group also includes a lot of debugging tools, including a disassembler ('disasm'), 'syscall' for system calls, some ANSI screen functions ('Ascr', 'Acls', 'Acol'), and the basic parts of the memory manager: 'malloc', 'mlen'.  The addition of the PAD area allows a meaningful distinction between temporary and permanent data, and the 'padclr', 'pad@' and 'pad!' words manipulate that area.</p>
 
 <p>'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable. 'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.</p>
-
+-----------------DUMP OUTPUT------------------------------
+<pre>
+HF>$17E0 1 dump
+17E0:A9 00 A0 00 91 EA C8 91 EA 4C 45 EF D7 17 03 72  .........LE....r
+17F0:6F 74 20 5C EE 20 57 EE 20 52 EE 20 1A EE 20 1F  ot \. W. R. .. .
+1800:EE 20 15 EE 4C 45 EF EC 17 04 6F 76 65 72 20 5C  . ..LE....over \
+1810:EE 20 57 EE 20 1A EE 20 1F EE 20 1A EE 4C 45 EF  . W. .. .. ..LE.
+1820:07 18 03 6E 69 70 20 5C EE 20 57 EE 20 1F EE 4C  ...nip \. W. ..L
+1830:45 EF 20 18 04 74 75 63 6B 20 5C EE 20 57 EE 20  E. ..tuck \. W. 
+1840:1F EE 20 1A EE 20 1F EE 4C 45 EF 32 18 04 32 64  .. .. ..LE.2..2d
+1850:75 70 20 57 EE 20 5C EE 20 1F EE 20 1A EE 20 1F  up W. \. .. .. .
+1860:EE 20 1A EE 4C 45 EF 4B 18 05 32 64 72 6F 70 20  . ..LE.K..2drop 
+1870:5C EE 20 5C EE 4C 45 EF 67 18 05 32 6F 76 65 72  \. \.LE.g..2over
+1880:A0 CC 20 5E EE 20 52 EE 20 57 EE 20 5C EE 20 1F  .. ^. R. W. \. .
+1890:EE 20 1A EE 20 15 EE A0 CC 20 21 EE 20 1F EE 20  . .. .... !. .. 
+18A0:1A EE 4C 45 EF 78 18 04 70 69 63 6B 20 5C EE A5  ..LE.x..pick \..
+18B0:F0 0A 18 65 E8 85 CA C9 7E B0 17 85 CA A5 E9 85  ...e....~.......
+18C0:CB A0 00 B1 CA 85 F0 C8 B1 CA 85 F1 20 1F EE 4C  ............ ..L
+18D0:45 EF A9 02 85 D7 4C 7D EC A5 18 04 73 6E 69 70  E.....L}....snip
+</pre>
+----------------------------------------------------------
 <p>Lastly, you will see 'cload', 'autoload' and 'bload'. These three words are the essential for loading extra 'meta-compiler' word libraries as well as binary libraries.</p>
 
 <h4>META-COMPILED WORDS:</h4>  <p>The traditional Forth conditionals and loop structures are NOT easy to implement in native code using AGSB's engine, so for now these are loaded (using 'cload' or 'autoload'). These include 'if', 'then', 'else', 'do', 'loop', 'begin', 'again', 'repeat', 'until', and 'while', as well as the 'i/j/k' loop indexes.</p>
 
 <h3>USAGE:</h3> the # conversion and string capture functions in the interpreter diverge a bit from standard Forth. As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a word.</p>
 
-<p>Strings are even more divergent. The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc. Instead, the q^/Q^...^ should be used; this construct creates a zero-terminated string and stores it in either the PAD or in tandem with 'malloc' to allocate memory for it. 'malloc' returns the handle (double indirection) of the string on the memory stack (see below). The '.sz' (or '.psz' for a PAD item) word will print the string on the screen if the address of the pointer to the string is on the top of the stack. You can store the address as a constant or in a variable to use it otherwise.</p>
+<p>Strings are even more divergent. The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc. Instead, the q^/Q^...^ pair should be used; this construct creates a zero-terminated string and stores it in either the PAD or in tandem with 'malloc' to allocate memory for it. 'malloc' returns the handle (double indirection) of the string on the memory stack (see below). The '.sz' (or '.psz' for a PAD item) word will print the string on the screen if the address of the pointer to the string is on the top of the stack. You can store the address as a constant or in a variable to use it otherwise.</p>
 
 <p>EXAMPLE: Q^this is a test.^ cons astr .sz</p>
 
 <p>The above translates as:  'capture the string between ^...^; store the string in the memory area and return a handle to it; save that handle to a CONSTANT named 'astr'; print it on the screen as a zero-terminated string'.   The result of all this is 'this is a test.'. </p>
 
-<p>The PAD: a small buffer is set aside specifically to store temporary data; the 'hx2d' word, for instance, converts the top item in the DS stack to an ASCII string and stores the string in the PAD.  The string capture variant q^...^ (as opposed to Q^...^) also stores the resulting captured text into the PAD.  '.psz' will write the string item on top of the PAD out on the screen, and other items in the PAD can be display by using 'pad@ @ @ ... @' to traverse the current items stored there.  'padclr' clears the PAD.   Lasatly, 'pad!' will see the address (NOT a handle) of a zero-terminated string and copy it to the PAD, returning the PAD address of the string.</p>
-<p>Example: if you want to copy of the latest 'permanently' stored string captured with Q^...^, you can just type 'memptr 2 + @ 3 + pad!'.</p>
+<p>The PAD: a small buffer is set aside specifically to store temporary data.  The 'hx2d' word, for instance, converts the top item in the DS stack from a 16-bit hexadecimal number into a 5-digit ASCII-coded decimal string and stores the string in the PAD.  The string capture variant q^...^ (as opposed to Q^...^) also stores the resulting captured text into the PAD.  '.psz' will write the string item on top of the PAD out on the screen, and other items in the PAD can be display by using 'pad@ @ @ ... @' to traverse the current items stored there.  'padclr' clears the PAD.   Lastly, 'pad!' will see the address (NOT a handle) of a zero-terminated string and copy it to the PAD, returning the PAD address of the string.</p><br>
+<p>Example: if you want to copy of the latest 'permanently' stored string captured with Q^...^, you can just type 'memptr 2 + @ 3 + pad!'.</p><br>
+<p>Lastly, you can use the ctrl-c (copy) and ctrl-v (paste) keystrokes at the command line to copy and paste items to/from the PAD.</p>
 
-<p>Memory manager: 'malloc' is the main word to allocate memory for data types more complicated than variables and constants, which are still implemented as in traditional Forth, ie either the address or the value are returned from a single 16-bit word store inline within the instance.</p>
+<p>Memory manager: 'malloc' is the main word to allocate memory for data types more complicated than variables and constants, which are still implemented as in traditional Forth, ie either the address or the value are returned from a single 16-bit word store inline within the instance.  'malloc' created items can be up to 64K in size, and space in the item header is also available to implement data types at some point, if needed.</p>
 
 <p>'memptr' returns the current value of the pointer on the memory stack; it uses the same 'store' and 'decrement' strategy as the DS and RT stacks, so 'memptr' always returns the stack position that the NEXT allocated item's address will be stored in.  'mlen' is a general purpose function that returns the length of a 'malloc'-created item.</p>
+=======================================================================
 
 =======================================================================
 My partners in this project, including Dan Struthers and others involved 
