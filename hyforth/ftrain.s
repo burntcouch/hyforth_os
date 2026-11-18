@@ -9,6 +9,16 @@
 ;
 ;    Library entries can be ':' definitions or regular commands. 
 ;
+;   the 'sys_word' macro only works with names that are 'defined' labels
+;    i.e. NOT labels for actual physical addresses.   LBLX = <number> vs LBLX:
+;
+.macro sys_word name
+makelabel "sv_", name
+  .byte .sprintf( "%i cons s_%s", .ident (name), name )
+  .byte 0
+.endmacro
+;
+;
 LT_FCORE:
 .byte "FCORE"
 .byte 0
@@ -16,7 +26,7 @@ LT_FCORE:
 .byte >(ftrain_0 + COPYSTART - RAMSTART)
 .byte <(ftrain_0 + COPYSTART - RAMSTART)
 ftrain_0:
-.byte "q^Loading Forth core library...^ .sz"
+.byte "q^Loading Forth core library...^ .psz"
 .byte 0
 .byte ": ?branch bool not rp @ @ @ 2 - and rp @ @ + 2 + rp @ ! ;  : branch rp @ @ dup @ + rp @ ! ;"
 .byte 0
@@ -41,6 +51,8 @@ ftrain_0:
 .byte ": loop lit r> , lit r> , lit lit , 1 , lit + , lit 2dup , lit = , lit ?branch , here @ - , lit 2drop , ; I"
 .byte 0
 .byte ": i rp @ 4 + @ ;  : j rp @ 8 + @ ;  : k rp @ lit [ 12 , ] + @ ;"
+.byte 0
+.byte " 2 lib autoload"
 .byte 0, 0                           
 ftrain_end0:
 ;
@@ -51,7 +63,13 @@ LT_FEXTRA:
 .byte >(f_extra + COPYSTART - RAMSTART)
 .byte <(f_extra + COPYSTART - RAMSTART)
 f_extra:
-.byte "q^Loading extras library...^ .sz"
+.byte "cr q^Loading extras library...^ .psz xR"
+.byte 0
+.byte ": pdump pad@ begin @ dup while dup dup .be lit [ $2D , ] emit .psz cr repeat ;"
+.byte 0
+.byte ": pprev pp @ @ dup not if pp ! endif ;"
+.byte 0
+.byte ": prun pad@ @ dup not if 3 + cload endif drop ;"
 .byte 0
 .byte ": 2* dup + ;"
 .byte 0
@@ -59,15 +77,13 @@ f_extra:
 .byte 0
 .byte ": f* dup @ 3 + @ swap @ 5 + @ */ ;"       ; multiply times a stored constant
 .byte 0
-.byte ": mdump memptr 2 + @ 1 dump ;"
-.byte 0
-.byte ": decsz! xdrv 6 4 malloc decs! ;"
+.byte ": mdump mem@ 2 + @ 1 dump ;"
 .byte 0
 .byte ": | lit [ 256 , ] / ;"
 .byte 0
 .byte ": || lit [ 256 , ] * swap drop + ;"
 .byte 0
-.byte ": sz@ 1 + 2 * memptr + @ 3 + ;"           ; obtain address for a string on mem stack
+.byte ": sz@ 1 + 2 * mem@ + @ 3 + ;"           ; obtain address for a string on mem stack
 .byte 0, 0
 f_extra_end:
 ;
@@ -78,7 +94,7 @@ LT_ANSI:
 .byte >(ansi_col + COPYSTART - RAMSTART)
 .byte <(ansi_col + COPYSTART - RAMSTART)
 ansi_col:
-.byte "q^Loading ANSI attribute library...^ .sz"
+.byte "q^Loading ANSI attribute library...^ .psz"
 .byte 0
 .byte "30 cons Ablk 31 cons Ared 32 cons Agrn 33 cons Aylw 34 cons Ablu 35 cons Amag xS"
 .byte 0
@@ -144,6 +160,47 @@ edittest:
 .byte 0,0,0,0,0,0,0,0,0,0
 .byte 0,0
 edittest_end:
+;
+LT_SYSVARS:
+.byte "SYSVARS"
+.byte 0
+.byte "C"
+.byte >(sysvars + COPYSTART - RAMSTART)
+.byte <(sysvars + COPYSTART - RAMSTART)
+sysvars:
+sys_word "MEMTOP"
+sys_word "MSBUF"
+sys_word "PADBUF"
+sys_word "SCRBUF"
+sys_word "MEMLAST"
+;
+;    examples of how to inject labeled memory addresses (which aren't available in macros) 
+;
+.byte "$"
+.byte ((.lobyte(TEMP1) / 16) <= 9 ) * ((.lobyte(TEMP1) / 16) | $30) + ((.lobyte(TEMP1) / 16) > 9 ) * ((.lobyte(TEMP1) / 16) + $37)
+.byte ((.lobyte(TEMP1) & $0F) <= 9 ) * ((.lobyte(TEMP1) & $0F) | $30) + ((.lobyte(TEMP1) & $0F) > 9 ) * ((.lobyte(TEMP1) & $0F) + $37)
+.byte " cons s_T1"
+.byte 0
+.byte "$"
+.byte ((.lobyte(TEMP2) / 16) <= 9 ) * ((.lobyte(TEMP2) / 16) | $30) + ((.lobyte(TEMP2) / 16) > 9 ) * ((.lobyte(TEMP2) / 16) + $37)
+.byte ((.lobyte(TEMP2) & $0F) <= 9 ) * ((.lobyte(TEMP2) & $0F) | $30) + ((.lobyte(TEMP2) & $0F) > 9 ) * ((.lobyte(TEMP2) & $0F) + $37)
+.byte " cons s_T2"
+.byte 0
+.byte "0 cons os_Z0"
+.byte 0
+.byte "1 cons os_Z1"
+.byte 0
+.byte "$FFF0 cons os_T"
+.byte 0
+.byte "$FFF1 cons os_U"
+.byte 0
+.byte "$FFF2 cons os_V"
+.byte 0
+.byte "$FFF3 cons os_W"
+.byte 0
+.byte "xS"
+.byte 0,0
+sysvars_end:
 ;
 ; end of ftrain.s
 ;

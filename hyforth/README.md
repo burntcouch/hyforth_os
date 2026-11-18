@@ -100,17 +100,48 @@ HF>
 </pre>
 ---------------------------------------------------------------
 
-<h4>CORE:</h4>  Starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness: 'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'.  The core also includes a lot of words to manipulate the internal state of the Forth stacks and state variables:  'rp' (return stack), 'sp' (data stack), 's@' (status flag), 'in>/>in' (input buffer), and so on.</p>
-
-<h4>PRIMITIVES:</h4> 
-<p>Also all of the comparatives (=, not, <, >, >=, <=) are defined, as well as the basic logic functions (and, or, nand, xor). 'negate' and 'invert' as defined in traditional Forth have been changed to 'neg' and 'not', and AGSB's '0#' was changed to 'bool' (to convert the top-of-the-stack value to its boolean equivalent).  True and false values are still $FFFF and $0000 respectively.</p>
-
+<h4>CORE:</h4>  These words are mostly in 'core.s', as of 11/18/26  (see list below). Starting with 'bye' and 'abort', the basic stack access words up to about 'lit'... and at the end of the list the rest of the essenstial words for basic Forthiness: 'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'.  The basic numerics, comparatives, logic, and basic printing words are also here.  The core also includes a lot of words to manipulate the internal state of the Forth stacks and state variables:  'rp' (return stack), 'sp' (data stack), 's@' (status flag), 'in>/>in' (input buffer), and so on.</p>
+<p>
+<pre>
+-----------------------------------------------------------
+  @ ! lit [ ] , : :$ ; ;$ I .R .S xR xS ?R ?S
+  dup swap rot over drop 0-9 $0-$F %0 %1 < > <= >= = <>
+  0= bool FALSE TRUE not neg and or nand xor
+  + - key emit ord . .be spc cr c! c@ words w@
+  in> >in rp sp x@ pp mp r> r> back here last
+  bye exec reset abort debug
+-----------------------------------------------------------
+</pre>
 <p>Note on numbers:  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'. Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).</p>
 
-<h4>ADDITIONAL STUFF:</h4>  <p>This is the largest category.  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'. '*' always gives a 32 bit result with the LSW on top of the stack.  The Forth workhorse '*/' is also implemented, and I found a very small and well-tested 32-bit Galois random generator that is also included.  All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.</p>
+<h4>PRIMITIVES:</h4> 
+<p> These words are definied in 'primitives.s'.  Most of the memory manipulation / storage words are defined here, as well as some associated printing functions.  Lastly, some additional math and logic words are here.</p>
+<p>I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'. '*' always gives a 32 bit result with the LSW on top of the stack.  The Forth workhorse '*/' is also implemented.</p>
+<pre>
+------------------------------------------------------------
+  var cons malloc mlen mem@ pad@ pad! xpad
+  hx2d dump .sz .rsz .psz .sn
+  * / */ max min << >> cbit sbit tbit
+------------------------------------------------------
+</pre>
 
-<p>This group also includes a lot of debugging tools, including a disassembler ('disasm'), 'syscall' for system calls, some ANSI screen functions ('Ascr', 'Acls', 'Acol'), and the basic parts of the memory manager: 'malloc', 'mlen'.  The addition of the PAD area allows a meaningful distinction between temporary and permanent data, and the 'padclr', 'pad@' and 'pad!' words manipulate that area.</p>
-----------------DISASM OUTPUT----------------------------
+
+<h4>ADDITIONAL STUFF:</h4>  <p>'hywords.s' has most of the definitions for this category.  This includes very small and well-tested 32-bit Galois random generator.    All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.  Some of the fancier stack manipulation words like snip/nip/tuck are here.</p>
+<p>Libraries and the associated words for maniupulating them are in this file as well, such as bload, cload, autoload.</p>
+<p>Extra stack<->memory functions, OS system calls, basic sound utilities, and the main words to run the HyFedit screen editor are also included.  Eventually the HyForth assembler stuff will also be here.</p?
+<pre>
+-------------------------------------------------------------
+  snip tuck pick nip 2over 2drop 2dup
+  bload cload autoload lib libs free
+  syscall disasm memcpy 
+  memw@ memwn@ wmemn! cmemn! rcmemn!
+  rand rand32 rseed Acol Aclr Ascr
+  ywrite ytest yinit
+  ferc@ fecol! ferow! felin feadd feclr fedit febuf fedisp
+  fa_mo@ fa_ms@
+-------------------------------------------------------------
+</pre>
+<p>----------------DISASM OUTPUT----------------------------</p>
 <pre>
 
 HF>$1298 10 disasm
@@ -203,7 +234,7 @@ Traditional Forths included a 'screen'; a more-or-less full featured screen edit
 
 <p>The PAD: a small buffer is set aside specifically to store temporary data.  The 'hx2d' word, for instance, converts the top item in the DS stack from a 16-bit hexadecimal number into a 5-digit ASCII-coded decimal string and stores the string in the PAD.  The string capture variant q^...^ (as opposed to Q^...^) also stores the resulting captured text into the PAD.  '.psz' will write the string item on top of the PAD out on the screen, and other items in the PAD can be display by using 'pad@ @ @ ... @' to traverse the current items stored there.  'padclr' clears the PAD.   Lastly, 'pad!' will see the address (NOT a handle) of a zero-terminated string and copy it to the PAD, returning the PAD address of the string.</p><br>
 <p>Example: if you want to copy of the latest 'permanently' stored string captured with Q^...^, you can just type 'memptr 2 + @ 3 + pad!'.</p><br>
-<p>Lastly, you can use the ctrl-c (copy) and ctrl-v (paste) keystrokes at the command line to copy and paste items to/from the PAD.</p>
+<p>Lastly, you can use the ctrl-c (copy), ctrl-x (cut), and ctrl-v (paste) keystrokes at the command line to copy and paste items to/from the PAD.  Ctrl-s (copy-to-screen) will copy the current command line to the current row and column in the screen editor.</p>
 
 <p>Memory manager: 'malloc' is the main word to allocate memory for data types more complicated than variables and constants, which are still implemented as in traditional Forth, ie either the address or the value are returned from a single 16-bit word store inline within the instance.  'malloc' created items can be up to 64K in size, and space in the item header is also available to implement data types at some point, if needed.</p>
 

@@ -121,7 +121,7 @@ jump:                               ; EXECUTE                      ( PRIMITIVE )
 ;
 HYWELCOME:
     .byte $0D, $0A
-    .byte "HyForth 0.930 11-12-2026"
+    .byte "HyForth 0.940 11-18-2026"
     .byte $0D, $0A, 0
 ;
 ;------- used by 'autoload'
@@ -174,15 +174,18 @@ PADINIT:
 
 CPYPAD:
     jsr spull_1
-NEWPAD:                            ; first stab at new PAD item setup
+NEWPAD:                            ; new PAD item setup
                                    ; address of temp string in TEMP2, zero term'd
     lda PADPTR
     sta TEMP1
     lda PADPTR+1                   ; backup PADPTR to TEMP1
     sta TEMP1+1
-    inc PADPTR
-    inc PADPTR                     ; skip over previous address and length
-    inc PADPTR
+    ldx #PADPTR
+    lda #3
+    jsr addwx
+;    inc PADPTR
+;    inc PADPTR                     ; skip over previous address and length
+;    inc PADPTR
     ldy #$FF
 NEWPADLP0:                         
     iny
@@ -691,10 +694,12 @@ HEX2DEC:                            ; uses X, TEMP1, Z_MATH1,2,3,4
     sta TEMP1+1
     lda #0
     sta Z_MATH1                   ; flag for first non-zero digit
-    
-    inc PADPTR
-    inc PADPTR
-    inc PADPTR                     ; we'll come back to write length
+    ldx #PADPTR
+    lda #3
+    jsr addwx    
+;    inc PADPTR
+;    inc PADPTR
+;    inc PADPTR                     ; we'll come back to write length
     ldy #0
     ldx #0
 H2DDIV10:
@@ -796,7 +801,22 @@ CTRLEND:
     rts
     
 DOCTRLS:
-    sec
+    jsr TIB2PAD                   ; backs up Y to TEMP5, too.
+    ldy #0
+    lda (PADPTR),y          ; we want PREVIOUS ITEM addr, not current 
+    sta TEMP1               ; pointer addr
+    iny
+    lda (PADPTR),y
+    sta TEMP1+1
+    ldx #TEMP1
+    lda #3
+    jsr addwx
+    lda HFE_CV              ; paste at current row
+    sta TEMP2
+    jsr FELIN               ; get row address from TEMP2, returns addr to TEMP2
+    jsr FECPY_TOC           ; and at current column
+    ldy TEMP5                     ; restore y
+    sec                           ; C=1 means eat keystroke w/o save to buffer or echo
     jmp CTRLEND
 
 JMPCTRLV:
@@ -807,7 +827,30 @@ JMPCTRLX:
     jmp DOCTRLX
     
 DOCTRLC:
-    sty TEMP5
+    jsr TIB2PAD                   ; backs up Y to TEMP5, too.
+    ldy TEMP5                     ; restore y
+    sec                           ; C=1 means eat keystroke w/o save to buffer or echo
+    jmp CTRLEND
+
+DOCTRLX:
+    jsr TIB2PAD                   ; backs up Y to TEMP5, too.
+    ldy TEMP5    
+    lda #$20
+    jsr WRITE_CHAR    
+    jsr WRITE_CHAR
+DOCXBSPC:
+    lda #$08            ; backspace twice, space once
+    jsr WRITE_CHAR
+    jsr WRITE_CHAR
+    lda #$20
+    jsr WRITE_CHAR
+    dey
+    bne DOCXBSPC
+    sec                  ; C=1 means eat keystroke w/o save to buffer or echo
+    jmp CTRLEND
+    
+TIB2PAD:
+    sty TEMP5                      ; save y to restore if necc.
     lda PADPTR
     sta TEMP1
     lda PADPTR+1                   ; backup PADPTR to TEMP1
@@ -815,45 +858,51 @@ DOCTRLC:
     ldy #2
     lda TEMP5                      ; write the length while we're here
     sta (PADPTR),y
-    lda #2
+    lda #3       ; was 2
     clc
     adc PADPTR
     sta PADPTR
-    bcc DOCCSK0
+    bcc TIB2PSK0
     inc PADPTR+1
-DOCCSK0:
-    ldy #1
-DOCCLOOP:                         
+TIB2PSK0:
+    ldy #0        ; was 1
+    lda #$20        ; added
+    sta (PADPTR),y  ; added
+    iny             ; added
+TIB2PLOOP:                         
     lda (TIB),y
     sta (PADPTR),y
     iny
     cpy TEMP5
-    bne  DOCCLOOP
+    bne  TIB2PLOOP
     lda #0
     sta (PADPTR),y            ; write zero at end
     lda TEMP5
-    inc a
+    inc a                     ; for the zero
     clc
     adc PADPTR
     sta PADPTR
-    bcc  DOCCSK1
+    bcc  TIB2PSK1
     inc PADPTR+1
-DOCCSK1:
+TIB2PSK1:
     ldy #0
     lda TEMP1
     sta (PADPTR),y
     iny
     lda TEMP1+1
     sta (PADPTR),y
-    ldy TEMP5                     ; restore y
-    sec
-    jmp CTRLEND
+ 
+    rts
     
 DOCTRLV:
     sty TEMP5      ; backup Y
+    
+    jsr DUMPREG    ; temp5 is at $FC, and also look at Y
+    
     lda TIB+1
     sta TEMP1+1
     tya
+    dec a          ; y starts at 1 for some reason
     clc
     adc TIB
     sta TEMP1
@@ -869,8 +918,8 @@ DOCV_SK0:
     ora TEMP2               ; are we at zero?
     bne  DOCV_SK1   
     ldy TEMP5               ; if at zero, bail out.  restore Y
-    sec                     ; and return 
-    jmp  CTRLEND 
+    sec                     ; and return.  
+    jmp  CTRLEND            ; C=1 means eat keystroke w/o save to buffer or echo
 DOCV_SK1:
     lda TEMP2
     clc
@@ -879,32 +928,38 @@ DOCV_SK1:
     bcc  DOCV_SK2
     inc TEMP2+1
 DOCV_SK2:
-    ldy #$FF
+    ldy #0     
 DOCV_LP0:
-    iny
     cpy TIBEND
     beq  DOCV_END
     lda (TEMP2),y
-    sta (TEMP1),y
     beq DOCV_END
+    sta (TEMP1),y
     jsr WRITE_CHAR      ; remember to write to the screen!
+    iny
     bra DOCV_LP0
 DOCV_END:
-    iny
     lda #$20
     sta (TEMP1),y        ; tokenizer won't work w/o an extra space?
     jsr WRITE_CHAR       ;
+    iny
+    sta (TEMP1),y        ; tokenizer won't work w/o an extra space?
+    iny
+  
+    lda #0              ; add a zero
+    sta (TEMP1),y
+    dey                  ; new
     tya
-    inc a
     clc
     adc TEMP5
     tay
-    sec
+    
+    jsr DUMPREG         ; temp5 is at $FC, and also look at Y
+    
+    sec                  ; C=1 means eat keystroke w/o save to buffer or echo
     jmp CTRLEND
     
-DOCTRLX:
-    sec
-    jmp CTRLEND
+
    
 ;--------------------------------- CLEAR ------------------------------
 ;

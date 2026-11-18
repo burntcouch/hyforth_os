@@ -2,17 +2,19 @@
 ;   Taken mostly from Steve Wozniak's Apple 1 Monitor for the 6502, or WOZMON
 ;
 .debuginfo
+;
+;          No longer here; renamed WOZ_IN, moved to bios.s
+;
 ;.segment "BUFFERS"
 ;IN:
 ;                .res            $100
-;
-;      NOPE, WOZ_IN instead, set up in 'bios.s'
 ;
 .segment "WOZMON"
 ;
 ; usually ends up at $FE00  (see os_rom_C02.cfg)
 ;
 ; WOZMON Entrypoint
+;
 MON_START:
                 cld                             ; Clear decimal arithmetic mode.
                 cli                             ; Enable interrupts
@@ -65,7 +67,7 @@ MON_START:
 
 @next_item:
                 lda             WOZ_IN,y            ; Get character.
-                cmp             #$0D      ; CR?
+                cmp             #$0D         ; CR?
                 beq             @get_line       ; Yes, done with this line.
                 cmp             #'.'
                 bcc             @skip_delim     ; Skip delimiter.
@@ -75,34 +77,36 @@ MON_START:
                 cmp             #'M'
                 bpl             @check_rtow
                 cmp             #'K'
-                bmi             @not_tuvw
-                eor             #'K'        ; 'K' resets DASTATE to 0
+                bmi             @nothing
+                eor             #'K'         ; 'K' resets DASTATE to 0
                 sta             ZP_D_STATE
                 bra             @skip_delim
 
 @check_rtow:
                 cmp             #'R'
                 beq             @run_prog
-                bcc             @not_tuvw
-                cmp             #'X'        ; R, S, T, U, V, or W
-                bcs             @not_tuvw
+                bra  @nothing
+;                bcc             @not_tuvw
+;                cmp             #'X'        ; R, S, T, U, V, or W
+;                bcs             @not_tuvw
 ;                cmp             #'S'               ; no 'SPAWN' for now
 ;                bne             @not_spawn
 ;                jmp             SPAWN_TASK        ; see bios.s - do nothing
-             
-@not_spawn:                            ; TUVW falls through to here
-                clc
-                adc             #($F0 - 'T'); T=FFF0, U=FFF1, V=FFF2, W=FFF3
-                sta             ZP_WM_HVP       ;
-                lda             #$FF            ;
-                sta             ZP_WM_HVP + 1   ;
-                iny                             ; skip the mnemonic
-                bra             @not_hex_or_escape
+;             
+;@not_spawn:                            ; TUVW falls through to here
+;                clc
+;                adc             #($F0 - 'T'); T=FFF0, U=FFF1, V=FFF2, W=FFF3
+;                sta             ZP_WM_HVP       ;
+;                lda             #$FF            ;
+;                sta             ZP_WM_HVP + 1   ;
+;                iny                             ; skip the mnemonic
+;               bra             @not_hex_or_escape
 
 @bra_is_start:
-                bra             @is_start       ; unrecognized
+                bra             @is_start       ; can't branch from top to botthom w/o this
 
-@not_tuvw:
+;@not_tuvw:
+@nothing:
                 sty             ZP_Y_SAVE       ; Save Y for comparison
                 stx             ZP_WM_HVP       ; $00 -> Low byte of HPV
                 stx             ZP_WM_HVP + 1   ; ...and High byte.
@@ -121,7 +125,7 @@ MON_START:
                 asl
                 asl
                 asl
-                ldx             #4              ; Shift count.
+                ldx              #4              ; Shift count.
 
 @hex_shift:
                 asl                             ; Hex digit left, MSB to carry.
@@ -201,3 +205,6 @@ MON_START:
                 and             #7              ; For MOD 8 = 0
                 beq             @print_next_addr
                 bra             @print_data
+;
+;          end of wozmon.s
+;

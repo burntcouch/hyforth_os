@@ -511,10 +511,10 @@ DUMPREG:            ; dump registers safely and print
     phy                         ; -6
     lda   DFLAG
     beq   DPFCHECK
-    jsr   WRITE_BYTE
-    lda   #'!'
-    jsr   WRITE_CHAR
-    WCRLF
+;    jsr   WRITE_BYTE
+;    lda   #'!'
+;    jsr   WRITE_CHAR
+;    WCRLF
     jmp   DREGNXT
 DPFCHECK:
     ldy   #0

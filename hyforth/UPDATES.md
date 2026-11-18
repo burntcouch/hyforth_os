@@ -1,6 +1,13 @@
 # Updates:  HyForth for 6502
 <h2>HyForth Updates</h2>
 <p> 
+<h3>Updates, 11/18/26</h3>
+----------------------------------------------------------------------
+<ul>
+<li> A week of work on the parser has finally beat 'ctrl-c/v/x/s' into submission.  All of these functions now work as a typical user would expect.  Keep in mind that extra spaces are not an issue with a Forth parser (they are the only character that is 'ignored'), so be care if you are copy-pasting into one of the text capture constructs (q^...^ or Q^...^) since you will get extra spaces when pasting in side the delimenters.</li>
+<li> To make the current dictionary a little easier to document, I've divided up the source files into 'core.s', 'primitives.s', and 'hywords.s'.  See the README.md file in this folder for details.</li>
+<li> Startup autoloading now works well; this newest version (11/18/26 v0.940) now loads the 'FCORE' library as well as the 'FEXTRAS'. You can edit the text string labeled "STARTAUTO:" (in the hyforth.s file) and load any of the libraries that appear in the library jump list; you can also chain between libraries to load muliple libraries as a set.  Look at hyforth.s and ftrain.s for more on using that.  </li>
+</ul>
 <h3>Updates, 11/13/26</h3>
 ----------------------------------------------------------------------
 <p>Since May, a lot more has changed with Forth.  I split the larger Hydra-16 OS project from the 'reborn' effort in order to concentrate on a smaller, more comprehensible version of Forth that fits the Hydra-16 hardware environment.  I also have a strong affinitiy for C-like and C-derived languages, and my version of Forth adopts a lot of conventions and nomenclature that will be more familiar to programmers of more popular languages like Perl, Ruby, JS and of course C.  This is more of a personal comfort issue than for any functional reason; Forth requires an entirely different kind of approach for application development and making HyForth a little bit more relatable has kept me motivated to continue on this project. </p>

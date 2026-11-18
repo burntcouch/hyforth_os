@@ -215,8 +215,10 @@ RTEND = $FE
 MEMEND = $01FE            ; pointers DOWN from MEMEND+MEMSTK (store-and-decrement)
 MEMTOP = $7BF0            ; malloc allocates DOWN from MEMTOP
 SCRBUF = $7C00            ; screen buffer 1K going up
+MSBUF = $600             ; note, allocated at assembly, may change
+PADBUF = $800            ; note, allocated at assembly, may change
 
-PADEND = $00              ; PAD+PADEND, up with PADPTR - increment and store
+PADEND = $01FE            ; PAD+PADEND, up with PADPTR - increment and store
 ;
 ;   types:  <type> <len0 len1> <data data data...>
 ;
@@ -247,17 +249,17 @@ INROM = $A000
 ;  using parameters for the size and location of the heap stored at $A003,4,5.  
 ;
 ;       The dictionary has a particular structure, with 'bye' and 'abort'
-;  at the beginning; there are some core words,
-;  then contents of 'primitives.s', then 'hywords.s', followed by
-;  the end of the dictionary with critical items such as 'fetch', 'store',
-;  'immediate', 'compile, 'semis', 'exit, and ancillary stuff.  Any sub-
-;  routines that are called by multiple words (and therefore need set
-;  addresses) are considered 'support code' and reside in OS ROM following
-;  the basic HyForth engine.
+;  at the beginning; there are some core words, then contents of 'primitives.s', 
+; then 'hywords.s', followed by the end of the dictionary with critical items 
+; such as 'fetch', 'store', 'immediate', 'compile, 'semis', 'exit, and ancillary 
+; stuff.  Any sub-routines that are called by multiple words (and therefore need set
+; addresses) appear in the 'utes.s' or 'upper.s' files.  These are considered 
+; 'support code' and reside in OS ROM following the basic HyForth engine.
 ;
-;       HyForth is started by running '800R' or 'EA00R'; it can be supplemented
-;  with the meta-compiled words and runtime-loaded binaries by using 
-;  'autoload' and 'bload' respectively.
+;       HyForth is started by running 'A00R' or 'EC00R' from Wozmon; 
+;  the basic functions can be supplemented with the meta-compiled words, or 
+;  'libraries' as well as runtime-loaded binaries and other items.  Libraries
+;  are loaded with 'autoload' or 'bload' (compiled or binary).
 ;
 ;----------------------------------------------------------------------
 ;                   ZERO PAGE USAGE
@@ -378,9 +380,10 @@ MEMSTK:                      ; memory manager    $600
       .res 510
       .res 2
 PAD:                         ; pad memory         $800
-      .res 256
-CLIP:
-      .res 256               ; clipboard / command history $900
+;     .res 256
+      .res 512               ; clipboard / command history (together with PAD for now)
+;CLIP:
+;      .res 256               
 ;
 ;
 .segment "FORTH_ROM"              ; regular core $EC00 and RAM segment at $0A00 now
@@ -469,6 +472,25 @@ reset:                           ; leaves heap, memory area, and screen buffer a
     
     lda #$FF                     ; DEBUG OFF by default
     sta DFLAG
+;
+    lda #<STARTAUTO                ; check to see if anything to autoload
+    sta TEMP1
+    lda #>STARTAUTO
+    sta TEMP1+1
+    ldy #0
+    lda (TEMP1),y
+    beq warm_next
+
+    stz STATUS                   ; status is 'interpret' == \0  
+    stz ALFLAG
+    ldy #<DSEND
+    sty DSPTR
+    ;
+    ;  stz DFLAG           ; start debug
+    ;
+    jmp CLOAD_ENTER
+;
+warm_next:
     stz ALFLAG                   ; autoload flag OFF
     
 abort:                            ; clear DS (clear data stack)
@@ -900,7 +922,7 @@ copyfrom:
 ;---------------------------------------------------------------------
 ; increment a word in page zero, identified by X and offset to it from $00.
 ;
-;   Usage: ldx #<pointer name> and then jsr incwx/addwx
+;   Usage: ldx #<pointer name> and then jsr incwx/addwx/decwx
 ;
 ;   THESE functions are SOLELY intended to increment/decrement
 ;   zeropage pointers.  Offsets indexed by
@@ -968,9 +990,10 @@ UPPER_END:
 HFE_EDIT_END:
 ;
 ;
-ROMCODEEND:                         ; end of all code
+ROMCODEEND:                         ; end of all code in OS ROM
 ;
-;  end of hyforth.s
+;....and here's the rest:  
+;       COPYTORAM, the RAM preamble, the heap, ftrain.s and bload.s
 ;
 ;------------------------------------------------------------------------
 .segment "FORTH_PAGED_ROM"
@@ -995,23 +1018,31 @@ RAMSTART:
 HFE_RSV:
 HFECOLS:        ; offsets to data in RAM
     .byte $40    ; 64 columns w/ $00 or $09 in rightmost
+HFETSIZE:
 HFEROWS:
-    .byte $10    ; 16 rows
+    .byte $10    ; 16 rows - also use as length limit for title text
 HFEBUF:
     .res 2       ; addr to buffer
     .res 6
 HFE_TITLE:
     .byte "<-"
-HFE_TTXT:
-    .byte "Generic ScreenXX"
+HFE_TTXT:          
+    .byte "Generic ScreenXX" ; exactly 16 bytes
     .byte "->"
     .byte 0, 0
+;--------------------------------------------------------------------
+;   startup autoload?
+;            load and run to 15 char command on startup
+;
+STARTAUTO:
+   .byte " 1 lib autoload"    ; for some reason works better with a space
+   .byte 0
 ;--------------------------------------------------------------------
 ;      library jump table
 ;
 ;    see ftrain.s and bload.s for examples of library format details
 ;
-LASTLIB = 6
+LASTLIB = 7
 lib_jumptable:
     LIBENTRY (LT_FCORE + COPYSTART - RAMSTART)
     LIBENTRY (LT_FEXTRA + COPYSTART - RAMSTART)
@@ -1019,7 +1050,8 @@ lib_jumptable:
     LIBENTRY (LT_RAMTEST + COPYSTART - RAMSTART)
     LIBENTRY (LT_BLOAD + COPYSTART - RAMSTART)
     LIBENTRY (LT_EDITTEST + COPYSTART - RAMSTART)
-    .byte 0, 0, 0, 0, 0, 0   ; extra padding, dynamically add more libraries
+    LIBENTRY (LT_SYSVARS + COPYSTART - RAMSTART)
+    .byte 0, 0, 0, 0   ; extra padding, dynamically add more libraries?
     .byte 0, 0, 0, 0, 0, 0   
     .byte 0, 0, 0, 0, 0, 0, 0, 0    ; keep it to 16 entries if possible
 lib_jumps_end:
@@ -1028,7 +1060,7 @@ lib_jumps_end:
 ;
 ;    error/system msg jump table  - see upper.s for ERR messages
 ;
-LASTERR = 7 
+LASTERR = 8
 err_jumptable:
     .res 2                    ; padding for ???
     ERR_entry RPTR_ERR              ; RT stack full/empty  - error $01
@@ -1045,215 +1077,60 @@ err_jumptable:
 err_jumps_end:
 ;
 ;---------------------------------------------------------------------
-;        primitives -- original AGSB hardcoded dictionary
+;        core and primitives - original AGSB hardcoded dictionary
 ;
-;    In addition to the below, hardcoded words continue 
-;     in primitives.s and hywords.s
+;        loading order, what's where:
+;
+; HEAP
+;    core.s
+;  ----------------------------------------------------------- 
+;  @ ! lit [ ] , : :$ ; ;$ I .R .S xR xS ?R ?S
+;  dup swap rot over drop 0 to 9 $0 to $F %0 %1 < > <= >= = <>
+;  0= bool FALSE TRUE not neg and or nand xor 
+;  + - key emit ord . .be .C spc cr c! c@ words w@
+;  in> >in rp sp x@ pp mp r> r> back here last
+;  bye exec reset abort debug
+;
+;    primitives.s - memory, printing, math
+;  ------------------------------------------------------------
+;  var cons malloc mlen mem@ pad@ pad! xpad
+;  hx2d dump .sz .rsz .psz .sn
+;  * / */ max min << >> cbit sbit tbit
+;
+;    hywords.s - ADDITIONS, HyFedit words, ANSI, memory extras
+;  -------------------------------------------------------------
+;  bload cload autoload lib libs free
+;  syscall disasm memcpy 
+;  memw@ memwn@ wmemn! cmemn! rcmemn!
+;  rand rand32 rseed Acol Aclr Ascr
+;  ywrite ytest yinit
+;  ferc@ fecol! ferow! felin feadd feclr fedit febuf fedisp
+;  fa_mo@ fa_ms@
+;
+;  ---- and EXIT is always last ----
+;  exit  
+;
+;
+; ROM and ENGINE
+;    upper.s
+;    hyf_edit.s
 ;
 ;----------------------------------------------------------------------
-; ( -- ) ae exit forth
-def_word "bye", "bye", 0
-    lda #'F'
-    jsr WRITE_CHAR
-    lda #'W'
-    jsr WRITE_CHAR
-    lda #'-'
-    jsr WRITE_CHAR
-    lda #>F_warm
-    jsr WRITE_BYTE
-    lda #<F_warm
-    jsr WRITE_BYTE
-    jmp MON_START               ; jump to WOZMON
 ;
-; ( -- ) ae abort
-def_word "abort", "abort_", 0
-    jmp abort
+;  The 'primitive' primitives
 ;
-; ( -- ) resets buffer to INBUF
-def_word "reset", "reset_", 0
-    jmp reset
-;
-;
-;------------ CRITICAL CORE PRIMITIVES (AGSB and PGS) ----------------
-;   (the 'primitive' primitives)
-;
-;   COMPILE (:), FINISH (;), FETCH (@), STORE (!)
-;      including:  keeps, this, next, finish
-;       ...and other stuff.
-;
-;---------------------------------------------------------------------
-; ( a -- ) execute a jump to a reference at top of data stack
-def_word "exec", "exec", 0
-    jsr spull_0
-    jmp (TEMP1)        ; assumes an address on top of DS
-
-;---------------------------------------------------------------------
-; ( -- ) execute a jump to a reference at IP
-def_word ":$", "docode", 0
-    jmp (INSTPTR)                 ;  DOCODE (thus the ':')
-
-;---------------------------------------------------------------------
-; ( -- ) execute a jump to next
-def_word ";$", "donext", 0        ;  'next' (thus the ';')
-    jmp next
-;---------------------------------------------------------------------
-;
-; ( w a -- ) ; [a] = w    (w is word, a is an address)
-def_word "!", "store", 0
-storew:
-    jsr spull_1             ; get address, store in TEMP2
-    jsr spull_0             ; get data, store in TEMP1
-    ldx #TEMP2              ;  [a]
-    ldy #TEMP1              ;   w
-    jsr copyinto            ; copy TEMP2 stuff to addr in TEMP1 (opposite of @)..
-    jmp next                ;            ...(see below)
-;
-;--------------------------------------------FETCH--------------------
-; ( a -- w ) ; w = [a]
-def_word "@", "fetch", 0      ; replace addr of data on top of DS, with data pointed to
-fetchw:
-    jsr spull_0             ; get addr from DS
-    ldx #TEMP1
-    ldy #TEMP2
-    jsr copyfrom            ; copies data from [TEMP1] => TEMP2
-;---------------------------------------------------------------------
-;            NEXT entry point for many AGSB primitives, and
-;            almost all other hard-coded words.
-;---------------------------------------------------------------------
-                            ; in fall through, this copies TEMP2 (in y) to TEMP1,
-                            ; overwriting the address that was pulled from the stack.
-                            ;
-                            ; in theory, one could load y with any TEMPx and
-                            ; call jump to 'copys' to finish off to 'next'.
-                            ; in PRACTICE, AGSB didn't reuse this much.
-                            ;
-copys:                      ; copy from cell at y (zp) to TEMP1
-    lda 0, y
-    sta TEMP1
-    lda 1, y
-                            ; 'keeps' is a shortcut to the 'second half' of the
-                            ; (sta TEMP1) routine to return results; to push another
-                            ; variable on the stack, do it explicitly.
-                            ;
-                            ; 'this' assumes 'keeps' has already been done.
-                            ;  Almost every hard-coded word uses keeps, this, or next
-                            ;  to end a word; 'next' ends with 'exit' of course.
-                            ; 
-keeps:                      ; saves bytes since have to get here anyway
-    sta TEMP1+1
-this:                       ; same as above
-    jsr spush_0             ; then push back on stack
-    jmp next
-;
-;-----------------------IMMEDIATE, '[', ']', ','-----------------------
-def_word "I", "Imm", 0
-wimm:                        ; jmp here if proccessing a compiled
-    lda LASTHEAP+1           ;   word that needs to run 'immediate'.
-    sta TEMP9+1
-    lda LASTHEAP             ; get addr of 'last' compiled word, copy to TEMP4, add 2
-    clc
-    adc #2                   ; ..to find where length byte is...
-    sta TEMP9
-    bcc IMMSKIP
-    inc TEMP9+1
-IMMSKIP:
-    ldy #0
-    lda (TEMP9),y
-    ora #$80                 ; ...set bit 7 and store
-    sta (TEMP9),y
-    jmp next
-;
-def_word "[", "leftbrack", FLAG_IMM       ; switch to 'interpret'
-    stz STATUS
-    jmp next
-;
-def_word "]", "rtbrack", 0               ; switch back to 'compile'
-    lda #1
-    sta STATUS
-    jmp next
-;
-;
-                                         ; NOTE: 'lit' or similar will have pushed a value
-                                         ; or address onto stack; 'comma' stores it inline in word
-                                         ;
-def_word ",", "xcomma", 0                ; pull data from top of stack, store at 'here' (NEXTHEAP)
-                                         ; , increment 'here' to point to next cell.
-    jsr spull_0                          ;
-    ldy #0                               ; 
-    lda TEMP1
-    sta (NEXTHEAP),y                     ; POP DS TO TEMP1, [here] = TEMP1
-    iny
-    lda TEMP1+1
-    sta (NEXTHEAP),y
-    ldx #NEXTHEAP                        ; here += 2
-    lda #2
-    jsr addwx
-    jmp next
-
-;--------------------------------------------SEMIS-----------------
-def_word ";", "semis",  FLAG_IMM
-    lda BACKHEAP
-    sta LASTHEAP                ; bring back BACKHEAP to LASTHEAP
-    lda BACKHEAP + 1
-    sta LASTHEAP + 1
-
-    stz STATUS                  ; set status to 'interpret' (presumably from 'compile')
-
-finish:                         ; compiled words must end with exit
-    lda #<exit
-    sta WORKREG
-    lda #>exit
-    sta WORKREG + 1
-    jsr wcomma                  ; change NEXTHEAP to point to addr of 'exit',
-                                ; and make sure is last entry in code table for word...
-                                ; as all good Forth compiled words should do.
-    jmp next
-;
-;
-;------------------------------------------COMPILE------------------
-def_word ":", "colon", 0
-    lda NEXTHEAP
-    sta BACKHEAP                ; backup NEXTHEAP to BACKHEAP
-    lda NEXTHEAP + 1
-    sta BACKHEAP + 1
-
-    lda #1                      ; set status to 'compile'
-    sta STATUS
-
-COMPHEADER:
-; copy LASTHEAP into (NEXTHEAP)
-    ldy #LASTHEAP
-    jsr comma                    ; change NEXTHEAP to point to LASTHEAP  ('here' <= 'last')
-    jsr token                    ; get first token, the name of new word
-    ldy #0                       ; copy it to heap: length and name
-                                 ; code field comes with later proc
-COMPLOOP:
-    lda (NXTTOK), y
-    cmp #$20
-    beq COMPEND
-    cpy #0                       ; if this is the length field...
-    bne COMCOPY
-    ora #$40                     ; set bit six for 'compiled' word
-COMCOPY:
-    sta (NEXTHEAP), y
-    iny
-    bne COMPLOOP
-COMPEND:
-    tya                          ; and update NEXTHEAP  :  'here' incremented by length
-    ldx #(NEXTHEAP)
-    jsr addwx                   ; 'here' now at CFA
-
-;~~~~~~~~ all done....
-    jmp next                     ; and then see below; compiled word will continue until ';'
+.include "core.s"
 ;
 ;
 ;---------------------------------------------------------------------
 ;               must have words...
-; 
+;
+;---------------------ADD IN EXTRA HARDCODED LOGIC / NUMERALS
 primitives:
 .include "primitives.s"
 ;
-;---------------------ADD IN EXTRA HARDCODED LOGIC / NUMERALS / ETC--
+;               ADDITIONS, HyFedit, ANSI, rand, memory extras
+;
 .ifdef HYWORDS
    .include "hywords.s"
 .endif
@@ -1271,7 +1148,7 @@ primitives:
 ; ( -- )
 def_word "exit", "exit", 0
     jmp EXIT
-
+;
 ;-----------------------------------------------------------------------
 ; BEWARE, MUST BE AT END! MINIMAL THREAD CODE DEPENDS ON IT!
 ;

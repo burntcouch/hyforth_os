@@ -398,7 +398,7 @@ FEADDEND:
     rts 
 ;  
 ;    
-FELIN:           ; CALC ROW ADDRESS IN BUFFER, from TEMP2
+FELIN:           ; CALC ROW ADDRESS IN BUFFER, from TEMP2, ends up in TEMP2
     stz TEMP2+1
     lda TEMP2
     and #$0F                     ; max rows are 16, mask off anything else
