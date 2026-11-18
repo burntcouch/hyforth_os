@@ -32,6 +32,11 @@ The root folder of the repos has the basic OS code, (I am excluding the hardware
 <p>...which assumes that your 'os_rom_C02.bin' and 'paged_rom_C02.bin' files are in '/tmp'.  You've been warned.</p>
 <a name="buildrun"></a>
 <h1> Building and running</h1>
+<p>11/18/26 - Startup autoload</p>
+<p> Minor changes; trimmed Wozmon back to its former 240 or so bytes; no shortcuts to the TUVW registers.</p>
+<p> HyForth is now starting directly (you can always get backto Wozmon with 'bye').  Only new thing is that HyForth will now run a short script to load preferred libraries.  This is still experimental, but the current version automatically loads the conditional / loop meta-compiler structures, and then it also chains to the 'extras' library.</p>
+<p> Otherwise, there are a few editions to HyForth itself that make it slightly larger (maybe 30 bytes?).  Refer to the HyForth readme for more news that way.</p>
+<br><br>
 <p>11/13/26 - more minor changes</p>
 <p> With the use of the simulator, I've increased my dev cycle quite a bit, with generally minimal resulting chaos.</p>
 <p> Due to the expansion and reorganization of the OS-ROM area and added parsing and editing functions in HyForth, RAM use is also slightly different.  The new 'running' procedure is...'boot the Hydra-16', ie the old COPYTORAM + RAMSTART routine ($A000R + $800) is now automatic.  HyForth now begins at $A00 in RAM rather than lower down, and zeropage use and buffers hog up some extra room.  The screen editor buffer also now occupies the top 1K of task RAM with memory items allocated by 'malloc' below that.  Free memory between the top of the 'heap' and the bottom of the 'screen' area is still around 20Kb before adding more words or data.</p>
@@ -48,6 +53,9 @@ The 'paged_rom' image (one of eight SST39SF040 4Mbit ROMs on the Hydra-16) inclu
 The Hydra-16 still boots to Wozmon in this version.  To install the heap into RAM, switch to the correct ROM bank by writing the page # to ZP location $01, then enter 'A006R' (WAS 'A003' last week!  TAKE NOTE.)  to run the COPYTORAM routine.  Then just enter '800R' in WozMon to start HyForth.  See the README for HyForth linked above for more details.
 <a name="updates"></a>
 <h1> Updates </h1>
+<h3> 11/13/26 </h3>
+<p> See 'Building and running' above.  Minor changes to Wozmon, HyForth OS image slighly bigger.</p>
+<br>
 <h3> 11/13/26 </h3>
 <h4> Memory map changes:</h4>
 <p>(SEE BELOW)</p>

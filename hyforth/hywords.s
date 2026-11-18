@@ -1,752 +1,19 @@
 ;
-;HyForth extra commands
+;HyForth 'ADDITIONS'
 ;
 ; hywords.s
 ;
-;----------------------UTILITIES--------------------------------------
-def_word "cr", "crlf", 0
-    lda #$0D
-    jsr WRITE_CHAR
-    lda #$0A
-    jsr WRITE_CHAR
-    jmp next
+;  -------------------------------------------------------------
+;  snip tuck pick nip 2over 2drop 2dup
+;  bload cload autoload lib libs free
+;  syscall disasm memcpy 
+;  memw@ memwn@ wmemn! cmemn! rcmemn!
+;  rand rand32 rseed Acol Aclr Ascr
+;  ywrite ytest yinit
+;  ferc@ fecol! ferow! felin feadd feclr fedit febuf fedisp
+;  fa_mo@ fa_ms@
 ;
-def_word ">in", "inptr", 0                  ; CURBUF - pointer into INBUF (TIB)
-    lda #CURBUF
-REGIN:
-    sta TEMP1
-    lda #0
-    sta TEMP1+1
-    jmp this
-;
-def_word "last", "last", 0                   ; LASTHEAP addr onto stack
-    lda #LASTHEAP
-    bra REGIN
-;
-def_word "here", "here", 0                   ; NEXTHEAP addr onto stack
-    lda #NEXTHEAP
-    bra REGIN
-;
-def_word "back", "back", 0                   ; backup of NEXTHEAP addr onto stack
-    lda #BACKHEAP
-    bra REGIN
-;
-def_word "sp", "sp", 0                       ; DSPTR pointer addr onto stack
-    lda #DSPTR
-    bra REGIN
-;
-def_word "rp", "rp", 0                       ; RTPTR pointer addr onto stack
-    lda #RTPTR
-    bra REGIN
-;
-def_word "memptr", "memptr", 0               ; memory area pointer onto stack
-    lda MEMPTR
-    sta TEMP1
-    lda MEMPTR+1
-    jmp keeps
-;
-;
-; removed 4/24/26 - not used, do var/cons differently
-;def_word "allot", "allot", 0
-;
-;
-def_word ">r", "s_to_r", 0
-    jsr spull_0   ; put top of stack in TEMP1
-    ldy #TEMP1
-    jsr rpush
-    jmp next
-;                             ': r> rp @ @ rp @ 2 + rp ! rp @ @ swap rp @ ! ;'
-def_word "r>", "r_to_s", 0
-    ldy #TEMP1
-    jsr rpull
-    jsr spush_0     ; and push on DS stack
-    jmp next
-;
-;
-;   BRANCH / ?BRANCH -- neither currently work.  Ugh
-;
-;
-;def_word "bbra", "bbra", 0        ; [IP] = IP  next
-;
-;def_word "?bra", "qbra", 0      ; POP PSP  0= IF skip ELSE [IP] = IP THEN next
-;
-;def_word "?nbra", "qnbra", 0      ; POP PSP  0 <> IF skip ELSE [IP] = IP THEN next
-;
-;
-;         Get next byte off INBUF, advance CURBUF
-def_word "in>", "intib", 0
-    stz TEMP1+1
-    ldy #0
-    lda (CURBUF),y
-    sta TEMP1
-    jsr spush_0
-    inc CURBUF
-    jmp next
-;
-
-; ( a -- >[a])   -  : c@ @ ffh and ;  - load a byte
-def_word "c@", "c_from", 0
-    jsr spull_1
-    ldy #0
-    lda (TEMP2),y
-    sta TEMP1
-    stz TEMP1+1
-    jmp this
-;
-; (0b a -- )  0b -> [a]  --- store a byte
-def_word "c!", "c_to", 0
-    jsr spull_1   ; load address
-    jsr spull_0   ; load byte to store (TEMP1 lsb only)
-    ldy #0
-    lda TEMP1    ; ignore upper byte
-    sta (TEMP2),y
-    jmp next
-;
-; ( -- 2)   - : cells lit [ 2 , ] ;
-def_word "cells", "cells", 0
-    lda #2
-    sta TEMP1
-    stz TEMP1+1
-    jmp this
-
-; ( -- 32)   - : bl lit [ 1 2* 2* 2* 2* 2* , ] ;
-def_word "spc", "spc", 0
-    lda #$20
-    sta TEMP1
-    stz TEMP1+1
-    jmp this
-;
-;----------------------------------------------
-; (? -- ?)      -  LIT -
-;                - ': lit rp @ @ dup 2 + rp @ ! @ ;'
-;                     OR  - [IP] PUSH DS, IP += 2, next
-;
-;                    yep, it's this easy...
-def_word "lit", "literal", 0
-    ldy #0
-    lda (INSTPTR),y
-    sta TEMP1
-    iny
-    lda (INSTPTR),y
-    sta TEMP1+1
-    jsr spush_0   ; [IP] PUSH DS
-    ldx #INSTPTR  ; IP += 2
-    lda #2
-    jsr addwx
-    jmp next
-;
-;
-;       MEMORY management:  VAR, CONS, ARRAY, etc.
-;
-;
-;         HF version of 'variable'
-;
-; ( -- )
-def_word "var", "var", 0
-    lda NEXTHEAP
-    sta BACKHEAP                ; backup NEXTHEAP to BACKHEAP
-    lda NEXTHEAP + 1
-    sta BACKHEAP + 1
-
-VCHEAD:
-; copy LASTHEAP into (NEXTHEAP)
-    ldy #LASTHEAP
-    jsr comma                    ; change NEXTHEAP to point to LASTHEAP  ('here' <= 'last')
-    jsr token                    ; get first token, the name of new word
-    ldy #0                       ; copy it to heap: length and name
-                                 ; code field comes with later proc
-VCLOOP:
-    lda (NXTTOK), y
-    cmp #$20                   ; copy in length and name
-    beq VCMID
-VCCOPY:
-    sta (NEXTHEAP), y
-    iny
-    bne VCLOOP
-VCMID:
-    tya                          ; and update NEXTHEAP  :  'here' incremented by length
-    ldx #(NEXTHEAP)
-    jsr addwx                   ; 'here' now at CFA
-
-
-    ldx #(VCEND0-VCCODE)        ; calc offset
-    ldy #0
-VCLOOP2:
-    lda VCCODE, y
-    sta (NEXTHEAP),y
-    iny
-    dex
-    bne VCLOOP2
-    phy                        ; save for later
-    lda NEXTHEAP+1
-    sta TEMP1+1
-    lda NEXTHEAP
-    clc
-    adc #15                     ; calc addresses for indirect data
-    sta TEMP1                   ; read.
-    bcc VCSKIP00
-    inc TEMP1+1
-VCSKIP00:                      ; update addresses for lda's
-    ldy #3                     ; <VCDATA
-    lda TEMP1
-    sta (NEXTHEAP),y
-    ldy #7                     ; >VCDATA
-    lda TEMP1+1
-    sta (NEXTHEAP),y
-    lda #0
-    ldy #15
-    sta (NEXTHEAP),y          ; store zero in data word
-    iny
-    sta (NEXTHEAP),y
-
-    pla                        ; to update
-    ldx #NEXTHEAP
-    jsr addwx
-VCFINISH:
-    lda BACKHEAP
-    sta LASTHEAP                ; bring back BACKHEAP to LASTHEAP
-    lda BACKHEAP + 1
-    sta LASTHEAP + 1
-
-    jsr spush_0
-    jmp next
-;
-;    VCCODE - 'dovar' - copied into a var word ( 'DOES>' )
-;
-VCCODE:         ; NEXTHEAP ('here') should start here
-    bit #00
-    lda #<VCDATA               ; <NEXTHEAP+15   (at 'here' +3)
-    sta TEMP1
-    lda #>VCDATA               ; >NEXTHEAP+15   (at 'here' +7)
-    sta TEMP1+1
-    jsr spush_0
-    bra VCEND                  ; bra 2
-VCDATA:
-   .word 0
-VCEND:
-    jmp next
-VCEND0:
-;
-;  HF version of 'constant'
-;
-; ( cv -- )
-def_word "cons", "cons", 0
-    lda NEXTHEAP
-    sta BACKHEAP                ; backup NEXTHEAP to BACKHEAP
-    lda NEXTHEAP + 1
-    sta BACKHEAP + 1
-    ldy #TEMP8
-    jsr spull
-
-;    jsr DUMPREG
-
-CCHEAD:
-; copy LASTHEAP into (NEXTHEAP)
-    ldy #LASTHEAP
-    jsr comma                    ; change NEXTHEAP to point to LASTHEAP  ('here' <= 'last')
-    jsr token                    ; get first token, the name of new word
-    ldy #0                       ; copy it to heap: length and name
-                                 ; code field comes with later proc
-CCLOOP0:
-    lda (NXTTOK), y
-    cmp #$20
-    beq CCMID
-CCCOPY:
-    sta (NEXTHEAP), y
-    iny
-    bne CCLOOP0
-CCMID:
-    tya                          ; and update NEXTHEAP  :  'here' incremented by length
-    ldx #(NEXTHEAP)
-    jsr addwx                   ; 'here' now at CFA
-                                ; copy in code from CCCODE ('docon')
-    ldx #(CCEND0-CCCODE)        ; calc offset
-    ldy #0
-CCLOOP:
-    lda CCCODE, y
-    sta (NEXTHEAP),y
-    iny
-    dex
-    bne CCLOOP
-    phy
-    lda NEXTHEAP+1
-    sta TEMP1+1
-    lda NEXTHEAP
-    clc
-    adc #17                     ; calc addresses for indirect data
-    sta TEMP1                   ; read.
-    bcc CCSKIP00
-    inc TEMP1+1
-CCSKIP00:
-    ldy #3                     ; offset to lda CCDATA
-    lda TEMP1
-    sta (NEXTHEAP),y
-    iny
-    lda TEMP1+1
-    sta (NEXTHEAP),y
-    inc TEMP1
-    bne CCSKIP01
-    inc TEMP1+1
-CCSKIP01:
-    ldy #8                     ; offset to lda CCDATA+1
-    lda TEMP1
-    sta (NEXTHEAP),y
-    iny
-    lda TEMP1+1
-    sta (NEXTHEAP),y
-    lda TEMP8                  ; store constant val LSB
-    ldy #17
-    sta (NEXTHEAP),y
-    lda TEMP8+1                ; store constant val MSB
-    iny
-    sta (NEXTHEAP),y
-             ; pull back offset from above
-    pla                        ; update NEXTHEAP
-    ldx #NEXTHEAP
-    jsr addwx
-CCFINISH:
-    lda BACKHEAP
-    sta LASTHEAP                ; bring back BACKHEAP to LASTHEAP
-    lda BACKHEAP + 1
-    sta LASTHEAP + 1
-
-    ldy #TEMP8
-    jsr spush
-    jmp next
-;
-;   cons copies this in and 'customizes it' by
-;   plugging in corrected address for CCDATA
-;
-;  'DOCONS'
-CCCODE:
-    bit #00
-    lda CCDATA
-    sta TEMP1
-    lda CCDATA+1
-    sta TEMP1+1
-    jsr spush_0
-    bra CCEND                   ; bra 2
-CCDATA:
-    .word 0                        ; 0 0
-CCEND:
-    jmp next
-CCEND0:
-
-.ifdef SINGLE
-;----------------------NUMERALS----------------------------------------
-; ( -- n ) numeral 1
-def_word "$1", "onehex", 0
-    jmp ONEHEX
-def_word "1", "one", 0
-ONEHEX:
-    lda #1
-DOWITHONE:
-    sta TEMP1
-    stz TEMP1+1
-    jmp this
-
-; ( -- n ) numeral 2
-def_word "$2", "twohex", 0
-    lda #2
-    jmp DOWITHONE
-def_word "2", "two", 0
-    lda #2
-    jmp DOWITHONE
-
-; ( -- n ) numeral 3
-def_word "$3", "threehex", 0
-    lda #3
-    jmp DOWITHONE
-def_word "3", "three", 0
-    lda #3
-    jmp DOWITHONE
-
-; ( -- n ) numeral 4
-def_word "$4", "fourhex", 0
-    lda #4
-    jmp DOWITHONE
-def_word "4", "four", 0
-    lda #4
-    jmp DOWITHONE
-
-; ( -- n ) numeral 5
-def_word "$5", "fivehex", 0
-    lda #5
-    jmp DOWITHONE
-def_word "5", "five", 0
-    lda #5
-    jmp DOWITHONE
-
-; ( -- n ) numeral 6
-def_word "$6", "sixhex", 0
-    lda #6
-    jmp DOWITHONE
-def_word "6", "six", 0
-    lda #6
-    jmp DOWITHONE
-
-; ( -- n ) numeral 7
-def_word "$7", "sevenhex", 0
-    lda #7
-    jmp DOWITHONE
-def_word "7", "seven", 0
-    lda #7
-    jmp DOWITHONE
-
-; ( -- n ) numeral 8
-def_word "$8", "eighthex", 0
-    lda #8
-    jmp DOWITHONE
-def_word "8", "eight", 0
-    lda #8
-    jmp DOWITHONE
-
-; ( -- n ) numeral 9
-def_word "$9", "ninehex", 0
-    lda #9
-    jmp DOWITHONE
-def_word "9", "nine", 0
-    lda #9
-    jmp DOWITHONE
-
-; ( -- n ) numeral -1
-def_word "-1", "negone", 0
-    lda #$FF
-    sta TEMP1
-DOWITHNEG:
-    jmp keeps
-
-; ( -- n ) numeral 0
-def_word "$0", "zerohex", 0
-    jmp DOITZERO
-def_word "0", "zero", 0
-DOITZERO:
-    stz TEMP1
-    stz TEMP1+1
-    jmp this
-
-; ( -- n ) numeral -2
-def_word "-2", "negtwo", 0
-    lda #$FE
-    sta TEMP1
-    jmp DOWITHNEG
-
-; ( -- n ) numeral -3
-def_word "-3", "negthree", 0
-    lda #$FD
-    sta TEMP1
-    jmp DOWITHNEG
-
-def_word "-4", "negfour", 0
-; ( -- n ) numeral -4
-    lda #$FC
-    sta TEMP1
-    jmp DOWITHNEG
-
-def_word "-5", "negfive", 0
-; ( -- n ) numeral -5
-    lda #$FB
-    sta TEMP1
-    jmp DOWITHNEG
-
-def_word "-6", "negsix", 0
-; ( -- n ) numeral -6
-    lda #$FA
-    sta TEMP1
-    jmp DOWITHNEG
-
-def_word "-7", "negseven", 0
-; ( -- n ) numeral -7
-    lda #$F9
-    sta TEMP1
-    jmp DOWITHNEG
-
-def_word "-8", "negeight", 0
-; ( -- n ) numeral -8
-    lda #$F8
-    sta TEMP1
-    jmp DOWITHNEG
-
-def_word "-9", "negnine", 0
-; ( -- n ) numeral -9
-    lda #$F7
-    sta TEMP1
-    jmp DOWITHNEG
-
-; ( -- n ) numeral A
-def_word "$A", "zeroa", 0
-    lda #10
-    jmp DOWITHONE
-
-; ( -- n ) numeral B
-def_word "$B", "zerob", 0
-    lda #11
-    jmp DOWITHONE
-
-; ( -- n ) numeral C
-def_word "$C", "zeroc", 0
-    lda #12
-    jmp DOWITHONE
-
-; ( -- n ) numeral D
-def_word "$D", "zerod", 0
-    lda #13
-    jmp DOWITHONE
-
-; ( -- n ) numeral E
-def_word "$E", "zeroe", 0
-    lda #14
-    jmp DOWITHONE
-
-; ( -- n ) numeral F
-def_word "$F", "zerof", 0
-    lda #15
-    jmp DOWITHONE
-
-; ( -- n ) numeral %0
-def_word "%0", "binary0", 0
-    lda #0
-    jmp DOWITHONE
-
-; ( -- n ) numeral %1
-def_word "%1", "binary1", 0
-    lda #1
-    jmp DOWITHONE
-.endif   ; SINGLE
-
-;----------------------LOGIC FUNCTIONS--------------------------
-; ( w1 w2 -- w1 AND w2 )
-def_word "and", "xand", 0   ; had to use 'xand' cuz 'and' used for something important...
-    jsr spull_1             ; load TEMP2, TEMP1 from stack
-    jsr spull_0
-    lda TEMP2
-    and TEMP1
-    sta TEMP1
-    lda TEMP2 + 1
-    and TEMP1 + 1
-    jmp keeps  ; uncomment if carry could be set
-;
-; ( w1 w2 -- w1 OR w2 )
-def_word "or", "or", 0
-    jsr spull_1             ; load TEMP2, TEMP1 from stack
-    jsr spull_0
-    lda TEMP2
-    ora TEMP1
-    sta TEMP1
-    lda TEMP2 + 1
-    ora TEMP1 + 1
-    jmp keeps  ; sta TEMP1+1 included!
-;
-; ( w1 w2 -- w1 XOR w2 )
-def_word "xor", "xor", 0
-    jsr spull_1             ;load TEMP2, TEMP1 from stack
-    jsr spull_0
-    lda TEMP2
-    eor TEMP1
-    sta TEMP1
-    lda TEMP2 + 1
-    eor TEMP1 + 1
-    jmp keeps  ; sta TEMP1+1 included!
-;
-; ( w1 -- NOT w1 )
-def_word "not", "not", 0
-    jsr spull_0             ; load TEMP1 from stack
-    lda TEMP1
-    eor #$FF
-    sta TEMP1
-    lda TEMP1+1
-    eor #$FF
-    jmp keeps  ; sta TEMP1+1 included!
-;
-; ( w1 -- NEG w1 )  1's complement
-def_word "neg", "neg", 0
-    jsr spull_0             ; load TEMP1 from stack
-    lda TEMP1
-    eor #$FF
-    sta TEMP1
-    lda TEMP1+1
-    eor #$FF
-    inc TEMP1
-    bne NEGENDS
-    inc TEMP1+1
-NEGENDS:
-    jsr spush_0
-    jmp next
-;
-; (n1 n2 -- n1<>n2)  not equal
-def_word "<>", "ne", 0
-    jsr spull_1
-    jsr spull_0
-CMPLINK:
-    lda TEMP1
-    cmp TEMP2
-    bne IEQTRUE
-    lda TEMP1+1
-    cmp TEMP2+1
-    beq IEQFALSE
-    jmp PUSHTRUE
-;
-; (n1 n2 -- n1=n2)  equal
-def_word "=", "eq", 0
-    jsr spull_1
-    jsr spull_0
-    lda TEMP1
-    cmp TEMP2
-    bne IEQFALSE
-    lda TEMP1+1
-    cmp TEMP2+1
-    bne IEQFALSE
-    jmp PUSHTRUE
-;
-; (n1 -- n1=0)  equal to zero
-def_word "0=", "eqz", 0
-    jsr spull_0
-    lda TEMP1
-    ora TEMP1+1       ; only zero if both zero
-    bne IEQFALSE
-    jmp PUSHTRUE
-;
-
-; (n1 n2 -- n1>n2)  more than
-def_word ">", "gt", 0
-    jsr spull_1
-    jsr spull_0
-    lda TEMP1+1
-    cmp TEMP2+1
-    bcc IEQFALSE
-    bne IEQTRUE
-    lda TEMP1
-    cmp TEMP2
-    bcc IEQFALSE
-    beq IEQFALSE
-IEQTRUE:
-    jmp PUSHTRUE
-IEQFALSE:
-    jmp PUSHFALSE
-
-;
-; (n1 n2 == n1<=n2) less than or equal
-def_word "<=", "lte", 0
-    jsr spull_1
-    jsr spull_0
-    lda TEMP1+1
-    cmp TEMP2+1
-    bcc IEQTRUE
-    bne IEQFALSE
-    lda TEMP1
-    cmp TEMP2
-    bcc IEQTRUE
-    beq IEQTRUE
-    jmp PUSHFALSE
-
-;
-; (n1 n2 == n1>=n2) greater than or equal
-def_word ">=", "gte", 0
-    jsr spull_1
-    jsr spull_0
-GTELINK:
-    lda TEMP1+1
-    cmp TEMP2+1
-    bcc IEQFALSE
-    bne IEQTRUE
-    lda TEMP1
-    cmp TEMP2
-    bcc IEQFALSE
-    jmp PUSHTRUE
-;
-; (n1 n2 == n1<n2) less than
-def_word "<", "lt", 0
-    jsr spull_1
-    jsr spull_0
-    lda TEMP1+1
-    cmp TEMP2+1
-    bcc IEQTRUE
-    bne IEQFALSE
-    lda TEMP1
-    cmp TEMP2
-    bcc IEQTRUE
-    jmp PUSHFALSE
-;
-
-;----------------------CLASSIC FORTH-------------------------
-; (a b -- b a)
-def_word "swap", "swap", 0
-    jsr spull_0          ; pull top
-    lda TEMP1
-    sta TEMP2
-    lda TEMP1+1
-    sta TEMP2+1
-    jsr spull_0          ; pull next, will end up in TEMP1
-    jsr spush_1          ; push TEMP2 back on now
-    jmp this            ; includes jsr spush_0
-;
-;  (a -- a a)
-def_word "dup", "dup", 0
-    jsr spull_0          ; pull top to TEMP1
-    jsr spush_0          ; and then push back
-    jmp this            ; includes jsr spush_0 for second time
-;
-; (a -- )
-def_word "drop", "drop", 0
-    jsr spull_0          ; pull top, ends up in TEMP1 but...
-    jmp next
-;
-; (a a a ... -- )    clear DS
-def_word "xS", "xS", 0
-    lda #DSEND
-    sta DSPTR
-    lda #0
-    ldy #0
-    sta (DSPTR),y
-    iny
-    sta (DSPTR),y
-    jmp next
-;
-; (RT:a a a ... -- RT: )    clear RT
-def_word "xR", "xR", 0
-    lda #RTEND
-    sta RTPTR
-    lda #0
-    ldy #0
-    sta (RTPTR),y
-    iny
-    sta (RTPTR),y
-    jmp next
-;
-; (a b c -- b c a)
-def_word "rot", "rot", 0
-    jsr spull_0
-    jsr spull_1
-    jsr spull_2
-    jsr spush_1
-    jsr spush_0
-    jsr spush_2
-    jmp next
-;
-; (a b -- a b a)
-def_word "over", "over", 0
-    jsr spull_0
-    jsr spull_1
-    jsr spush_1
-    jsr spush_0
-    jsr spush_1
-    jmp next
-;
-; (a b -- b)
-def_word "nip", "nip", 0
-    jsr spull_0
-    jsr spull_1
-    jsr spush_0
-    jmp next
-;
-; (a b -- b a b)
-def_word "tuck", "tuck", 0
-    jsr spull_0
-    jsr spull_1
-    jsr spush_0
-    jsr spush_1
-    jsr spush_0
-    jmp next
+;   EXTRA stack manipulation words
 ;
 ; (a b -- a b a b)
 def_word "2dup", "dup2", 0
@@ -844,6 +111,126 @@ SNIPERR:
     sta ERRFLAG
     jmp errrtn
 ;
+;----------------------------------------------------------------------
+;  library management
+;
+def_word "libcnt", "libcnt", 0
+    jsr LIBCNT
+    sta TEMP1
+    stz TEMP1+1
+    jsr spush_0
+    jmp next
+    
+LIBCNT:
+    lda #>lib_jumptable
+    sta TEMP1+1
+    lda #<lib_jumptable
+    sta TEMP1
+    ldy #$FF
+LIBCNTLOOP:
+    iny
+    lda (TEMP1),y
+    iny
+    ora (TEMP1),y          ; entry after last should be $0000
+    bne LIBCNTLOOP
+    tya
+    lsr
+    rts
+    
+def_word "lib", "lib", 0
+    jsr spull_2                 ; nth library
+    lda #>lib_jumptable
+    sta TEMP1+1            
+    ldx TEMP3               ; check that TEMP3 is not neg or out of bounds       
+    dex                     ; need it 0 - LASTLIB-1 indexed
+    bmi LIBNG
+    ;
+    ;                       ; bounds checking?
+    jsr GETLIBENTRY
+    tya
+    bne LIBNG
+LIBWLOOP:
+    lda (TEMP0),y      ; TEMP0 should point at name of entry, step through
+    beq LIBWEND       ; entry via y
+    iny
+    bra LIBWLOOP       ; step through name
+LIBWEND:
+    iny                 ; jump past lib type 'C' or 'B'
+    iny
+    lda (TEMP0),y
+    sta TEMP1+1                 ; hi byte of lib address
+    iny
+    lda (TEMP0),y
+    sta TEMP1                  ; lo byte of lib address
+LIBEND:
+    jsr spush_0               ; should have address of first entry of lib n in TEMP1
+LIBNG:
+    jmp next
+
+def_word "libs", "libs", 0
+    jsr print_libtable
+    jmp next
+    
+print_libtable:
+    lda #>lib_jumptable
+    sta TEMP1+1
+    ldx #0
+LIBSLOOP:
+    jsr GETLIBENTRY    ; looks up lib entry #x, sets up TEMP1 and TEMP0, y = 0
+    tya
+    bne LIBSEND
+LIBSWLOOP:
+    lda (TEMP0),y      ; TEMP0 should point at name of entry, step through
+    beq LIBSWEND       ; entry via y
+    iny
+    jsr WRITE_CHAR     ; prints name of library
+    bra LIBSWLOOP
+LIBSWEND:
+    lda #'-'
+    jsr WRITE_CHAR
+    iny
+    lda (TEMP0),y
+    jsr WRITE_CHAR                   ; print type 'C' or 'B'
+    lda #$20
+    jsr WRITE_CHAR
+    iny
+    lda (TEMP0),y
+    jsr WRITE_BYTE                   ; hi byte of lib address
+    iny
+    lda (TEMP0),y
+    jsr WRITE_BYTE                   ; lo byte of lib address
+    WCRLF_np
+    inx
+    beq LIBSEND
+    bra LIBSLOOP
+LIBSEND:
+    rts
+    
+GETLIBENTRY:               ; get entry pointed to by x
+    txa
+    asl a
+    clc
+    adc #<lib_jumptable
+    sta TEMP1
+    bcc LIBSNEXT
+    inc TEMP1+1
+LIBSNEXT:
+    ldy #0
+    lda (TEMP1),y
+    sta TEMP0
+    iny
+    lda (TEMP1),y
+    sta TEMP0+1
+    dey
+    lda (TEMP0),y
+    iny
+    ora (TEMP0),y
+    bne LIBSKIP 
+    rts
+LIBSKIP:
+    dey
+    rts
+;
 ;-------------------------AUTOLOAD and CLOAD----------------------
 CLOADMSG:
    .byte "cload>"
@@ -869,6 +256,8 @@ def_word "cload", "cload", 0
 CLOAD_IN:
     WSEQ_raw CLOADMSG
     jsr spull_0        ; address from stack to TEMP1
+CLOAD_ENTER:
+  ;  jsr DUMPREG
     ldy #0
     lda #$20
     sta (TIB), y       ; put space at start
@@ -897,8 +286,8 @@ CLOAD_CONT:
     iny
     sta (TIB), y
     dey
-; start it
-    sta CURBUF
+    sta CURBUF        ; start it
+;
     tya                ; calc next address if want to load more
     clc
     adc TEMP1
@@ -1085,214 +474,6 @@ RAND32IN:
     jsr spush_0
     jmp next
 ;
-; (u1 u2 -- ux um)  min
-; (u1 u2 -- um ux)  max
-def_word "min", "min16", 0
-    jsr spull_1
-    jsr spull_0
-MININ16:
-    lda TEMP1+1
-    cmp TEMP2+1
-    bcc MINSWAP
-    lda TEMP1
-    cmp TEMP2
-    bcc MINSWAP
-    jmp MINDONE
-MINSWAP:
-    jsr spush_1
-    jsr spush_0
-    jmp next
-MINDONE:
-    jsr spush_0
-    jsr spush_1
-    jmp next
-
-def_word "max", "max16", 0
-    jsr spull_1
-    jsr spull_0
-    lda TEMP1+1
-    cmp TEMP2+1
-    bcc MINDONE
-    lda TEMP1
-    cmp TEMP2
-    bcc MINDONE
-    jmp MINSWAP
-
-;
-; (ux um -- rh rl)      16x16 multiply, result in reverse order
-; faster if Z_MATH2 (um) is smaller of two.  Need a MIN/MAX swap routine!
-;
-def_word "*", "mult16", 0
-    ldy #Z_MATH2
-    jsr spull
-    ldy #Z_MATH1
-    jsr spull
-    lda Z_MATH1            ; handle zeros  3/22 1320
-    ora Z_MATH1+1
-    beq m16zero          ; if either is 0-0, can skip to end
-    lda Z_MATH2
-    ora Z_MATH2+1
-    beq m16zero          ; Z_MATH2 is zero?  same deal.
-    jsr MULT16
-    bra m16push
-m16zero:
-    stz Z_MATH1
-    stz Z_MATH1+1
-    stz Z_MATH3
-    stz Z_MATH3+1
-m16push:
-    ldy #Z_MATH3
-    jsr spush           ; MSbyte
-    ldy #Z_MATH1
-    jsr spush           ; push LSbyte in Z_MATH1 on top
-    jmp next
-
-;
-; (ux um -- r m)      16x16 divide, result + MOD
-;
-def_word "/", "div16", 0
-    ldy #Z_MATH2
-    jsr spull
-    ldy #Z_MATH1
-    jsr spull
-    lda Z_MATH1            ; handle zeros  3/22 1320
-    ora Z_MATH1+1
-    beq d16zero         ; shortcut!
-    lda Z_MATH2
-    bne d16skip0
-    ora Z_MATH2+1
-    bne d16skip1
-    jmp div0err                     ; divide by zero error
-d16skip0:
-    cmp #1
-    bne d16skip1
-    lda Z_MATH2+1
-    bne d16skip1
-    bra d16rzero                   ; dividing by 1, just return Z_MATH1
-d16skip1:
-    jsr DIV16                      ; results Z_MATH2, remainder Z_MATH3
-    jmp d16done
-d16zero:
-    stz Z_MATH1
-    stz Z_MATH1+1
-d16rzero:
-    stz Z_MATH3
-    stz Z_MATH3+1
-d16done:
-    ldy #Z_MATH3
-    jsr spush        ; remainder first
-    ldy #Z_MATH1
-    jsr spush        ; result on top
-    jmp next
-;
-;                      divide by zero error
-div0err:                      ; pop jsr off stack, throw error
-    lda #ERR_DIV0
-    sta ERRFLAG
-    jmp errrtn
-;
-
-;
-; (u1 u2 ud -- rl rh m)      16x16/16 mult-divide, result + MOD
-;
-def_word "*/", "mdiv32", 0
-    ldy #Z_MATH4           ; so we can use Z_MATH3 below
-    jsr spull              ; divisor
-    ldy #Z_MATH1
-    jsr spull              ; mult 1
-    ldy #Z_MATH2
-    jsr spull              ; mult 2
-    ;
-    lda Z_MATH1            ; handle zeros  3/22 1320
-    ora Z_MATH1+1
-    beq d32zero         ; shortcut!
-    lda Z_MATH2
-    ora Z_MATH2+1
-    beq d32zero         ; shortcut!
-    lda Z_MATH4
-    bne d32skip0
-    ora Z_MATH4+1
-    bne d32skip1
-    jmp div0err                     ; divide by zero error
-d32skip0:
-    cmp #1
-    bne d32skip1
-    lda Z_MATH4+1
-    bne d32skip1
-    bra d32rzero                   ; dividing by 1, just return Z_MATH1
-d32skip1:
-    jsr MULT16                     ; results Z_MATH3/Z_MATH1
-    lda Z_MATH3                      ; do-si-do
-    sta Z_MATH2
-    lda Z_MATH3+1
-    sta Z_MATH2+1
-    lda Z_MATH4                      ; move divisor to Z_MATH3
-    sta Z_MATH3
-    lda Z_MATH4+1
-    sta Z_MATH3+1
-;   jsr DIV32                      ; results Z_MATH2/Z_MATH1, remainder Z_MATH4
-    jsr MDIV32
-    jmp d32done
-d32zero:
-    stz Z_MATH1
-    stz Z_MATH1+1
-    stz Z_MATH2
-    stz Z_MATH2+1
-d32rzero:
-    stz Z_MATH4
-    stz Z_MATH4+1
-d32done:
-    ldy #Z_MATH4
-    jsr spush        ; remainder first
-    ldy #Z_MATH2
-    jsr spush         ; msb next
-    ldy #Z_MATH1
-    jsr spush        ; lsb on top
-    jmp next
-    
-;        32 / 16 divide; Z_MATH2-Z_MATH1 / Z_MATH3 #'s - Z_MATH4 is 'overflow'
-;        -> Z_MATH2-Z_MATH1 + Z_MATH4 = result + remainder
-MDIV32:
-    stz Z_MATH4
-    stz Z_MATH4+1
-    ldx #32
-UMDIV32LP:
-    rol Z_MATH1
-    rol Z_MATH1+1
-    rol Z_MATH2
-    rol Z_MATH2+1
-    rol Z_MATH4
-    rol Z_MATH4+1
-UMDIV32CHK:
-    sec
-    lda Z_MATH4
-    sbc Z_MATH3
-    tay
-    lda Z_MATH4+1
-    sbc Z_MATH3+1
-    bcc UMDIV32CNT
-    sty Z_MATH4
-    sta Z_MATH4+1
-UMDIV32CNT:
-    dex
-    bne UMDIV32LP
-    rol Z_MATH1
-    rol Z_MATH1+1
-    rol Z_MATH2
-    rol Z_MATH2+1
-    rts    
-;
-;
-; ( hex -- d1 d2 d3 d4 d5 )
-;  converts a word into a reverse order ascii digit sequence
-;
-def_word "xdrv", "xdrv", 0
-    jsr spull_0
-    lda TEMP1
-    ldy TEMP1+1
-    jsr HEX2DEC
-    jmp next
-;
 ;------------------------------MEMORY OPERATIONS----------------------------
 ;
 ; (as ae ad -- )    copy from $as thru $ae to $ad
@@ -1331,7 +512,7 @@ def_word "free", "free", 0
     jmp next
 ;
 ; (daddr n -- ) start disassembly from daddr, do it
-; $F600 is entry point for DISASM_AY (low/high addr), C=1 for multiple opcodes, X for # of codes
+; $F800 is entry point for DISASM (low/high addr), C=1 for multiple opcodes, X for # of codes
 ;  ..or, since it's not much fun figuring out why WozMon is picky, use the regular DISASM
 ;  entry point instead.  simpler, and just shoe-horn address into Z_D_XAM, and run the loop here.
 ;
@@ -1401,80 +582,164 @@ SCDUMMY:
     ldx #0
     rts
 ;
+; -------------- various functions to copy data between memory and stack
 ;
-; ( paddr -- )
-def_word "mktemp", "mktemp", 0
-    jsr spull_1       ; get mptr in TEMP2
-    jsr MEMLEN        ; len in TEMP1, maddr in TEMP3
-    ldy #0
-    lda (TEMP3),y
-    ora #$80          ; set high bit on type byte
-    sta (TEMP3),y
-    jmp next
+; ( addr n -- w0 w1 ... w(n-1) )  push n words from memory to stack
 ;
-;   ( -- )  --- 'deallocate' last memory item in stack if marked 'temp'
-;
-def_word "purge0", "purge0", 0
-    lda MEMPTR
-    sta TEMP2
-    lda MEMPTR+1
-    sta TEMP2+1
-    cmp #>(MEMSTK+MEMEND)
-    bcc PURGECONT
-    bne PURGEEND
-    lda TEMP2
-    cmp #<(MEMSTK+MEMEND)
-    bcs PURGEEND
-PURGECONT:
-    lda TEMP2
+def_word "memwn@", "memwnget", 0
+    ldy #TEMP4
+    jsr spull    ; get # WORDS
+    jsr spull_1  ; get ptr addr
+    jsr MEMLEN   ; returns TEMP3 w/maddr, length in TEMP1
+    lda TEMP4
+    asl a
+    sta TEMP4
+    cmp TEMP1
+    bcs DSGETNSK
+    sta TEMP1
+DSGETNSK:
+    lda TEMP1
+    cmp #$78
+    bcc DSGETNSK2
+    jmp DSGETERR
+DSGETNSK2:
     clc
-    adc #2
-    bcc  PURGESK00
-    inc TEMP2+1
-PURGESK00:
-    jsr MEMLEN        ; len in TEMP1, maddr in TEMP3
-    ldy #0
+    adc #3
+    sta TEMP1
+    ldy #3
+    jmp DSGLOOP
+;
+; ( addr -- w w ... w )  push words from memory to stack
+;
+def_word "memw@", "memwget", 0
+    jsr spull_1    ; get addr on memstack
+    jsr MEMLEN     ; maddr in TEMP3, length in TEMP1
+    lda TEMP1
+    cmp #$78
+    bcs DSGETERR
+    lda TEMP1+1
+    bne DSGETERR    ; too much data, can't push this on
+    lda TEMP1
+    clc
+    adc #3
+    sta TEMP1
+    ldy #3
+DSGLOOP:
     lda (TEMP3),y
-    and #$80          ; mask off all but temp bit
-    
-    jsr DUMPREG
-    
-    beq  PURGEEND
-    lda TEMP2         ; change pointers if temp
-    sta MEMPTR
-    lda TEMP2+1
-    sta MEMPTR+1
-    lda TEMP3
-;    clc
-;    adc #3
-;    bcc  PURGESK01
-;    inc TEMP3+1
-;PURGESK01:
-;    clc
-;    adc TEMP1
-    sta MEMLAST
-    lda TEMP3+1
-;    adc TEMP1+1
-    sta MEMLAST+1
-PURGEEND:
+    sta TEMP2
+    iny
+    lda (TEMP3),y
+    sta TEMP2+1
+    iny
+    phy
+    jsr spush_1
+    ply
+    cpy TEMP1
+    bne DSGLOOP
+DSGEND:
     jmp next
+DSGETERR:
+    lda #ERR_SPTR   ; throw pointer error
+    sta ERRFLAG
+    jmp errrtn
 ;
+; ( w w w..len addr -- addr)    stores len BYTES (words * 2) from stack
 ;
-; ( bytes type -- staddr )
-def_word "malloc", "malloc", 0
-    jsr spull_1       ; type ( word ($00), char ($01), words ($02), bytes ($03), sz ($04) ..)
-    jsr spull_0       ; # bytes
-    jsr MALLOC        ; will return address in TEMP1
-    jsr spush_0       ; push ptr address to new record on stack
+def_word "wmemn!", "wmemstn", 0
+    jsr HSSETUP
+    jsr DW_STFWD
+    jsr spush_1      ; and push ptr addr back on stack
     jmp next
 
+DW_STFWD:
+    ldy #0            ; count up
+DWFLOOP:
+    lda DSPTR
+    sec
+    sbc #DSEND
+    bcs DW_FWDEND
+    phy
+    jsr spull_0
+    ply
+    lda TEMP1
+    sta (TEMP3),y
+    iny
+    lda TEMP1+1
+    sta (TEMP3),y
+    iny
+    cpy TEMP5
+    bne DWFLOOP
+DW_FWDEND:
+    rts
 ;
-; ( maddr -- len )
-def_word "mlen", "mlen", 0
-    jsr spull_1
-    jsr MEMLEN   ; returns length in TEMP1, maddr in TEMP3
-    jsr spush_0
+;
+; ( 0c 0c 0c...len addr -- addr)    stores len chars from stack
+;
+def_word "cmemn!", "cmemstn", 0
+    jsr HSSETUP
+    jsr HS_STFWD
+    jsr spush_1      ; and push ptr addr back on stack
     jmp next
+
+HS_STFWD:
+    ldy #0            ; count up
+HSRLOOP:
+    lda DSPTR
+    sec
+    sbc #DSEND
+    bcs HS_FWDEND
+    phy
+    jsr spull_0
+    ply
+    lda TEMP1
+    sta (TEMP3),y
+    iny
+    cpy TEMP5
+    bne HSRLOOP
+HS_FWDEND:
+    rts
+;
+; ( 0c 0c 0c...len addr -- addr)  stores len chars from stack, reverse order
+;
+def_word "rcmemn!", "rcmemstn", 0
+    jsr HSSETUP
+    jsr HS_STREV
+    jsr spush_1      ; and push ptr addr back on stack
+    jmp next
+
+HSSETUP:
+    jsr spull_1     ; get addr from malloc run -> TEMP2
+    jsr MEMLEN      ; length in TEMP1, maddr TEMP3
+    lda TEMP1
+    sta TEMP5
+    lda TEMP3
+    clc
+    adc #3          ; calc offset to storage
+    sta TEMP3
+    bcc HSSETUPEND
+    inc TEMP3+1
+HSSETUPEND:
+    rts
+
+HS_STREV:
+    ldy TEMP5            ; count down from length
+    lda #0
+    dey
+    sta (TEMP3),y
+HSFLOOP:
+    lda DSPTR
+    sec
+    sbc #DSEND
+    bcs HS_REVEND
+    phy
+    jsr spull_0
+    ply
+    lda TEMP1
+    dey
+    sta (TEMP3),y
+    bne HSFLOOP
+HS_REVEND:
+    rts
 ;
 ;
 .ifdef YSOUND
@@ -1525,13 +790,8 @@ def_word "fa_mo@", "fa_mo", 0
 ;----------------------------------------------------------------------------
 ;                     HyFedit - editor stuff
 def_word "fedisp", "fedisp", 0
- ;   jsr spull_0
- ;   lda TEMP1
- ;   sta HFEBUF
- ;   lda TEMP1+1
- ;   sta HFEBUF+1
-    jsr HFE_WARM
-    jmp next
+    jsr HFE_WARM                    ; note: as of 11/4/26, only diff between HFE_WARM and _COLD
+    jmp next                        ; is a flag set to say which entry point was used.  May be more use later.
 ;
 ;    
 def_word "febuf", "febuf", 0
@@ -1615,25 +875,67 @@ def_word "feclr", "feclr", 0
     jsr CLR_SCREENBUF
     jmp next
 ;
-;    
-def_word "feadd", "feadd", 0
-    jmp next
+;    ADD TEXT FROM STRING TO BUFFER
 ;
-;    
+def_word "feadd", "feadd", 0
+    jsr spull_0                  ; get addr of string to add, in TEMP1
+    lda HFEROWS
+    dec
+    cmp HFE_CV
+    bcc  FEADDNEXT               ; failed bounds check
+    lda HFE_CV
+    sta TEMP2
+    jsr FELIN                   ; row in TEMP2 -> address, destroys Y  
+    jsr FECPY                    ; src addr in TEMP1 returns # of chars copied in Y
+    sty TEMP1                    ; reuse TEMP1 for chars copied
+    stz TEMP1+1
+    jsr spush_0                  ; push # of chars
+    inc HFE_CV                 ; update cursor row pos
+    lda #0
+    sta HFE_CH                 ; and columns too
+FEADDNEXT:
+    jmp next
+
+def_word "felin", "felin", 0       ; calc address in buffer for a given line and column
+    jsr spull_1                    ; row in TEMP2
+    jsr spull_2                    ; column in TEMP3
+    lda TEMP2
+    cmp HFECOLS                    ; do bounds checking first
+    beq FELNXT
+    bcs FELNXT
+    lda TEMP3
+    cmp HFEROWS
+    beq FELNXT
+    bcs FELNXT      
+    jsr FELIN                   ; addr will end up in TEMP2
+    lda TEMP2
+    clc
+    adc TEMP3                    ; now add column to addr
+    sta TEMP2
+    bcc FEL2SK
+    inc TEMP2+1
+FEL2SK:
+    jsr spush_1
+FELNXT:
+    clc
+    jmp next
+
+    
+;    SET CURRENT VERTICAL CURSOR POS - row
 def_word "ferow!", "ferow_g", 0
     jsr spull_0
     lda TEMP1
     sta HFE_CV
     jmp next
 ;
-;    
+;    SET CURRENT HORIZONTAL CURSOR POS - column    
 def_word "fecol!", "fecol_g", 0
     jsr spull_0
     lda TEMP1
     sta HFE_CH
     jmp next
 ;
-;
+;    GET COORDINATES OF CURSOR
 def_word "ferc@", "ferc_get", 0
     stz TEMP1+1
     lda HFE_CV

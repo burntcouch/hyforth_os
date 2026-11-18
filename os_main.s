@@ -33,7 +33,7 @@ DO_WELCOME:
             lda             #<HYDRA_WELCOME
             ldy             #>HYDRA_WELCOME
             jsr             WRITE_HSTRING
-            PRINT_CRLF
+            WCRLF_np                                     ; just my own version
             ldx     #0
 
 @vector_loop:
@@ -64,17 +64,23 @@ SPI_T_LOOP:
             bne                 SPI_T_LOOP
             rts
 
+;----------------------------------------------------------------------------------------------
+;
 ; A: S/W interrupt number
-SW_INT:
-            asl                                                     ; move int# to V[4..7]
-            asl
-            asl
-            asl
-            ora                 #$F
-            sta                 V_REGISTER
-            brk                                                     ; force an interrupt
-            rts
-
+;SW_INT:
+;            asl                                                     ; move int# to V[4..7]
+;            asl
+;            asl
+;            asl
+;            ora                 #$F
+;            sta                 V_REGISTER
+;            brk                                                     ; force an interrupt
+;            rts
+;
+;---------------------------------------------------------------------------------------------
+;
+;           OS PAGE FILLERS
+;
 .macro OTHER_PAGE_FILLER
             lda     #0                                              ; zero out W register
             sta     W_REGISTER

@@ -2,15 +2,19 @@
 ;   Taken mostly from Steve Wozniak's Apple 1 Monitor for the 6502, or WOZMON
 ;
 .debuginfo
-.segment "BUFFERS"
-IN:
-                .res            $100
+;
+;          No longer here; renamed WOZ_IN, moved to bios.s
+;
+;.segment "BUFFERS"
+;IN:
+;                .res            $100
 ;
 .segment "WOZMON"
 ;
 ; usually ends up at $FE00  (see os_rom_C02.cfg)
 ;
 ; WOZMON Entrypoint
+;
 MON_START:
                 cld                             ; Clear decimal arithmetic mode.
                 cli                             ; Enable interrupts
@@ -26,7 +30,10 @@ MON_START:
                 bpl             @get_next_char  ; Auto ESC if line longer than 127.
 
 @is_start:
-                PRINT_CRLF
+                lda #$0D
+                jsr WRITE_CHAR
+                lda #$0A
+                jsr WRITE_CHAR
 
 @get_line:
                 jsr             WRITE_PROMPT
@@ -39,7 +46,7 @@ MON_START:
 @get_next_char:
                 jsr             READ_CHAR
                 bcc             @get_next_char
-                sta             IN,y            ; Add to text buffer.
+                sta             WOZ_IN,y            ; Add to text buffer.
                 cmp             #$0D
                 bne             @not_cr
                 ldy             #$FF            ; Reset text index.  Will iny shortly...
@@ -59,8 +66,8 @@ MON_START:
                 iny                             ; Advance text index.
 
 @next_item:
-                lda             IN,y            ; Get character.
-                cmp             #$0D      ; CR?
+                lda             WOZ_IN,y            ; Get character.
+                cmp             #$0D         ; CR?
                 beq             @get_line       ; Yes, done with this line.
                 cmp             #'.'
                 bcc             @skip_delim     ; Skip delimiter.
@@ -70,43 +77,42 @@ MON_START:
                 cmp             #'M'
                 bpl             @check_rtow
                 cmp             #'K'
-                bmi             @not_tuvw
-                eor             #'K'        ; 'K' resets DASTATE to 0
+                bmi             @nothing
+                eor             #'K'         ; 'K' resets DASTATE to 0
                 sta             ZP_D_STATE
                 bra             @skip_delim
 
 @check_rtow:
                 cmp             #'R'
                 beq             @run_prog
-                bcc             @not_tuvw
-                cmp             #'X'        ; R, S, T, U, V, or W
-                bcs             @not_tuvw
-                cmp             #'S'
-                bne             @not_spawn
-                lda             ZP_WM_XAM
-                ldy             ZP_WM_XAM + 1
-                jsr             SPAWN_TASK
-                bra             MON_START
-
-@not_spawn:
-                clc
-                adc             #($F0 - 'T'); T=FFF0, U=FFF1, V=FFF2, W=FFF3
-                sta             ZP_WM_HVP       ;
-                lda             #$FF            ;
-                sta             ZP_WM_HVP + 1   ;
-                iny                             ; skip the mnemonic
-                bra             @not_hex_or_escape
+                bra  @nothing
+;                bcc             @not_tuvw
+;                cmp             #'X'        ; R, S, T, U, V, or W
+;                bcs             @not_tuvw
+;                cmp             #'S'               ; no 'SPAWN' for now
+;                bne             @not_spawn
+;                jmp             SPAWN_TASK        ; see bios.s - do nothing
+;             
+;@not_spawn:                            ; TUVW falls through to here
+;                clc
+;                adc             #($F0 - 'T'); T=FFF0, U=FFF1, V=FFF2, W=FFF3
+;                sta             ZP_WM_HVP       ;
+;                lda             #$FF            ;
+;                sta             ZP_WM_HVP + 1   ;
+;                iny                             ; skip the mnemonic
+;               bra             @not_hex_or_escape
 
 @bra_is_start:
-                bra             @is_start       ; unrecognized
+                bra             @is_start       ; can't branch from top to botthom w/o this
 
-@not_tuvw:
+;@not_tuvw:
+@nothing:
                 sty             ZP_Y_SAVE       ; Save Y for comparison
                 stx             ZP_WM_HVP       ; $00 -> Low byte of HPV
                 stx             ZP_WM_HVP + 1   ; ...and High byte.
 
 @next_hex:
-                lda             IN,y            ; Get character for hex test.
+                lda             WOZ_IN,y            ; Get character for hex test.
                 eor             #'0'            ; Map digits to $0-9.
                 cmp             #$0A            ; Digit?
                 bcc             @is_digit       ; Yes.
@@ -119,7 +125,7 @@ MON_START:
                 asl
                 asl
                 asl
-                ldx             #4              ; Shift count.
+                ldx              #4              ; Shift count.
 
 @hex_shift:
                 asl                             ; Hex digit left, MSB to carry.
@@ -164,10 +170,16 @@ MON_START:
                 bne             @set_addr       ; Loop unless X = 0.
 
 @print_next_addr:
-                PRINT_CRLF
-                PRINT_BYTE      ZP_WM_XAM + 1, ZP_WM_XAM   ; Print 'examine index'
-                PRINT_CHAR      #':'                      ; ...+ COLON
-
+                lda #$0D
+                jsr WRITE_CHAR
+                lda #$0A
+                jsr WRITE_CHAR
+                lda ZP_WM_XAM+1
+                jsr WRITE_BYTE
+                lda ZP_WM_XAM                    ; Print 'examine index'
+                jsr WRITE_BYTE
+                lda #':'
+                jsr WRITE_CHAR                   ; ...+ COLON
 @print_data:
                 phy
                 jsr             DISASM_WM       ; DISASM
@@ -193,3 +205,6 @@ MON_START:
                 and             #7              ; For MOD 8 = 0
                 beq             @print_next_addr
                 bra             @print_data
+;
+;          end of wozmon.s
+;

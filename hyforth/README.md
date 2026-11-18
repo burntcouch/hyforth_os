@@ -8,183 +8,249 @@
    MilliForth 6502 --> (https://github.com/agsb/milliForth-6502)
 <p>
 ----------------------------------------------------------------------
-<p>  
-Update, 5/3/26:
-<p> Hell of a lot has changed in a month or so.  ROM conversion still works as noted below in 3/21/26 notes, and installation now proceeds very simply: </p>
-<p> -- change to appropriate ROM bank in Wozmon (I use bank $03 for testing most of the time) by saving the bank number to location ZP $01 --  e.g '1:3' in Wozmon if you are using bank $03.</p>
-<p> -- Run the COPYTORAM routine from the jmp point at A003.  'A003R' in Wozmon.</p>
-<p> -- Start HyForth at $0800 by entering '800R'</p>
-<p>   You will see a 'HyForth 0.xx MMDDYY' version banner and then the HF> prompt. </p>
-----------------------------------------------------------------------
-<p>   As you can below, a lot of words have been added in the last month and a half; the list is a screenshot of the output of 'words' on the most current version (0.88 5/2/26).</p>
-<p>  The list is only very loosely organized at this time, into 4 main sections:</p>
-<p> CORE:  starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness:  'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'. </p>
-<p>  PRIMITIVES:  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'.  Also all of the conditionals are defined, as well as the basic logic functions.  'negate' and 'invert' as defined in traditional Forth have been changed to 'neg' and 'not', and AGSB's '0#' was changed to 'bool' (to convert the TOS value to it's boolean equivalent).  Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).</p>
-<p>  ADDITIONAL STUFF:  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'.  '*' always gives a 32 bit result with the LSW on top of the stack.</p>
-<p>  This group also includes a lot of debugging tools, including a disassembler, 'syscall' for system calls, a random # generator, some ANSI screen functions ('Ascr', 'Acls', 'Acol'), and the basic parts of the memory manager:  'malloc', 'mlen', 'mktemp', and 'purge'.  'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable.  'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.</p>
-<p>  Lastly, you will see 'cload', 'autoload' and 'bload'.  These three words are the essential for loading extra 'meta-compiler' words and binary libraries.</p>
-<p>  META-COMPILED WORDS:  the traditional Forth conditionals and loop structures are NOT easy to implement in native code using AGSB's engine, so for now these are loaded (using 'cload' or 'autoload').  These include 'if', 'then', 'else', 'do', 'loop', 'begin', 'again', 'repeat', 'until', and 'while', as well as the 'i/j/k' loop indexes. </p>
-<pre>
- 1BE7: |          | 1BDF: |          | 1BCA: decsz!     | 1BB4: mdump      |
- 1BA6: k          | 1B96: j          | 1B86: i          | 1B41: loop       |
- 1B2A: do         | 1B01: repeat     | 1AE9: while      | 1AD1: until      |
- 1AB9: again      | 1AAB: begin      | 1A84: else       | 1A6D: then       |
- 1A58: if         | 1A3B: branch     | 1A0B: ?branch    | 1A00: 2*         |
- 194A: exit       | 1916: :          | 18FA: ;          | 18DE: ,          |
- 18D3: ]          | 18CA: [          | 18AC: I          | 1876: @          |
- 1862: !          | 185A: ;$         | 1852: :$         | 1845: exec       |
- 181B: mlen       | 1793: malloc     | 1745: purge0     | 172B: mktemp     |
- 1704: syscall    | 16D5: disasm     | 16BB: free       | 168F: memcpy     |
- 167B: xdrv       | 1638: /          | 160C: *          | 15F1: max        |
- 15C4: min        | 159F: rand32     | 1592: rand       | 1571: rseed      |
- 1542: Acol       | 14F8: Ascr       | 14DA: Acls       | 144C: bload      |
- 13E9: cload      | 13A3: autoload   | 1347: snip       | 1313: pick       |
- 12E6: 2over      | 12D5: 2drop      | 12B9: 2dup       | 12A0: tuck       |
- 128E: nip        | 1275: over       | 125A: rot        | 1245: xR         |
- 1230: xS         | 1223: drop       | 1214: dup        | 11F9: swap       |
- 11DE: <          | 11C2: >=         | 11A4: <=         | 117C: >          |
- 116B: 0=         | 1152: =          | 1138: <>         | 111C: neg        |
- 1106: not        | 10ED: xor        | 10D5: or         | 10BC: and        |
- 10B2: %1         | 10A8: %0         | 109E: $F         | 1094: $E         |
- 108A: $D         | 1080: $C         | 1076: $B         | 106C: $A         |
- 1060: -9         | 1054: -8         | 1048: -7         | 103C: -6         |
- 1030: -5         | 1024: -4         | 1018: -3         | 100C: -2         |
- 1001: 0          | 0FF9: $0         | 0FED: -1         | 0FE4: 9          |
- 0FDA: $9         | 0FD1: 8          | 0FC7: $8         | 0FBE: 7          |
- 0FB4: $7         | 0FAB: 6          | 0FA1: $6         | 0F98: 5          |
- 0F8E: $5         | 0F85: 4          | 0F7B: $4         | 0F72: 3          |
- 0F68: $3         | 0F5F: 2          | 0F55: $2         | 0F48: 1          |
- 0F40: $1         | 0E9E: cons       | 0E1B: var        | 0DFD: lit        |
- 0DEE: spc        | 0DDD: cells      | 0DC9: c!         | 0DB6: c@         |
- 0DA0: in>        | 0D90: r>         | 0D80: >r         | 0D6E: memptr     |
- 0D65: rp         | 0D5C: sp         | 0D51: back       | 0D46: here       |
- 0D3B: last       | 0D2A: >in        | 0D18: cr         | 0CFF: debug      |
- 0CF1: s@         | 0CDA: bool       | 0CC1: -          | 0CA9: +          |
- 0C8B: nand       | 0C79: emit       | 0C69: key        | 0C23: cbit       |
- 0C01: sbit       | 0BD3: tbit       | 0BB6: <<         | 0B99: >>         |
- 0B82: decs!      | 0B27: rdcstk!    | 0AFA: dcstk!     | 0AC8: dwstk!     |
- 0A89: dsget@     | 0A56: dsgetn@    | 0A29: .sz        | 09F9: ord        |
- 09E4: .C         | 09CB: .          | 0911: words      | 08E9: dump       |
- 0882: .R         | 0869: ?R         | 0850: ?S         | 0822: .S         |
- 0817: reset      | 080C: abort      | 0803: bye        |
 
-</pre>
-<p>  USAGE:  the # conversion and string capture functions in the interpreter diverge a bit from standard Forth.  As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a a word.</p>
-<p> Strings are even more divergent.  The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc.   Instead, the q^...^ should be used; this construct creates a zero-terminated string and uses 'malloc' to allocate memory for it.  'malloc' returns the handle (double indirection) of the string on the memory stack (see below).  The '.sz' word will print the string on the screen if the address of the pointer to the string is on the top of the stack.  You can store the address as a constant or in a variable to use it otherwise. </p>
-<p> EXAMPLE:  q^this is a test.^ cons astr .sz </p>
-<p> ... this will print 'this is a test.'.  Using 'astr' in a compiled word will return the string handle as described above.</p>
-<p> Memory manager:  'malloc' is the main word to allocate memory for data types more complicated than variables and constants, which are still implemented as in traditional Forth, ie either the address or the value are returned from a single 16-bit word store inline within the instance.</p><p>  'memptr' returns the current value of the pointer on the memory stack; it uses the same 'store' and 'decrement' strategy as the DS and RT stacks, so 'memptr' always returns the stack position that the NEXT allocated item's address will be stored in.  </p><p>  'mlen' is a general purpose function that returns the length of a 'malloc'-created item.</p><p> 'mktemp' marks an item in the memory storage area as temporary, while 'purge' (work in progress) will remove temporary items in the memory stack and reorganize the stack to re-use deallocated space. 
-</p>
-<pre>
-LATEST CHANGES (3/21/26):
-     ROM conversion is now done; this version resides almost entirely at $A000 and on;
-  The 'COPYTOROM' routine at $A003 will load the dictionary into RAM at $0600, and 
-  running from there will bring up HyForth with all the primitives and added words
-  from 'hywords.s' into RAM.  Current RAM footprint is less than 2K, and ROM usage is
-  around 3K with test scripts.  Zeropage usage is 38 bytes total, from $D8-$FB.
-     And a lot MORE stuff.  All of the numerical conversions now work; a lot more hard-
-   coded words, including:  2drop, 2dup, 2over, r>, >r, nip, tuck, xR (clear return
-   stack), allot, sp, rp, >in, last, here, cr.
-     More importantly, 'cload' will now load all of the scripts for compiled test words
-  sequentially; usage is '$xxxx cload', where xxxx is the address of a zero terminated
-  string of Forth words.  The 'ftrain.s' file is assembled into ROM as part of the 
-  overall build, and the first word, '2*', ends up at $A5B9.  cload will automatically
-  push the address of the next string onto the stack, so after you load the first
-  one in the list you just type 'cload' until you've got them all loaded.
-    AGAIN, this is now a stable, full featured forth, after the test words are loaded;
-a lot still needs to be done with machine-coded words but we're getting there...
-------------------------------------------------------------------------------------
-LATEST CHANGES (3/14/26):
-    A lot of the 'training' words in the my_bf.FORTH file have now been hardcoded, 
-  include digits 0-9, -1 to -9, $A-F, %0 and %1 (binary digits); drop, dup, rot, over, 
-  swap; xS (clear data stack); <, >, >=, <=, =, <>; not, and, or, xor, neg; .C (prints
-   two characters packed in word).  I renamed the following:  .S / .R for %S / %R; << 
-   and >> for asl / lsr - these latter now do multiple bit shifts, a la:
-          ( w n -- w&lt;&lt;n )  and similar for &gt;&gt;
-------------------------------------------------------------------------------------
-    Decimal to 'word' conversions now working fine, and binary/hex are just around the 
-  corner.  Per design, none of these will work as bare words inside a compiled word,
-  but we are working on hardcoding literals (both numbers and strings).
-     SIZE-WISE:  with all of the new hardcoded words and the number conversions, the 
-  RAM code (engine, primitives and words) comes in at around 3K, with a lot of scope 
-  for optimization.  Very promising if the other essential things like branch, IF/THEN,
-  DO/LOOP, BEGIN...UNTIL/WHILE etc, as well as literals and CREATE can all be wedged-in.
-     LOAD and SAVE for both hardcoded and compiled words also need to be done.  Just 
-  hoping this stays under 8K at this point; ROM conversion down the road a bit, but 
-  will help.
-</pre>
--------------------------------------------------------------<p>
--------------------------------------------------------------<p>
-  
-<pre>
-INSTALLATION:
-This is a very simple system, so....it is a little bit messy to set up 
-  right now.
+<h3>INSTALLATION:</h3>
+<p>This is (STILL) a very simple system, by design, so....it is a little bit messy to set up and use.  But we're getting there...</p>
 
-Essentially, we want to generate a RAM image of the running HyForth image
-at $0600 by switching to the ROM, running the COPYTORAM routine (at 
-approximately $A900), then starting HyForth at $0600 through WozMon.  The input 
-buffer stack (TIB) is the entire page at $0400, with the DS and RT stacks
-splitting $0500.  Currently the end of the hardcoded word dictionary comes out
-at about $1100, with user-compiled words extending above that.
+<p>Essentially, we want to generate a RAM image of the running HyForth image at $0A00 by switching to the ROM, running the COPYTORAM routine (at approximately $A000), then starting HyForth at $0A00 through WozMon.  The input buffer stack (TIB) is the entire page at $0400, with the DS and RT stacks splitting $0500-$05FF.  Currently the end of the hardcoded word dictionary runs from $0A60 to about $2200, with user-compiled words extending above that.</p>
 
-The Hydra-16 maps ROM chips into one of 256 16K banks, any one of which
-will show up at $A000 depending on the selected bank.  These are selected
-by putting the bank # at zeropage
-address $01...more or less.
+<p>If you are just using the Hydra-16 simulator (included in the project in the ./sim folder) then you can use the rom images created with the cc65 'make' and '.cfg' files to create the OS-ROM and paged-ROM images with no trouble; if actually have Hydra-16 hardware....</p>
 
-The 'more' is that they work, the 'less' is that you have to find the 
-bank.  Due to a flaw in the design of the 1.8C vesion of Hydra-16 (only 
-one with extant hardware), you have to offset the upload of your ROM 
-image by $2000, and then copy any data that spills over <base address + 
-$4000> back to the $0000 offset of your base address for the bank.
+<p>The Hydra-16 maps ROM chips into one of 256 16K banks, any one of which will show up at $A000 depending on the selected bank.  These are selected by putting the bank # at zeropage address $01...more or less.  The 'more' is that they work, the 'less' is that you have to find the bank.  Due to a flaw in the design of the 1.8C vesion of Hydra-16 (only one with extant hardware), you have to offset the upload of your ROM image by $2000, and then copy any data that spills over <base address + $4000> back to the $0000 offset of your base address for the bank.</p>
 
-Example:  My port of MSBASIC is approximately 11K at this point; if I am 
-loading it in the first bank on the first ROM chip, I use Xgpro to load 
-the binary at $2000, and then I cut and paste $4000 to ~ $5C00 to $0000 
-on the ROM.  If this is done carefully the code will mate together fine 
-when it is plugged in.  If you make sure $00 is loaded to ZP $01 then 
-your code will start at $A000.
+<p>Example:  My port of MSBASIC is approximately 11K at this point; if I am loading it in the first bank on the first ROM chip, I use Xgpro to load the binary at $2000, and then I cut and paste $4000 to ~ $5C00 to $0000 on the ROM.  If this is done carefully the code will mate together fine when it is plugged in.  If you make sure $00 is loaded to ZP $01 then your code will start in ROM at $A000.</p>
 
-HyForth itself...almost 99% works.  I added a lot of debugging code to 
-discover the various problems with the port, and renamed many of the ZP 
-variable labels and jump/branch points for more clarity.
-Needless to say it is no longer 100% 'classic', according to AGSB's 
-interpretation of Forth design standards.
+<p>HyForth itself...as of November 2026 it is very stable, and most of the described features work as described.  I added a lot of comments and debugging code to discover the various problems with the port from AGSB's milliforth original, and renamed many of the ZP variable labels and jump/branch points for more clarity.  Needless to say it is no longer 100% 'classic', according to AGSB's interpretation of Forth design standards.</p>
 
-One of the most difficult issues with the original source, is that AGSB 
-assumes that the zero page and the page for the TIB (text input buffer at
-$0400, labeled INBUF in this version) to be preset to $00.  He also 
-expected the zero-page area ($E0-$FF) used for most of the variables in 
-this version to start at 
-zero....
-
-So I wrote a routine (since I was using a ROM routine to copy the Forth 
-binary to $0500 anyway) to zero out those two areas.
-
-The 'zeroout' code and the debugger for HyForth reside at the end of the 
-Hydra-16 'task RAM' area, above $7000.  This will probably change soon, 
-either so they reside in ROM HyForth itself does better at initialization.
+<p>One of the most difficult issues with the original source, is that AGSB assumes that the zero page and the page for the TIB (text input buffer at $0400, labeled INBUF in this version) to be preset to $00.  He also expected the zero-page area ($E0-$FF) used for most of the variables in this version to start at zero....So I wrote a routine (since I was using a ROM routine to copy the Forth binary to $0A00 anyway) to clear the zero page Forth area (approx $A0 - $FF), the input buffer, and the stacks.</p>
 
 =======================================================================
 
-Training data for HyForth is included in the *.FORTH files along with
-the assembly source code.  Cut-and-paste this data (carefully) a few 
-lines at a time and you will have a pretty standard Forth implementation
-in a few minutes.  There is still some fragility in the system due to 
-lack of bounds and other sanity checks, but these will be addressed as 
-the project progresses.
+<p>'Training data' for HyForth refers to the extra compiled words required for HyForth to have true conditional and looping structures.  Currently these words are loadable as a library using the 'autoload' and 'bload' words.  When HyForth boots you will see a list of loadable libraries and the Forth 'core' is the first of these.  if/else/endif, do/loop, and begin/while/until/repeat are included in the core along with some support words for these.</p>
 
 =======================================================================
 
-My partners in this project, including Dan Struthers and others involved 
+<h3> What IS HyForth?</h3>
+-----------------------------------
+<pre>
+HyForth 0.930 11-12-2026
+FCORE-C B763
+FEXTRA-C BA08
+ANSI-C BB20
+RAMTEST-C BCAF
+BLOAD-B BDF5
+EDITTEST-C BD56
+
+HF>
+</pre>
+-----------------------------------
+<p>HyForth is a direct descendant of Alvaro G. S. Barcellos' MilliForth project.  AGSB intended MilliForth to be small enough to easily fit on a memory contstrained  8-bit SBC.  Size rather than efficiency was the intention, and the original MilliForth assembled image ran in as little as 400 bytes of RAM on the 6502.  The '02 is a good target for this kind of project because of its small, RISC-like instruction set and the 'zeropage' RAM area that almost acts like a set of 256 high-speed registers.</p>
+
+<p>MilliForth has a very small core of basic Forth words; just enough functionality to 'meta-compile' almost any other traditional Forth 'word' using that core.  HyForth uses the same interpret/compile/execute engine as MilliForth, with considerable alterations, but the current engine is still ~ 1100 bytes.  Unlike the original MilliForth, the HyForth engine has minimal bounds checking, error capture and messaging, connection points for libraries, a screen editor, and text and number capture.</p>
+
+<p>The HyForth 'heap', on the other hand, is quite a bit larger than the MilliForth one.  Many of the 'training' or meta-compiled words are now hard-coded into 6502 binaries, with the exception of the condtional and loop structures.  The traditional stack manipulation words like 'dup', 'swap', 'over', 'rot' are now hard-coded, along with a great many core functions like 'lit' (LITERAL), 'var' (VARIABLE) and 'cons' (CONSTANT).</p>
+
+<p>HyForth words can be roughly tossed into four categories:  critical/core (AGSB core), primitive, standard Forth, and 'additional'.</p>
+-------------LIST OF CURRENT FORTH WORDS-----------------------
+<pre>
+ 1F17: exit       | 1EFC: ferc@      | 1EE9: fecol!     | 1ED6: ferow!     |
+ 1EA0: felin      | 1E73: feadd      | 1E65: feclr      | 1E06: fedit      |
+ 1DDC: febuf      | 1DCD: fedisp     | 1DB6: fa_mo@     | 1D9F: fa_ms@     |
+ 1D84: ywrite     | 1D76: ytest      | 1D68: yinit      | 1D55: mlen       |
+ 1D3D: malloc     | 1D00: syscall    | 1CAC: disasm     | 1C92: free       |
+ 1C60: memcpy     | 1C4E: xdrv       | 1BB4: */         | 1B69: /          |
+ 1B35: *          | 1B1A: max        | 1AED: min        | 1AC8: rand32     |
+ 1ABB: rand       | 1A9A: rseed      | 1A7D: Acol       | 1A50: Ascr       |
+ 1A43: Acls       | 19B5: bload      | 1952: cload      | 1935: autoload   |
+ 18D9: snip       | 18A5: pick       | 1878: 2over      | 1867: 2drop      |
+ 184B: 2dup       | 1832: tuck       | 1820: nip        | 1807: over       |
+ 17EC: rot        | 17D7: xR         | 17C2: xS         | 17B5: drop       |
+ 17A6: dup        | 178B: swap       | 1770: <          | 1754: >=         |
+ 1736: <=         | 1716: >          | 1705: 0=         | 16EC: =          |
+ 16D2: <>         | 16B3: neg        | 169D: not        | 1684: xor        |
+ 166C: or         | 1653: and        | 1649: %1         | 163F: %0         |
+ 1635: $F         | 162B: $E         | 1621: $D         | 1617: $C         |
+ 160D: $B         | 1603: $A         | 15F7: -9         | 15EB: -8         |
+ 15DF: -7         | 15D3: -6         | 15C7: -5         | 15BB: -4         |
+ 15AF: -3         | 15A3: -2         | 1598: 0          | 1590: $0         |
+ 1584: -1         | 157B: 9          | 1571: $9         | 1568: 8          |
+ 155E: $8         | 1555: 7          | 154B: $7         | 1542: 6          |
+ 1538: $6         | 152F: 5          | 1525: $5         | 151C: 4          |
+ 1512: $4         | 1509: 3          | 14FF: $3         | 14F6: 2          |
+ 14EC: $2         | 14DF: 1          | 14D7: $1         | 1438: cons       |
+ 13B5: var        | 1397: lit        | 1388: spc        | 1377: cells      |
+ 1363: c!         | 1350: c@         | 133A: in>        | 132A: r>         |
+ 131A: >r         | 1308: memptr     | 12FF: mp         | 12F6: rp         |
+ 12ED: sp         | 12E2: back       | 12D7: here       | 12CC: last       |
+ 12BB: >in        | 12A9: cr         | 1298: debug      | 128A: x@         |
+ 127B: FALSE      | 126D: TRUE       | 125A: bool       | 1241: -          |
+ 1229: +          | 120B: nand       | 11F9: emit       | 11E9: key        |
+ 11A3: cbit       | 1181: sbit       | 1153: tbit       | 1136: <<         |
+ 1119: >>         | 1102: decs!      | 10A7: rdcstk!    | 107A: dcstk!     |
+ 1048: dwstk!     | 1009: dsget@     | 0FD6: dsgetn@    | 0FC9: pad!       |
+ 0FBA: padclr     | 0FA5: pad@       | 0F87: .sn        | 0F5A: .sz        |
+ 0F4D: .psz       | 0F3E: .rsz       | 0F09: ord        | 0EF0: (          |
+ 0EBE: .C         | 0EA5: .          | 0E0B: w@         | 0D46: words      |
+ 0D18: dump       | 0CB1: .R         | 0C9F: ?R         | 0C84: ?S         |
+ 0C56: .S         | 0BE6: libs       | 0BB6: lib        | 0B8B: libcnt     |
+ 0B57: :          | 0B3B: ;          | 0B1F: ,          | 0B14: ]          |
+ 0B0B: [          | 0AED: I          | 0ACF: @          | 0ABB: !          |
+ 0AB3: ;$         | 0AAB: :$         | 0A9E: exec       | 0A93: reset      |
+ 0A88: abort      | 0A66: bye        |
+</pre>
+---------------------------------------------------------------
+
+<h4>CORE:</h4>  These words are mostly in 'core.s', as of 11/18/26  (see list below). Starting with 'bye' and 'abort', the basic stack access words up to about 'lit'... and at the end of the list the rest of the essenstial words for basic Forthiness: 'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'.  The basic numerics, comparatives, logic, and basic printing words are also here.  The core also includes a lot of words to manipulate the internal state of the Forth stacks and state variables:  'rp' (return stack), 'sp' (data stack), 's@' (status flag), 'in>/>in' (input buffer), and so on.</p>
+<p>
+<pre>
+-----------------------------------------------------------
+  @ ! lit [ ] , : :$ ; ;$ I .R .S xR xS ?R ?S
+  dup swap rot over drop 0-9 $0-$F %0 %1 < > <= >= = <>
+  0= bool FALSE TRUE not neg and or nand xor
+  + - key emit ord . .be spc cr c! c@ words w@
+  in> >in rp sp x@ pp mp r> r> back here last
+  bye exec reset abort debug
+-----------------------------------------------------------
+</pre>
+<p>Note on numbers:  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'. Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).</p>
+
+<h4>PRIMITIVES:</h4> 
+<p> These words are definied in 'primitives.s'.  Most of the memory manipulation / storage words are defined here, as well as some associated printing functions.  Lastly, some additional math and logic words are here.</p>
+<p>I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'. '*' always gives a 32 bit result with the LSW on top of the stack.  The Forth workhorse '*/' is also implemented.</p>
+<pre>
+------------------------------------------------------------
+  var cons malloc mlen mem@ pad@ pad! xpad
+  hx2d dump .sz .rsz .psz .sn
+  * / */ max min << >> cbit sbit tbit
+------------------------------------------------------
+</pre>
+
+
+<h4>ADDITIONAL STUFF:</h4>  <p>'hywords.s' has most of the definitions for this category.  This includes very small and well-tested 32-bit Galois random generator.    All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.  Some of the fancier stack manipulation words like snip/nip/tuck are here.</p>
+<p>Libraries and the associated words for maniupulating them are in this file as well, such as bload, cload, autoload.</p>
+<p>Extra stack<->memory functions, OS system calls, basic sound utilities, and the main words to run the HyFedit screen editor are also included.  Eventually the HyForth assembler stuff will also be here.</p?
+<pre>
+-------------------------------------------------------------
+  snip tuck pick nip 2over 2drop 2dup
+  bload cload autoload lib libs free
+  syscall disasm memcpy 
+  memw@ memwn@ wmemn! cmemn! rcmemn!
+  rand rand32 rseed Acol Aclr Ascr
+  ywrite ytest yinit
+  ferc@ fecol! ferow! felin feadd feclr fedit febuf fedisp
+  fa_mo@ fa_ms@
+-------------------------------------------------------------
+</pre>
+<p>----------------DISASM OUTPUT----------------------------</p>
+<pre>
+
+HF>$1298 10 disasm
+1298: 8A       | TXA
+1299: 12 05    | ORA  ($05)
+129B: 64 65    | STZ  $65
+129D: 62       | NOP
+129E: 75 67    | ADC  $67,Y
+12A0: A5 D6    | LDA  $D6
+12A2: 49 FF    | EOR  #$FF
+12A4: 85 D6    | STA  $D6
+12A6: 4C 45 EF | JMP  $EF45
+12A9: 98       | TYA
+
+</pre>
+---------------------------------------------------------
+
+
+<p>'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable. 'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.</p>
+-----------------DUMP OUTPUT------------------------------
+<pre>
+HF>$17E0 1 dump
+17E0:A9 00 A0 00 91 EA C8 91 EA 4C 45 EF D7 17 03 72  .........LE....r
+17F0:6F 74 20 5C EE 20 57 EE 20 52 EE 20 1A EE 20 1F  ot \. W. R. .. .
+1800:EE 20 15 EE 4C 45 EF EC 17 04 6F 76 65 72 20 5C  . ..LE....over \
+1810:EE 20 57 EE 20 1A EE 20 1F EE 20 1A EE 4C 45 EF  . W. .. .. ..LE.
+1820:07 18 03 6E 69 70 20 5C EE 20 57 EE 20 1F EE 4C  ...nip \. W. ..L
+1830:45 EF 20 18 04 74 75 63 6B 20 5C EE 20 57 EE 20  E. ..tuck \. W. 
+1840:1F EE 20 1A EE 20 1F EE 4C 45 EF 32 18 04 32 64  .. .. ..LE.2..2d
+1850:75 70 20 57 EE 20 5C EE 20 1F EE 20 1A EE 20 1F  up W. \. .. .. .
+1860:EE 20 1A EE 4C 45 EF 4B 18 05 32 64 72 6F 70 20  . ..LE.K..2drop 
+1870:5C EE 20 5C EE 4C 45 EF 67 18 05 32 6F 76 65 72  \. \.LE.g..2over
+1880:A0 CC 20 5E EE 20 52 EE 20 57 EE 20 5C EE 20 1F  .. ^. R. W. \. .
+1890:EE 20 1A EE 20 15 EE A0 CC 20 21 EE 20 1F EE 20  . .. .... !. .. 
+18A0:1A EE 4C 45 EF 78 18 04 70 69 63 6B 20 5C EE A5  ..LE.x..pick \..
+18B0:F0 0A 18 65 E8 85 CA C9 7E B0 17 85 CA A5 E9 85  ...e....~.......
+18C0:CB A0 00 B1 CA 85 F0 C8 B1 CA 85 F1 20 1F EE 4C  ............ ..L
+18D0:45 EF A9 02 85 D7 4C 7D EC A5 18 04 73 6E 69 70  E.....L}....snip
+</pre>
+----------------------------------------------------------
+<p>Lastly, you will see 'cload', 'autoload' and 'bload'. These three words are the essential for loading extra 'meta-compiler' word libraries as well as binary libraries.</p>
+
+<h4>META-COMPILED WORDS:</h4>  <p>The traditional Forth conditionals and loop structures are NOT easy to implement in native code using AGSB's engine, so for now these are loaded (using 'cload' or 'autoload'). These include 'if', 'then', 'else', 'do', 'loop', 'begin', 'again', 'repeat', 'until', and 'while', as well as the 'i/j/k' loop indexes.</p>
+
+
+<p>HyFedit</p>
+<pre>
+HF>libs
+...
+EDITTEST-C BD56
+
+HF>$BD56 fedit
+
+HF>fedisp
+--------------------------------------------------------------------
+|                    <-Generic ScreenXX->                          |
+--------------------------------------------------------------------
+|0|This is a test                                                  |
+|1| Yeah a test                                                    |
+|2|  What a test!                                                  |
+|3|   What a test!                                                 |
+|4|    What a test!                                                |
+|5|     sez Pat...woot, woot, I fuguered this out?   Yez.          |
+|6|                                                                |
+|7|                                                                |
+|8|                                                                |
+|9|                                                                |
+|A|                                                                |
+|B|                                                                |
+|C|                                                                |
+|D|                                                                |
+|E|                                                                |
+|F|                                                                |
+--------------------------------------------------------------------
+
+HF>
+</pre>
+<p>
+Traditional Forths included a 'screen'; a more-or-less full featured screen editor that served as a method of writing Forth code, editing it, saving it, loading and storing it for future use.  Forth-79 and later versions stipulated the screen as 1024 bytes in RAM, or about 16 rows by 64 characters of text.  This amount of memory was also called a 'block' (a lot of MS-DOS and CP/M machines used 512 or 1024 bytes as a basic sector size for mass storage devices).</p>
+<p>HyFedit is a hybrid of the remembered-but-not-revered MS-DOS 'edlin' application and a Forth 'screen' or 'block'.  Along with a 'display' (fedisp) utility to show the current state of the screen, there are Forth words to clear, move data from/to, add and delete lines from, and even 'run' (execute as Forth code) a line or page of text in the buffer.</p>
+<p>HyFedit is an ongoing project and many of the functions described above are still in the development stage.  A 6502 assembler will also be implemented in HyForth using the screen editor as the basic IDE for native machine code development for the Hydra-16 hardware.</p>
+
+<h3>USAGE:</h3> the # conversion and string capture functions in the interpreter diverge a bit from standard Forth. As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a word.</p>
+
+<p>Strings are even more divergent. The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc. Instead, the q^/Q^...^ pair should be used; this construct creates a zero-terminated string and stores it in either the PAD or in tandem with 'malloc' to allocate memory for it. 'malloc' returns the handle (double indirection) of the string on the memory stack (see below). The '.sz' (or '.psz' for a PAD item) word will print the string on the screen if the address of the pointer to the string is on the top of the stack. You can store the address as a constant or in a variable to use it otherwise.</p>
+
+<p>EXAMPLE: Q^this is a test.^ cons astr .sz</p>
+
+<p>The above translates as:  'capture the string between ^...^; store the string in the memory area and return a handle to it; save that handle to a CONSTANT named 'astr'; print it on the screen as a zero-terminated string'.   The result of all this is 'this is a test.'. </p>
+
+<p>The PAD: a small buffer is set aside specifically to store temporary data.  The 'hx2d' word, for instance, converts the top item in the DS stack from a 16-bit hexadecimal number into a 5-digit ASCII-coded decimal string and stores the string in the PAD.  The string capture variant q^...^ (as opposed to Q^...^) also stores the resulting captured text into the PAD.  '.psz' will write the string item on top of the PAD out on the screen, and other items in the PAD can be display by using 'pad@ @ @ ... @' to traverse the current items stored there.  'padclr' clears the PAD.   Lastly, 'pad!' will see the address (NOT a handle) of a zero-terminated string and copy it to the PAD, returning the PAD address of the string.</p><br>
+<p>Example: if you want to copy of the latest 'permanently' stored string captured with Q^...^, you can just type 'memptr 2 + @ 3 + pad!'.</p><br>
+<p>Lastly, you can use the ctrl-c (copy), ctrl-x (cut), and ctrl-v (paste) keystrokes at the command line to copy and paste items to/from the PAD.  Ctrl-s (copy-to-screen) will copy the current command line to the current row and column in the screen editor.</p>
+
+<p>Memory manager: 'malloc' is the main word to allocate memory for data types more complicated than variables and constants, which are still implemented as in traditional Forth, ie either the address or the value are returned from a single 16-bit word store inline within the instance.  'malloc' created items can be up to 64K in size, and space in the item header is also available to implement data types at some point, if needed.</p>
+
+<p>'memptr' returns the current value of the pointer on the memory stack; it uses the same 'store' and 'decrement' strategy as the DS and RT stacks, so 'memptr' always returns the stack position that the NEXT allocated item's address will be stored in.  'mlen' is a general purpose function that returns the length of a 'malloc'-created item.</p>
+
+
+=======================================================================
+<h3>Acknowledgements and etc (~4/1/2026) </h3>
+<p>My partners in this project, including Dan Struthers and others involved 
 with testing and development for the Hydra-16 hardware and ROM design 
-(https://github.com/danstruthers/hydra-16/tree/V1.8C), will be moving the 
+(https://github.com/danstruthers/hydra-16/tree/V1.8C), will be moving [DONE] the 
 functional core of HyForth entirely to ROM, along with a binary that will
-load the base training data to make it a fully functional language.
+load the base training data to make it a fully functional language.</p>
 
-In the meantime...please be free to take a look at this port and adapt it 
-as necessary for your favority 6502-based SoC.  More when....
+<p>In the meantime...please be free to take a look at this port and adapt it 
+as necessary for your favorite 6502-based SBC.  More when....</p>
 </pre>
 <p>  
 #see below for original intro from Sr. Barcellos

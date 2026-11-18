@@ -1,5 +1,5 @@
 .debuginfo
-
+.setcpu     "65C02"
 .segment "BIOS_THUNKS"
 ;
 ; usually ends up at $F800 (see os_rom_C02.cfg)
@@ -22,12 +22,12 @@ TH_CLEAR_SCR:
                 jmp             CLEAR_SCR           ; $F815
 TH_DISASM:
                 jmp             DISASM              ; $F818
-TH_DISASM_AY:
-                jmp             DISASM_AY           ; $F81B
-TH_MEMCOPY_AY:
-                jmp             MEMCOPY_AY          ; $F81E
+TH_MEMCPY:
+                jmp             MEMCPY              ; $F81B
+TH_MEMCPY_AY:
+                jmp             MEMCPY_AY           ; $F81E
 TH_DUMPREG:
-                stz             $D6
-                jmp             DUMPREG             ; $F821
+                stz             <DFLAG                 ; $F821, ZP temp DFLAG
+                jmp             DUMPREG
 TH_next:
 ;                                                   ; $F826

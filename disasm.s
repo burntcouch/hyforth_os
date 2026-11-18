@@ -150,23 +150,13 @@ MN_AMODE_EVEN:
 
 MNEMONIC_STR:
     .byte "TXSEDEXTRBVSEIBRASLDYWAINCMPLYLSROLDANDEYPLADCLCLDXRORTSBCSTYATSXSTXABPLXSTAXJSRTIBMINXBITAYNOPHXBVCPYBBSTZBNEORABCCPXDECLVSTPHPHARMBEQSECLINYSMBBRKJMPLPHY"
-
+DA_DATAEND:
 NamedHString HS_RelPrefix, " => $"
 
 .segment "DISASM_CODE"
 
 ; ZP_D_XAM, ZP_D_XAM+1: Address to Disassemble
-; .A.Y: Start address of instruction to disassemble
-; C=0 means single instruction, C=1 means number of instructions/bytes to print in .X
 ; set ZP_D_STATE=1 to print disassembly, ZP_D_STATE=0 to print bytes
-DISASM_AY:
-    sty         ZP_D_XAM + 1
-    sta         ZP_D_XAM
-    bcc         DISASM
-    clc
-    stx         ZP_D_ICOUNT
-    bne         DISASM_LOOP
-    rts
 
 DISASM_WM:
     lda         ZP_WM_XAM + 1
@@ -175,9 +165,6 @@ DISASM_WM:
     sta         ZP_D_XAM
     
 DISASM:
-    stz         ZP_D_ICOUNT
-    inc         ZP_D_ICOUNT
-DISASM_LOOP:
     jsr         _disasm_load_inst
     jsr         _disasm_print_inst_bytes
     lda         ZP_D_STATE
@@ -201,12 +188,9 @@ DISASM_LOOP:
     jsr   WRITE_CHAR   
     lda   MNEMONIC_STR+2, x
     jsr   WRITE_CHAR
-    
- ;   PRINT_CHAR  {MNEMONIC_STR, x}, {MNEMONIC_STR + 1, x}, {MNEMONIC_STR + 2, x}
     lda         ZP_D_EXBYTES
     bne         :+
     jmp         @end_of_print               ; one-byte inst prints only mnemonic
-
 :
     lda         ZP_D_INST
     tax
@@ -219,20 +203,23 @@ DISASM_LOOP:
     lsr
     lsr
     and         #7
-    PRINT_HEX
+    jsr   WRITE_HEX
     bra         @skip_ex_space              ; skip one space
 
 @ex_space:
-    PRINT_SPACE
+    lda   #$20    
+    jsr   WRITE_CHAR
 
 @skip_ex_space:
-    PRINT_SPACE
+    lda   #$20    
+    jsr   WRITE_CHAR
     ldx         ZP_D_MODE
     cpx         #AM_IND                     ; indirect
     bcc         @not_indirect
     cpx         #AM_ABS                     ; but not absolute
     beq         @not_indirect
-    PRINT_CHAR  #'('
+    lda   #'('
+    jsr   WRITE_CHAR  
 
 @not_indirect:
     cpx         #AM_IMM
@@ -247,14 +234,16 @@ DISASM_LOOP:
     txa
     lsr                                     ; shift LOb to C
     bcs         @not_zprel                  ; AM_REL = 1, AM_ZPREL = 2, so skip ZP part if LOb is 1
-    PRINT_CHAR  #','
-    PRINT_SPACE
+    lda   #','
+    jsr   WRITE_CHAR
+    lda   #$20    
+    jsr   WRITE_CHAR
     jsr         _disasm_zeropage
 
 @not_zprel:
     lda             #<HS_RelPrefix
     ldy             #>HS_RelPrefix
-    jsr             WRITE_HSTRING
+    jsr   WRITE_HSTRING
     clc
     ldy         ZP_D_EXBYTES
     stz         ZP_TEMP
@@ -267,9 +256,9 @@ DISASM_LOOP:
     tax
     lda         ZP_D_XAM + 1
     adc         ZP_TEMP
-    PRINT_BYTE
+    jsr   WRITE_BYTE
     txa
-    PRINT_BYTE
+    jsr   WRITE_BYTE
     bra         @end_of_print
 
 @not_relative:
@@ -287,7 +276,8 @@ DISASM_LOOP:
     beq         @end_of_print
     cpx         #AM_ZPIY
     bne         @not_zpiy
-    PRINT_CHAR   #')'
+    lda   #')'
+    jsr   WRITE_CHAR 
 
 @not_zpiy:
     bbr2        ZP_D_MODE, @not_indexed     ; indexed?
@@ -301,15 +291,10 @@ DISASM_LOOP:
     bmi         @end_of_print
     cpx         #AM_ABS
     bcs         @end_of_print               ; AM_ABS or AM_ZPIY?  Skip trailing RPAREN
-    PRINT_CHAR  #')'
+    lda   #')'
+    jsr   WRITE_CHAR  
 
 @end_of_print:
-    dec         ZP_D_ICOUNT
-    beq         @done
-    PRINT_CRLF
-    jmp         DISASM_LOOP
-
-@done:
     rts
 
 ;---------------------------------------
@@ -442,4 +427,8 @@ _disasm_zeropage:
 
 _disasm_zp_byte:
     PRINT_BYTE_JMP  {ZP_D_INST, y}
-    
+;
+DISASMEND:   
+;
+;  end of disasm.s
+; 
