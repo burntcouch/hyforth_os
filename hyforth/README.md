@@ -215,7 +215,7 @@ HF&gt;fedisp
 |E|                                                                |
 |F|                                                                |
 --------------------------------------------------------------------
-HF>
+HF&gt;
 </pre>
 <p>
 Traditional Forths included a 'screen'; a more-or-less full featured screen editor that served as a method of writing Forth code, editing it, saving it, loading and storing it for future use.  Forth-79 and later versions stipulated the screen as 1024 bytes in RAM, or about 16 rows by 64 characters of text.  This amount of memory was also called a 'block' (a lot of MS-DOS and CP/M machines used 512 or 1024 bytes as a basic sector size for mass storage devices).</p>
