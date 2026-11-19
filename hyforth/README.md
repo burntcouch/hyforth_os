@@ -128,7 +128,7 @@ HF>
 
 <h4>ADDITIONAL STUFF:</h4>  <p>'hywords.s' has most of the definitions for this category.  This includes very small and well-tested 32-bit Galois random generator.    All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.  Some of the fancier stack manipulation words like snip/nip/tuck are here.</p>
 <p>Libraries and the associated words for maniupulating them are in this file as well, such as bload, cload, autoload.</p>
-<p>Extra stack<->memory functions, OS system calls, basic sound utilities, and the main words to run the HyFedit screen editor are also included.  Eventually the HyForth assembler stuff will also be here.</p?
+<p>Extra stack<->memory functions, OS system calls, basic sound utilities, and the main words to run the HyFedit screen editor are also included.  Eventually the HyForth assembler stuff will also be here.</p>
 <pre>
 -------------------------------------------------------------
   snip tuck pick nip 2over 2drop 2dup
