@@ -189,15 +189,14 @@ HF>$17E0 1 dump
 
 <p>HyFedit</p>
 <pre>
-HF>libs
+HF&gt;libs
 ...
 EDITTEST-C BD56
 
-HF>$BD56 fedit
-
-HF>fedisp
+HF&gt;$BD56 fedit
+HF&gt;fedisp
 --------------------------------------------------------------------
-|                    <-Generic ScreenXX->                          |
+|                    &lt;-Generic ScreenXX-&gt;                          |
 --------------------------------------------------------------------
 |0|This is a test                                                  |
 |1| Yeah a test                                                    |
@@ -216,7 +215,6 @@ HF>fedisp
 |E|                                                                |
 |F|                                                                |
 --------------------------------------------------------------------
-
 HF>
 </pre>
 <p>
