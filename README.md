@@ -1,6 +1,6 @@
 
-#HyForth OS
-##Hydra-16 BIOS + HyForth OS
+# HyForth OS
+## Hydra-16 BIOS + HyForth OS
 
 <a href="https://github.com/burntcouch/hyforth_os/blob/main/README.md/#updates"> UPDATES </a>
 </br>
@@ -32,17 +32,17 @@ node hydrasim.js -i --rom ./tmp --prom-no-stagger
 
 <p>...which assumes that your 'os_rom_C02.bin' and 'paged_rom_C02.bin' files are in '/tmp'.  You've been warned.</p>
 <a name="buildrun"></a>
-#Building and running
-##11/18/26 - Startup autoload
+# Building and running
+## 11/18/26 - Startup autoload
 <p> Minor changes; trimmed Wozmon back to its former 240 or so bytes; no shortcuts to the TUVW registers.</p>
 <p> HyForth is now starting directly (you can always get backto Wozmon with 'bye').  Only new thing is that HyForth will now run a short script to load preferred libraries.  This is still experimental, but the current version automatically loads the conditional / loop meta-compiler structures, and then it also chains to the 'extras' library.</p>
 <p> Otherwise, there are a few editions to HyForth itself that make it slightly larger (maybe 30 bytes?).  Refer to the HyForth readme for more news that way.</p>
 <br/><br/>
-##11/13/26 - more minor changes
+## 11/13/26 - more minor changes
 <p> With the use of the simulator, I've increased my dev cycle quite a bit, with generally minimal resulting chaos.</p>
 <p> Due to the expansion and reorganization of the OS-ROM area and added parsing and editing functions in HyForth, RAM use is also slightly different.  The new 'running' procedure is...'boot the Hydra-16', ie the old COPYTORAM + RAMSTART routine ($A000R + $800) is now automatic.  HyForth now begins at $A00 in RAM rather than lower down, and zeropage use and buffers hog up some extra room.  The screen editor buffer also now occupies the top 1K of task RAM with memory items allocated by 'malloc' below that.  Free memory between the top of the 'heap' and the bottom of the 'screen' area is still around 20Kb before adding more words or data.</p>
 
-##10/22/26 - very minor updates
+## 10/22/26 - very minor updates
 <p>The cc65 .cfg file for this project has been simplified in name to 'os_rom.cfg'.  This file handles all the details of the memory map and what files are generated for what sections of memory, etc.  The corresponding output files are now called 'os_rom.bin' and 'paged_rom.bin' rather than the more clunky '....C02.bin' versions.  The make file is now just 'make.bat' in corresponding fashion.</p>
 <p>---------------------------------------------------------------------------</p>
 This project uses the cc65 ( https://cc65.github.io/ ) assembler and linker to do the dirty work.  Look at the 'makeC02.bat' file to have a guess of how to customize for your installation of cc65.  The .bat script also expects a 'version' string so that backups of code are automatically created during the build (handy for backtracking, if you aren't actually using Git for versioning).  Sloppy but enough for a simple project like this.
@@ -56,7 +56,7 @@ The Hydra-16 still boots to Wozmon in this version.  To install the heap into RA
 ## Updates
 ### 11/13/26
 <p> See 'Building and running' above.  Minor changes to Wozmon, HyForth OS image slighly bigger.</p>
-<br>
+<br/>
 ### 11/13/26
 #### Memory map changes:
 <p>(SEE BELOW)</p>
@@ -67,6 +67,7 @@ The Hydra-16 still boots to Wozmon in this version.  To install the heap into RA
 </p>
 <p>I am also slowly hacking through the main OS and BIOS code to eliminate the use of a lot of PRINT_xxx macros.  Macros may be very useful but too much cleverness results in extremely obfuscated code, and I prefer verbosity over trickiness any day of the week.</p>
 ```
+
 -------------------
 MEMORY MAP as assembled, 10/15/25
 -------------------
