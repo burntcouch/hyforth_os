@@ -129,7 +129,8 @@ HF>
 <li> os_ --- operating system (BIOS) constants</li>
 </ul>
 
-#### CORE:  These words are mostly in 'core.s', as of 11/18/26  (see list below). Starting with 'bye' and 'abort', the basic stack access words up to about 'lit'... and at the end of the list the rest of the essenstial words for basic Forthiness: 'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'.  The basic numerics, comparatives, logic, and basic printing words are also here.  The core also includes a lot of words to manipulate the internal state of the Forth stacks and state variables:  'rp' (return stack), 'sp' (data stack), 's@' (status flag), 'in>/>in' (input buffer), and so on.
+#### CORE:  
+These words are mostly in 'core.s', as of 11/18/26  (see list below). Starting with 'bye' and 'abort', the basic stack access words up to about 'lit'... and at the end of the list the rest of the essenstial words for basic Forthiness: 'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'.  The basic numerics, comparatives, logic, and basic printing words are also here.  The core also includes a lot of words to manipulate the internal state of the Forth stacks and state variables:  'rp' (return stack), 'sp' (data stack), 's@' (status flag), 'in>/>in' (input buffer), and so on.
 <br/>
 ```
 
@@ -141,7 +142,6 @@ HF>
   in> >in rp sp x@ pp mp r> r> back here last
   bye exec reset abort debug
 -----------------------------------------------------------
-
 ```
 <br/>Note on numbers:  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'. Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).
 
@@ -157,7 +157,8 @@ HF>
 ------------------------------------------------------
 ```
 
-#### ADDITIONAL STUFF:  <br/>'hywords.s' has most of the definitions for this category.  This includes very small and well-tested 32-bit Galois random generator.    All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.  Some of the fancier stack manipulation words like snip/nip/tuck are here.
+#### ADDITIONAL STUFF:  
+<br/>'hywords.s' has most of the definitions for this category.  This includes very small and well-tested 32-bit Galois random generator.    All of the core math functions are now part of the regular OS (in 'utes.s') and Forth calls those routines as needed.  Some of the fancier stack manipulation words like snip/nip/tuck are here.
 <br/>Libraries and the associated words for maniupulating them are in this file as well, such as bload, cload, autoload.
 <br/>Extra stack<->memory functions, OS system calls, basic sound utilities, and the main words to run the HyFedit screen editor are also included.  Eventually the HyForth assembler stuff will also be here.</p?
 ```
