@@ -262,7 +262,8 @@ Traditional Forths included a 'screen'; a more-or-less full featured screen edit
 <br/>HyFedit is a hybrid of the remembered-but-not-revered MS-DOS 'edlin' application and a Forth 'screen' or 'block'.  Along with a 'display' (fedisp) utility to show the current state of the screen, there are Forth words to clear, move data from/to, add and delete lines from, and even 'run' (execute as Forth code) a line or page of text in the buffer.
 <br/>HyFedit is an ongoing project and many of the functions described above are still in the development stage.  A 6502 assembler will also be implemented in HyForth using the screen editor as the basic IDE for native machine code development for the Hydra-16 hardware.
 
-### USAGE: the # conversion and string capture functions in the interpreter diverge a bit from standard Forth. As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a word.
+### USAGE:
+ the # conversion and string capture functions in the interpreter diverge a bit from standard Forth. As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a word.
 
 <br/>Strings are even more divergent. The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc. Instead, the q^/Q^...^ pair should be used; this construct creates a zero-terminated string and stores it in either the PAD or in tandem with 'malloc' to allocate memory for it. 'malloc' returns the handle (double indirection) of the string on the memory stack (see below). The '.sz' (or '.psz' for a PAD item) word will print the string on the screen if the address of the pointer to the string is on the top of the stack. You can store the address as a constant or in a variable to use it otherwise.
 
@@ -290,16 +291,13 @@ load the base training data to make it a fully functional language.
 
 <br/>In the meantime...please be free to take a look at this port and adapt it 
 as necessary for your favorite 6502-based SBC.  More when....
-
-```
-
 <br/>  
 
 ----- see below for original intro from Sr. Barcellos ------
 
 <br/>
 <br/>----------------------------------------------------------------
-#From (https://github.com/burntcouch/hy_millif/blob/0.2/hy_millif.s)
+From (https://github.com/burntcouch/hy_millif/blob/0.2/hy_millif.s)
 <br/>
 ```
 
