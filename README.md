@@ -1,47 +1,48 @@
-# hyforth_os
-Hydra-16 BIOS + HyForth OS
+
+#HyForth OS
+##Hydra-16 BIOS + HyForth OS
 
 <a href="https://github.com/burntcouch/hyforth_os/blob/main/README.md/#updates"> UPDATES </a>
-<br>
+</br>
 <a href="https://github.com/burntcouch/hyforth_os/blob/main/README.md/#buildrun"> BUILDING and RUNNING </a>
-<br><br><br>
-This project is an independent fork (not resident in same repository) as Dan Struthers' Hydra-16 hardware project:
-<p> https://github.com/danstruthers/hydra-16 </p>
-
-as well as my HyForth port of AGSB's 'milliForth' project:
-<p>https://github.com/burntcouch/hy_millif </p>
-
+<br/><br/><br/>
+This project is an independent fork (not resident in same repository) as Dan Struthers' [https://github.com/danstruthers/hydra-16](Hydra-16) hardware project:
+<br/>
+as well as my HyForth port of [https://github.com/burntcouch/hy_millif ](AGSB's 'milliForth' project:)
+<br/>
 This fork represents the first stable versions of the OS and HyForth (0.91) after integrating the latter into the OS proper.
+<br/>
+I wanted to preserve the original primitive nature of the BIOS at that point so I can rewrite it to be more congruent with my intended path of development for HyForth.  I will also fold in my port of MS-BASIC at some point, if I can ever reduce the zero page footprint of it.  This version of BASIC will be available in it's current, somewhat clunky form   [https://github.com/burntcouch/ehybasic](here).
 
-I wanted to preserve the original primitive nature of the BIOS at that point so I can rewrite it to be more congruent with my intended path of development for HyForth.  I will also fold in my port of MS-BASIC at some point, if I can ever reduce the zero page footprint of it.  This version of BASIC will be available in it's current, somewhat clunk form:
-<p> https://github.com/burntcouch/ehybasic </p>
 
 ..but it will be ROM resident only.  'ehybasic' is not entirely stable and there are major issues (ferinstance, some really sticky self-modifying ZP code for IO handling) that need to be addressed before it would really be a reliable 'beginning' language for the Hydra-16.  More when.
 
 The root folder of the repos has the basic OS code, (I am excluding the hardware-specific section of Dan's repo), with subfolders for ehybasic and hyforth itself.
 
-<p> Hydra-16 v1.8C README:  https://github.com/burntcouch/hyforth_os/blob/main/README_H16.md </p>
-<p> HyForth v0.91 README:  https://github.com/burntcouch/hy_millif/blob/main/README.md </p>
+[https://github.com/burntcouch/hyforth_os/blob/main/README_H16.md](Hydra-16 v1.8C README)
+[https://github.com/burntcouch/hy_millif/blob/main/README.md](HyForth v0.91 README)
 
 <p>Lastly...I've included (as of 10/15) Dan's Hydra-16 simulator:   (in the ./sim folder).  This is an 'older' copy that I was able to tweak in order to use my generated paged ROM binaries.  Original version is here:  https://github.com/danstruthers/hydra-16/tree/main/old/sim </p>
   
 <p>Read the header section at the start of 'hydrasim.js' in order to figure out the command line options.</p>
 <p>  My usual usage of the simulator (after installing Node.js):</p>
-<pre> >node hydrasim.js -i --rom ./tmp --prom-no-stagger </pre>
+```
+node hydrasim.js -i --rom ./tmp --prom-no-stagger
+```
 
 <p>...which assumes that your 'os_rom_C02.bin' and 'paged_rom_C02.bin' files are in '/tmp'.  You've been warned.</p>
 <a name="buildrun"></a>
-<h1> Building and running</h1>
-<p>11/18/26 - Startup autoload</p>
+#Building and running
+##11/18/26 - Startup autoload
 <p> Minor changes; trimmed Wozmon back to its former 240 or so bytes; no shortcuts to the TUVW registers.</p>
 <p> HyForth is now starting directly (you can always get backto Wozmon with 'bye').  Only new thing is that HyForth will now run a short script to load preferred libraries.  This is still experimental, but the current version automatically loads the conditional / loop meta-compiler structures, and then it also chains to the 'extras' library.</p>
 <p> Otherwise, there are a few editions to HyForth itself that make it slightly larger (maybe 30 bytes?).  Refer to the HyForth readme for more news that way.</p>
-<br><br>
-<p>11/13/26 - more minor changes</p>
+<br/><br/>
+##11/13/26 - more minor changes
 <p> With the use of the simulator, I've increased my dev cycle quite a bit, with generally minimal resulting chaos.</p>
 <p> Due to the expansion and reorganization of the OS-ROM area and added parsing and editing functions in HyForth, RAM use is also slightly different.  The new 'running' procedure is...'boot the Hydra-16', ie the old COPYTORAM + RAMSTART routine ($A000R + $800) is now automatic.  HyForth now begins at $A00 in RAM rather than lower down, and zeropage use and buffers hog up some extra room.  The screen editor buffer also now occupies the top 1K of task RAM with memory items allocated by 'malloc' below that.  Free memory between the top of the 'heap' and the bottom of the 'screen' area is still around 20Kb before adding more words or data.</p>
 
-<p>10/22/26 - very minor updates</p>
+##10/22/26 - very minor updates
 <p>The cc65 .cfg file for this project has been simplified in name to 'os_rom.cfg'.  This file handles all the details of the memory map and what files are generated for what sections of memory, etc.  The corresponding output files are now called 'os_rom.bin' and 'paged_rom.bin' rather than the more clunky '....C02.bin' versions.  The make file is now just 'make.bat' in corresponding fashion.</p>
 <p>---------------------------------------------------------------------------</p>
 This project uses the cc65 ( https://cc65.github.io/ ) assembler and linker to do the dirty work.  Look at the 'makeC02.bat' file to have a guess of how to customize for your installation of cc65.  The .bat script also expects a 'version' string so that backups of code are automatically created during the build (handy for backtracking, if you aren't actually using Git for versioning).  Sloppy but enough for a simple project like this.
@@ -52,12 +53,12 @@ The 'paged_rom' image (one of eight SST39SF040 4Mbit ROMs on the Hydra-16) inclu
 
 The Hydra-16 still boots to Wozmon in this version.  To install the heap into RAM, switch to the correct ROM bank by writing the page # to ZP location $01, then enter 'A006R' (WAS 'A003' last week!  TAKE NOTE.)  to run the COPYTORAM routine.  Then just enter '800R' in WozMon to start HyForth.  See the README for HyForth linked above for more details.
 <a name="updates"></a>
-<h1> Updates </h1>
-<h3> 11/13/26 </h3>
+## Updates
+### 11/13/26
 <p> See 'Building and running' above.  Minor changes to Wozmon, HyForth OS image slighly bigger.</p>
 <br>
-<h3> 11/13/26 </h3>
-<h4> Memory map changes:</h4>
+### 11/13/26
+#### Memory map changes:
 <p>(SEE BELOW)</p>
 <p> After a lot of dragging and chopping and screaming of strangling subroutines, I managed to reorganize the non-BIOS area of OS-ROM ($E000-$F800) so that the basic OS utilities (not directly BIOS relate) such as MEMCPY, DISASM, DUMPPAGE, DUMPREG, the math routines, and the basic Yamaha sound init and utility functions were all wedged together above the shell/OS-init segment.</p>
 <p> HyForth is also considerably bigger as a result of the more robust parser as well as the addition of the PAD, HyFedit, and the ANSI functions. </p>
@@ -65,7 +66,7 @@ The Hydra-16 still boots to Wozmon in this version.  To install the heap into RA
 <p>The lower end of the task RAM area has also changed quite a bit:  HyForth uses a little more zeropage now ($A0-$FF0) and the PAD uses the formerly 'reserved' page from $700 up.  Wozmon's input buffer now permanently resides at $300 instead of floating around and stomping on things, and the starting address of the Forth cold-start entry point, some jump tables, and the Forth heap now begin at $0A00.  This still leaves a page below for a larger PAD if that becomes neccesary.
 </p>
 <p>I am also slowly hacking through the main OS and BIOS code to eliminate the use of a lot of PRINT_xxx macros.  Macros may be very useful but too much cleverness results in extremely obfuscated code, and I prefer verbosity over trickiness any day of the week.</p>
-<pre>
+```
 -------------------
 MEMORY MAP as assembled, 10/15/25
 -------------------
@@ -144,10 +145,9 @@ $FF00-$FFxx - IO ports, TUVW registers, interrupt vectors
     Reset Vector = $FFFC
     IRQ Vector   = $FFFE
 
-  
-</pre>
+```
 
-<h3> 10/22/26 </h3>
+### 10/22/26 
 <p>Lots of new things:</p>
 <ul>
 <li><p>Multi-line input using tabs</p>
@@ -166,6 +166,5 @@ This was already here, but for the editor I needed something more modular and ro
 </li>
 <li><p>HyFedit - a screen editor for Hydra-16 and HyForth</p>
 This sub-project will display and allow editing of Forth 'screens', which are 64 x 16 character memory buffers to store and run more complex (than single-line) programs.  ANSI will be heavily used to manage screen navigation and ultimately to add helpful color and other kinds of emphasis to make visualization and production of Forth code easier.  See the hyf_edit.s file for whatever is done with this.  NOT working yet.
-
 </li>
 </ul>
