@@ -1,11 +1,11 @@
 # HyForth for 6502
 ## Hydra-16 version of MilliForth
-----------------------------------------------------------------------<br/>
+<br/>-----------------------------------------------------------------
 ### Patrick Struthers - March 2026
 #### - THANKS to AGSB (https://github.com/agsb) for the starting point here....<br/>
 #### MilliForth 6502 --> (https://github.com/agsb/milliForth-6502)
 <br/>
-----------------------------------------------------------------------<br/>
+<br/>-----------------------------------------------------------------
 
 ### INSTALLATION:
 <br/>This is (STILL) a very simple system, by design, so....it is a little bit messy to set up and use.  But we're getting there...
@@ -22,14 +22,14 @@
 
 <br/>One of the most difficult issues with the original source, is that AGSB assumes that the zero page and the page for the TIB (text input buffer at $0400, labeled INBUF in this version) to be preset to $00.  He also expected the zero-page area ($E0-$FF) used for most of the variables in this version to start at zero....So I wrote a routine (since I was using a ROM routine to copy the Forth binary to $0A00 anyway) to clear the zero page Forth area (approx $A0 - $FF), the input buffer, and the stacks.
 
-=======================================================================
+<br/>-----------------------------------------------------------------
 
 <br/>'Training data' for HyForth refers to the extra compiled words required for HyForth to have true conditional and looping structures.  Currently these words are loadable as a library using the 'autoload' and 'bload' words.  When HyForth boots you will see a list of loadable libraries and the Forth 'core' is the first of these.  if/else/endif, do/loop, and begin/while/until/repeat are included in the core along with some support words for these.
 
-=======================================================================
+<br/>-----------------------------------------------------------------
 
 ###  What IS HyForth?
------------------------------------
+<br/>-----------------------------------------------------------------
 ```
 
 HyForth 0.930 11-12-2026
@@ -43,7 +43,7 @@ EDITTEST-C BD56
 HF>
 ```
 
------------------------------------
+<br/>-----------------------------------------------------------------
 <br/>HyForth is a direct descendant of Alvaro G. S. Barcellos' MilliForth project.  AGSB intended MilliForth to be small enough to easily fit on a memory contstrained  8-bit SBC.  Size rather than efficiency was the intention, and the original MilliForth assembled image ran in as little as 400 bytes of RAM on the 6502.  The '02 is a good target for this kind of project because of its small, RISC-like instruction set and the 'zeropage' RAM area that almost acts like a set of 256 high-speed registers.
 
 <br/>MilliForth has a very small core of basic Forth words; just enough functionality to 'meta-compile' almost any other traditional Forth 'word' using that core.  HyForth uses the same interpret/compile/execute engine as MilliForth, with considerable alterations, but the current engine is still ~ 1100 bytes.  Unlike the original MilliForth, the HyForth engine has minimal bounds checking, error capture and messaging, connection points for libraries, a screen editor, and text and number capture.
@@ -154,7 +154,7 @@ These words are mostly in 'core.s', as of 11/18/26  (see list below). Starting w
   var cons malloc mlen mem@ pad@ pad! xpad
   hx2d dump .sz .rsz .psz .sn
   * / */ max min << >> cbit sbit tbit
-------------------------------------------------------
+------------------------------------------------------------
 ```
 
 #### ADDITIONAL STUFF:  
@@ -172,7 +172,7 @@ These words are mostly in 'core.s', as of 11/18/26  (see list below). Starting w
   ywrite ytest yinit
   ferc@ fecol! ferow! felin feadd feclr fedit febuf fedisp
   fa_mo@ fa_ms@
-<br/>-------------------------------------------------------------
+-------------------------------------------------------------
 ```
 
 <br/>----------------DISASM OUTPUT----------------------------
@@ -195,7 +195,7 @@ HF>$1298 10 disasm
 
 
 <br/>'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable. 'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.
------------------DUMP OUTPUT------------------------------
+<br/>----------------DUMP OUTPUT------------------------------
 ```
 
 HF>$17E0 1 dump
@@ -217,7 +217,7 @@ HF>$17E0 1 dump
 18D0:45 EF A9 02 85 D7 4C 7D EC A5 18 04 73 6E 69 70  E.....L}....snip
 ```
 
-----------------------------------------------------------
+<br/>-----------------------------------------------------------------
 <br/>Lastly, you will see 'cload', 'autoload' and 'bload'. These three words are the essential for loading extra 'meta-compiler' word libraries as well as binary libraries.
 
 #### META-COMPILED WORDS:  <br/>The traditional Forth conditionals and loop structures are NOT easy to implement in native code using AGSB's engine, so for now these are loaded (using 'cload' or 'autoload'). These include 'if', 'then', 'else', 'do', 'loop', 'begin', 'again', 'repeat', 'until', and 'while', as well as the 'i/j/k' loop indexes.
@@ -281,7 +281,7 @@ Traditional Forths included a 'screen'; a more-or-less full featured screen edit
 <br/>'memptr' returns the current value of the pointer on the memory stack; it uses the same 'store' and 'decrement' strategy as the DS and RT stacks, so 'memptr' always returns the stack position that the NEXT allocated item's address will be stored in.  'mlen' is a general purpose function that returns the length of a 'malloc'-created item.
 
 
-=======================================================================
+<br/>-----------------------------------------------------------------
 ### Acknowledgements and etc (~4/1/2026) 
 <br/>My partners in this project, including Dan Struthers and others involved 
 with testing and development for the Hydra-16 hardware and ROM design 
@@ -293,12 +293,9 @@ load the base training data to make it a fully functional language.
 as necessary for your favorite 6502-based SBC.  More when....
 <br/>  
 
------ see below for original intro from Sr. Barcellos ------
-
-<br/>
-<br/>----------------------------------------------------------------
-From (https://github.com/burntcouch/hy_millif/blob/0.2/hy_millif.s)
-<br/>
+<br/>----- see below for original intro from Sr. Barcellos -----------
+<br/>From (https://github.com/burntcouch/hy_millif/blob/0.2/hy_millif.s)
+<br/>-----------------------------------------------------------------
 
 ```
 
