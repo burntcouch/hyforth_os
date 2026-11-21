@@ -2,17 +2,17 @@
 ## HyForth Updates
  
 ### Updates, 11/18/26
-<br/>----------------------------------------------------------------------
 <ul>
 <li> A week of work on the parser has finally beat 'ctrl-c/v/x/s' into submission.  All of these functions now work as a typical user would expect.  Keep in mind that extra spaces are not an issue with a Forth parser (they are the only character that is 'ignored'), so be care if you are copy-pasting into one of the text capture constructs `(q^...^ or Q^...^)` since you will get extra spaces when pasting in side the delimenters.</li>
 <li> To make the current dictionary a little easier to document, I've divided up the source files into 'core.s', 'primitives.s', and 'hywords.s'.  See the README.md file in this folder for details.</li>
 <li> Startup autoloading now works well; this newest version (11/18/26 v0.940) now loads the 'FCORE' library as well as the 'FEXTRAS'. You can edit the text string labeled "STARTAUTO:" (in the hyforth.s file) and load any of the libraries that appear in the library jump list; you can also chain between libraries to load muliple libraries as a set.  Look at hyforth.s and ftrain.s for more on using that.  </li>
 </ul>
 <br/>
+
 ### Updates, 11/13/26
-<br/>----------------------------------------------------------------------
 <br/>Since May, a lot more has changed with Forth.  I split the larger Hydra-16 OS project from the 'reborn' effort in order to concentrate on a smaller, more comprehensible version of Forth that fits the Hydra-16 hardware environment.  I also have a strong affinitiy for C-like and C-derived languages, and my version of Forth adopts a lot of conventions and nomenclature that will be more familiar to programmers of more popular languages like Perl, Ruby, JS and of course C.  This is more of a personal comfort issue than for any functional reason; Forth requires an entirely different kind of approach for application development and making HyForth a little bit more relatable has kept me motivated to continue on this project. <br/>
 The OS itself has been trimmed down and clarified from the May 2026 builds (1.8Cz in my versioning).  Version 1.8Da is my latest series, and work is slowly continuing on that front. <a href="https://github.com/burntcouch/hyforth_os/blob/main/UPDATES.md"> Updates</a> and <a href="https://github.com/burntcouch/hyforth_os/blob/main/README.md">documentation</a> on the 1.8Da OS can be found by following the links.<br/>
+
 #### What's New?
 <br/>Very little of the HyForth vocabulary has changed, but a lot has happened organizationally, and also underneath:
 <ul>
@@ -23,9 +23,6 @@ The OS itself has been trimmed down and clarified from the May 2026 builds (1.8C
 <li>Libraries!  With the 'lib/libs', 'autoload' and 'bload' words, you can view, manage, create, save, and reload both compiled and hard-coded Forth words, as needed.  Considering the flexibility of Forth, a 'library' can also be a loadable data structure with appropriate code to manipulate it.</li>
 </ul>
 For detailed documentation on the current HyForth vocabulary, go <a href="https://github.com/burntcouch/hyforth_os/blob/8Da_12/hyforth/README.md"> here.</a><br/>
-
-
-<br/>----------------------------------------------------------------------
   
 ### Update, 5/3/26:
 <ul> Hell of a lot has changed in a month or so.  ROM conversion still works as noted below in 3/21/26 notes, and installation now proceeds very simply: 
