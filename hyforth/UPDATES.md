@@ -2,18 +2,18 @@
 ## HyForth Updates
  
 ### Updates, 11/18/26
-----------------------------------------------------------------------
+<br/>----------------------------------------------------------------------
 <ul>
 <li> A week of work on the parser has finally beat 'ctrl-c/v/x/s' into submission.  All of these functions now work as a typical user would expect.  Keep in mind that extra spaces are not an issue with a Forth parser (they are the only character that is 'ignored'), so be care if you are copy-pasting into one of the text capture constructs `(q^...^ or Q^...^)` since you will get extra spaces when pasting in side the delimenters.</li>
 <li> To make the current dictionary a little easier to document, I've divided up the source files into 'core.s', 'primitives.s', and 'hywords.s'.  See the README.md file in this folder for details.</li>
 <li> Startup autoloading now works well; this newest version (11/18/26 v0.940) now loads the 'FCORE' library as well as the 'FEXTRAS'. You can edit the text string labeled "STARTAUTO:" (in the hyforth.s file) and load any of the libraries that appear in the library jump list; you can also chain between libraries to load muliple libraries as a set.  Look at hyforth.s and ftrain.s for more on using that.  </li>
 </ul>
 ### Updates, 11/13/26
-----------------------------------------------------------------------
-Since May, a lot more has changed with Forth.  I split the larger Hydra-16 OS project from the 'reborn' effort in order to concentrate on a smaller, more comprehensible version of Forth that fits the Hydra-16 hardware environment.  I also have a strong affinitiy for C-like and C-derived languages, and my version of Forth adopts a lot of conventions and nomenclature that will be more familiar to programmers of more popular languages like Perl, Ruby, JS and of course C.  This is more of a personal comfort issue than for any functional reason; Forth requires an entirely different kind of approach for application development and making HyForth a little bit more relatable has kept me motivated to continue on this project. <br/>
+<br/>----------------------------------------------------------------------
+<br/>Since May, a lot more has changed with Forth.  I split the larger Hydra-16 OS project from the 'reborn' effort in order to concentrate on a smaller, more comprehensible version of Forth that fits the Hydra-16 hardware environment.  I also have a strong affinitiy for C-like and C-derived languages, and my version of Forth adopts a lot of conventions and nomenclature that will be more familiar to programmers of more popular languages like Perl, Ruby, JS and of course C.  This is more of a personal comfort issue than for any functional reason; Forth requires an entirely different kind of approach for application development and making HyForth a little bit more relatable has kept me motivated to continue on this project. <br/>
 The OS itself has been trimmed down and clarified from the May 2026 builds (1.8Cz in my versioning).  Version 1.8Da is my latest series, and work is slowly continuing on that front. <a href="https://github.com/burntcouch/hyforth_os/blob/main/UPDATES.md"> Updates</a> and <a href="https://github.com/burntcouch/hyforth_os/blob/main/README.md">documentation</a> on the 1.8Da OS can be found by following the links.<br/>
 #### What's New?
-Very little of the HyForth vocabulary has changed, but a lot has happened organizationally, and also underneath:<br/>
+<br/>Very little of the HyForth vocabulary has changed, but a lot has happened organizationally, and also underneath:
 <ul>
 <li>OS integration:  The Hydra-16 now boots directly to Forth; you can exit to Wozmon by entering 'bye' but the intent is to provide everything a programmer of the hardware would need in order to develop applications.  This currently includes a crude text editor, a 6502 disassembler, and of course all the very powerful native Forth 'words'.  Every memory location and every BIOS and OS function can be accessed and manipulated directly from Forth, although there is currently a shortage of OS-specific 'convenience' words and functions built-in.  The debugger I wrote to accomplish the MilliForth->HyForth port is still my most useful tool for system tasks.</li>
 <li>'Screen' editor:  the traditional Forth 'screens' have been partially implemented; the top kilobyte of 'task RAM' ($7C00-$7FFF) is the default buffer for this feature.  The HyForth command line is the primary interface to the screen display, and the visual display of a screen is read-only.  Instead of creating a keyboard navigable screen, I've decided on a simpler and more compact version that leverages the power of Forth rather than sitting on top of it.  Since RAM and ROM space are limited in the 64K that the 6502 can access without banking, any 'shell' that acts as the OS should be a small and fast as possible, to minimize overhead due to task switching if for no other reason.</li>
@@ -24,21 +24,28 @@ Very little of the HyForth vocabulary has changed, but a lot has happened organi
 For detailed documentation on the current HyForth vocabulary, go <a href="https://github.com/burntcouch/hyforth_os/blob/8Da_12/hyforth/README.md"> here.</a><br/>
 
 
-----------------------------------------------------------------------<br/>
+<br/>----------------------------------------------------------------------
   
-Update, 5/3/26:
- Hell of a lot has changed in a month or so.  ROM conversion still works as noted below in 3/21/26 notes, and installation now proceeds very simply: <br/>
- -- change to appropriate ROM bank in Wozmon (I use bank $03 for testing most of the time) by saving the bank number to location ZP $01 --  e.g '1:3' in Wozmon if you are using bank $03.<br/>
- -- Run the COPYTORAM routine from the jmp point at A003.  'A003R' in Wozmon.<br/>
- -- Start HyForth at $0800 by entering '800R'<br/>
+### Update, 5/3/26:
+<ul> Hell of a lot has changed in a month or so.  ROM conversion still works as noted below in 3/21/26 notes, and installation now proceeds very simply: 
+<li> change to appropriate ROM bank in Wozmon (I use bank $03 for testing most of the time) by saving the bank number to location ZP $01 --  e.g '1:3' in Wozmon if you are using bank $03.</li>
+<li>  Run the COPYTORAM routine from the jmp point at A003.  'A003R' in Wozmon.</li>
+<li> Start HyForth at $0800 by entering '800R'</li>
+</ul>
    You will see a 'HyForth 0.xx MMDDYY' version banner and then the HF> prompt. <br/>
+<br/>
 ----------------------------------------------------------------------<br/>
-   As you can below, a lot of words have been added in the last month and a half; the list is a screenshot of the output of 'words' on the most current version (0.88 5/2/26).<br/>
-  The list is only very loosely organized at this time, into 4 main sections:<br/>
- CORE:  starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness:  'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'. <br/>
-  PRIMITIVES:  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'.  Also all of the conditionals are defined, as well as the basic logic functions.  'negate' and 'invert' as defined in traditional Forth have been changed to 'neg' and 'not', and AGSB's '0#' was changed to 'bool' (to convert the TOS value to it's boolean equivalent).  Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).<br/>
-  ADDITIONAL STUFF:  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'.  '*' always gives a 32 bit result with the LSW on top of the stack.<br/>
+<br/> As you can below, a lot of words have been added in the last month and a half; the list is a screenshot of the output of 'words' on the most current version (0.88 5/2/26).
+
+<br/>The list is only very loosely organized at this time, into 4 main sections:<br/>
+### CORE:<br/>  starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness:  'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'. <br/>
+
+### PRIMITIVES:<br/>  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'.  Also all of the conditionals are defined, as well as the basic logic functions.  'negate' and 'invert' as defined in traditional Forth have been changed to 'neg' and 'not', and AGSB's '0#' was changed to 'bool' (to convert the TOS value to it's boolean equivalent).  Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).<br/>
+  
+### ADDITIONAL STUFF:<br/>  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'.  '*' always gives a 32 bit result with the LSW on top of the stack.<br/>
+  <br/>
   This group also includes a lot of debugging tools, including a disassembler, 'syscall' for system calls, a random # generator, some ANSI screen functions ('Ascr', 'Acls', 'Acol'), and the basic parts of the memory manager:  'malloc', 'mlen', 'mktemp', and 'purge'.  'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable.  'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.<br/>
+ <br/> 
   Lastly, you will see 'cload', 'autoload' and 'bload'.  These three words are the essential for loading extra 'meta-compiler' words and binary libraries.<br/>
   META-COMPILED WORDS:  the traditional Forth conditionals and loop structures are NOT easy to implement in native code using AGSB's engine, so for now these are loaded (using 'cload' or 'autoload').  These include 'if', 'then', 'else', 'do', 'loop', 'begin', 'again', 'repeat', 'until', and 'while', as well as the 'i/j/k' loop indexes. <br/>
 ```
@@ -88,7 +95,7 @@ Update, 5/3/26:
 
 ```
 
-### USAGE:  the # conversion and string capture functions in the interpreter diverge a bit from standard Forth.  As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a a word.<br/>
+### USAGE:<br/><br/>the # conversion and string capture functions in the interpreter diverge a bit from standard Forth.  As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a a word.<br/>
 
 Strings are even more divergent.  The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc.   Instead, the q^...^ should be used; this construct creates a zero-terminated string and uses 'malloc' to allocate memory for it.  'malloc' returns the handle (double indirection) of the string on the memory stack (see below).  The '.sz' word will print the string on the screen if the address of the pointer to the string is on the top of the stack.  You can store the address as a constant or in a variable to use it otherwise. <br/>
  <br/>
