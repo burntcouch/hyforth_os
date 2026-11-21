@@ -36,11 +36,15 @@ For detailed documentation on the current HyForth vocabulary, go <a href="https:
 <br/> As you can below, a lot of words have been added in the last month and a half; the list is a screenshot of the output of 'words' on the most current version (0.88 5/2/26).
 
 <br/>The list is only very loosely organized at this time, into 4 main sections:<br/>
-### CORE:<br/>  starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness:  'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'. <br/>
 
-### PRIMITIVES:<br/>  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'.  Also all of the conditionals are defined, as well as the basic logic functions.  'negate' and 'invert' as defined in traditional Forth have been changed to 'neg' and 'not', and AGSB's '0#' was changed to 'bool' (to convert the TOS value to it's boolean equivalent).  Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).<br/>
+### CORE:
+<br/>  starting with 'bye' and 'abort', the basic stack access words up to about 'lit', 'var', and 'cons' ... and at the end of the list the rest of the essenstial words for basic Forthiness:  'I' ('immediate'), [, ], ',', ';', ':' (the compiler), @, ! and lastly 'exit'. <br/>
+
+### PRIMITIVES:
+<br/>  the interpreter includes functions to handle inline #'s and text, but for speed and efficiency reasons all 'single digit' #'s (whether decimal, binary, or hex) have explicit definitions in native code, thus '0' - '9', '-1' - '-9', '$0' - '$F', '%0' and '%1'.  Also all of the conditionals are defined, as well as the basic logic functions.  'negate' and 'invert' as defined in traditional Forth have been changed to 'neg' and 'not', and AGSB's '0#' was changed to 'bool' (to convert the TOS value to it's boolean equivalent).  Most of the stack manipulation functions are also in the group, such as 'dup' and 'swap' but including more tricky ones such as 'pick' (indexed stack access) and 'snip' (remove bottomost cell from stack).<br/>
   
-### ADDITIONAL STUFF:<br/>  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'.  '*' always gives a 32 bit result with the LSW on top of the stack.<br/>
+### ADDITIONAL STUFF:
+<br/>  I could not do without '*' and '/' for very long so I found very efficient 6502 algorithms for those; both return a 32-bit value; in the case of '/' this includes both the division result and the remainder...so 'mod' is just '/ swap drop'.  '*' always gives a 32 bit result with the LSW on top of the stack.<br/>
   <br/>
   This group also includes a lot of debugging tools, including a disassembler, 'syscall' for system calls, a random # generator, some ANSI screen functions ('Ascr', 'Acls', 'Acol'), and the basic parts of the memory manager:  'malloc', 'mlen', 'mktemp', and 'purge'.  'dump' and 'debug' are mixed in with the CORE group but the former has also been generalized to dump any page in memory rather than just showing a binary dump of the heap, and also formatted to be more readable.  'debug' toggles the ROM routine 'DUMPREG' to non-invasively dump the status and PC/SP/A/X/Y registers, as well as options for looking at the hardware stack, zero page, TIB, and DS/RT stack areas.<br/>
  <br/> 
@@ -93,7 +97,8 @@ For detailed documentation on the current HyForth vocabulary, go <a href="https:
 
 ```
 
-### USAGE:<br/><br/>the # conversion and string capture functions in the interpreter diverge a bit from standard Forth.  As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a a word.<br/>
+### USAGE:
+<br/><br/>the # conversion and string capture functions in the interpreter diverge a bit from standard Forth.  As noted above, single digit numbers are defined explicitly as Forth words, so they can be included in compiled words bare; but multdigit #'s require the use of ' lit [ ## , ] ' or similar in order to store them inline in a a word.<br/>
 
 Strings are even more divergent.  The ' ." ... " ' construct does not exist, nor do 'parse', 'type', 'word', 'char', '[char]' etc.   Instead, the q^...^ should be used; this construct creates a zero-terminated string and uses 'malloc' to allocate memory for it.  'malloc' returns the handle (double indirection) of the string on the memory stack (see below).  The '.sz' word will print the string on the screen if the address of the pointer to the string is on the top of the stack.  You can store the address as a constant or in a variable to use it otherwise. <br/>
  <br/>
