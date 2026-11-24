@@ -54,6 +54,9 @@ The 'paged_rom' image (one of eight SST39SF040 4Mbit ROMs on the Hydra-16) inclu
 The Hydra-16 still boots to Wozmon in this version.  To install the heap into RAM, switch to the correct ROM bank by writing the page # to ZP location $01, then enter 'A006R' (WAS 'A003' last week!  TAKE NOTE.)  to run the COPYTORAM routine.  Then just enter '800R' in WozMon to start HyForth.  See the README for HyForth linked above for more details.
 <a name="updates"></a>
 ## Updates
+### 11/24/26
+ Several enhancements, none of them major.  Added 'basic' keyword to start EhyBasic and a new file 'prom1.s' to make it easier to load and manage multiple ROM images.  This will accommodate Forth apps as well as images of other things.<br/>
+ Two new words, 'bin&' and 'bind&' do binary searches and put the results (successful or not) on the DS.  Both needed for the assembler, when.<br/>
 ### 11/13/26
  See 'Building and running' above.  Minor changes to Wozmon, HyForth OS image slighly bigger.<br/>
 <br/>
