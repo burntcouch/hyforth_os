@@ -709,6 +709,62 @@ DUMPSTKEND:
     plp
     rts
 ;
+;-------------------------------------------------------------------
+;
+;  ANSI CLS, cursor reposition, and color change
+;
+;    ANSIONEDIG expects ASCII coded digits in Z_ANSI1, ones:tens little-endian
+;                        e.g. $3031 = '10'
+;
+ANSIHDR:
+    lda #27
+    jsr WRITE_CHAR
+    lda #91
+    jsr WRITE_CHAR
+    rts
+
+ANSIONEDIG:   ;two ASCII digits in Z_ANSI1
+    lda Z_ANSI1 + 1
+    cmp #$30
+    beq ansi_scr_00
+    jsr WRITE_CHAR
+ansi_scr_00:
+    lda Z_ANSI1
+    jsr WRITE_CHAR
+    rts
+;
+CLEAR_SCR:
+ANSICLS:
+    jsr ANSIHDR
+    lda #'2'    
+    jsr WRITE_CHAR
+    lda #'J'    
+    jsr WRITE_CHAR
+    rts    
+    
+ANSISCR:      ; assumes Z_ANSI1 AND Z_ANSI2 have digits 
+              ; one or two digit ASCII #'s already
+    jsr ANSIHDR
+    jsr ANSIONEDIG
+    lda #';'
+    jsr WRITE_CHAR
+    lda Z_ANSI2
+    sta Z_ANSI1
+    lda Z_ANSI2+1
+    sta Z_ANSI1+1
+    jsr ANSIONEDIG
+    lda #'f'    
+    jsr WRITE_CHAR
+    rts
+    
+ANSICOL:                 ; assumes Z_ANSI1 has digits
+    jsr ANSIHDR      
+    jsr ANSIONEDIG
+    lda #'m'    
+    jsr WRITE_CHAR
+    rts
+;-------------------------------------------------------------
+
 UTES_END:
 ;
 ;  end of utes.s
