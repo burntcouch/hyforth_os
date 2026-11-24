@@ -1,6 +1,12 @@
 ;
 ;   upper.s  - utility functions for HyForth - eventually ROM resident
 ;
+;
+HYWELCOME:
+    .byte $0D, $0A
+    .byte "HyForth 0.9422 11-22-2026"
+    .byte $0D, $0A, 0
+;
 ;---------------------------------------------------------------------
 ;  error / system messaging
 ;           set ERRFLAG to appropriate error code (hyforth.s preamble),
@@ -29,7 +35,9 @@ ERREND:
 ;err_jumptable:    moved to RAM space (hyforth.s) to facilitate custom
 ;   system messaging
 ;
-;  error messages
+;  error messages  - these can be in RAM or ROM, but the hardcoded ones
+;    can all be together for convenience.
+;
 RPTR_ERR:
     .byte " !RT PTR ERROR!"
     .byte 0
@@ -119,11 +127,7 @@ jump:                               ; EXECUTE                      ( PRIMITIVE )
 ;
 ; other stuff we want in ROM
 ;
-HYWELCOME:
-    .byte $0D, $0A
-    .byte "HyForth 0.940 11-18-2026"
-    .byte $0D, $0A, 0
-;
+
 ;------- used by 'autoload'
 ALOADTIB:
     ldy #0
@@ -183,9 +187,6 @@ NEWPAD:                            ; new PAD item setup
     ldx #PADPTR
     lda #3
     jsr addwx
-;    inc PADPTR
-;    inc PADPTR                     ; skip over previous address and length
-;    inc PADPTR
     ldy #$FF
 NEWPADLP0:                         
     iny
@@ -576,8 +577,9 @@ DIG_SNG:
     jmp DIGCONV_ERR                 ; not really an error, just return and let 'find' to it
   .endif
 DIGCONV_LOOP:
-    jsr GETDIG
-    bcc DIGCONT0
+    lda (NXTTOK),y 
+    jsr GETDIG                      ; GETDIG just decides whether A is a digit or not (0-9A-F)
+    bcc DIGCONT0                    ; C=0 means success
     jmp DIGCONV_ERR
 DIGCONT0:
     pha                             ; else save it to add in a bit
@@ -663,7 +665,7 @@ DIGCONV_ERR:
 
 ;--------------------------
 GETDIG:                             ; y is index to next char in NXTTOK
-    lda (NXTTOK),y
+;    lda (NXTTOK),y                 ; move to calling code instead, pass in A
     sec
     sbc #'0'
     bcc GETDIG_ERR
@@ -697,9 +699,6 @@ HEX2DEC:                            ; uses X, TEMP1, Z_MATH1,2,3,4
     ldx #PADPTR
     lda #3
     jsr addwx    
-;    inc PADPTR
-;    inc PADPTR
-;    inc PADPTR                     ; we'll come back to write length
     ldy #0
     ldx #0
 H2DDIV10:
@@ -762,7 +761,7 @@ H2DFIN:
     inc PADPTR+1
 H2DSK4:
     jsr spush_0                       ; push address of string
-;   update length and PADPTR
+                                ;   update length and PADPTR
     pla                               ; pull back pushed Y
     ldy #2
     sta (TEMP1),y                     ; copy length
@@ -958,131 +957,9 @@ DOCV_END:
     
     sec                  ; C=1 means eat keystroke w/o save to buffer or echo
     jmp CTRLEND
-    
+       
 
-   
-;--------------------------------- CLEAR ------------------------------
-;
-;  zero out $C8 - $FF, meet and greet
-;  zero out INBUF
-;  and clear SCRBUF
-;
-CLEAR:
-    lda #$FF
-    sta DFLAG                       ; debug OFF by default
-zpclear:
-    ldx #ZPSTART                    ; whoops, this is all the ZP that is used
-    lda #0
-zerolp:
-    sta  $00,x
-    inx
-    bne zerolp
-    ldx  #0
-inbufzlp:                           ; and then clear out INBUF
-    sta  INBUF,x
-    inx
-    bne  inbufzlp
-    ldx  #0
-stackslp:                           ; and then clear out DS / RT
-    sta  DS,x
-    inx
-    bne  stackslp
-        ; 
-    jsr CLR_SCREENBUF               ; it does this
-        ;  meet and greet
-    ldy  #0
-hywelclp:
-    lda  HYWELCOME,y
-    beq  CLREXIT
-    jsr WRITE_CHAR
-    iny
-    bra  hywelclp
-CLREXIT:
-    jsr print_libtable
-    rts
-
-CLR_SCREENBUF:
-;               clear screen buffer;  16 rows of 63 + 1 columns
-    lda #$10
-    sta TEMP5                       ; count rows from 16
-    lda #<SCRBUF
-    sta TEMP0
-    lda #>SCRBUF
-    sta TEMP0 + 1    
-clrscrbuf0:
-    lda #$20
-    ldx HFECOLS                       ; count down from 63
-    dex
-    ldy #0
-clrscrbuf1:
-    sta (TEMP0),y
-    iny
-    dex
-    bne clrscrbuf1               ; and 64th col is zero, so...
-    lda #0                       ; all rows zero term'd but
-    sta (TEMP0),y                ; don't know if really need
-    lda TEMP0                    ; to clear rows this way or not, yet.
-    clc
-    adc #$40
-    bcc clrscrbuf2
-    inc TEMP0+1
-clrscrbuf2:
-    sta TEMP0
-    dec TEMP5
-    bne clrscrbuf0
-    rts
-;
-;-------------------------------------------------------------------
-;
-;  ANSI CLS, cursor reposition, and color change
-;
-ANSIHDR:
-    lda #27
-    jsr WRITE_CHAR
-    lda #91
-    jsr WRITE_CHAR
-    rts
-
-ANSIONEDIG:   ;two ASCII digits in Z_ANSI1
-    lda Z_ANSI1 + 1
-    cmp #$30
-    beq ansi_scr_00
-    jsr WRITE_CHAR
-ansi_scr_00:
-    lda Z_ANSI1
-    jsr WRITE_CHAR
-    rts
-;
-CLEAR_SCR:
-ANSICLS:
-    jsr ANSIHDR
-    lda #'2'    
-    jsr WRITE_CHAR
-    lda #'J'    
-    jsr WRITE_CHAR
-    rts    
-    
-ANSISCR:      ; assumes Z_ANSI1 AND Z_ANSI2 have digits 
-              ; one or two digit ASCII #'s already
-    jsr ANSIHDR
-    jsr ANSIONEDIG
-    lda #';'
-    jsr WRITE_CHAR
-    lda Z_ANSI2
-    sta Z_ANSI1
-    lda Z_ANSI2+1
-    sta Z_ANSI1+1
-    jsr ANSIONEDIG
-    lda #'f'    
-    jsr WRITE_CHAR
-    rts
-    
-ANSICOL:                 ; assumes Z_ANSI1 has digits
-    jsr ANSIHDR      
-    jsr ANSIONEDIG
-    lda #'m'    
-    jsr WRITE_CHAR
-    rts
+UPPER_END:
 ;
 ; ---------------- end of upper.s
 ;

@@ -4,7 +4,7 @@
 ;  @ ! lit [ ] , : :$ ; ;$ I .R .S xR xS ?R ?S
 ;  dup swap rot over drop 0-9 $0-$F %0 %1 < > <= >= = <>
 ;  0= bool FALSE TRUE not neg and or nand xor 
-;  + - key emit ord . .be spc cr c! c@ words w@
+;  + - key emit ord . .be spc cr c! c@ words w&
 ;  in> >in rp sp x@ pp mp r> r> back here last
 ;  bye exec reset abort debug
 ;  -----------------------------------------------------------
@@ -17,6 +17,9 @@
 ;
 ; ( -- ) ae exit forth
 def_word "bye", "bye", 0
+    jsr WWARMSTART_ADDR
+    jmp MON_START               ; jump to WOZMON
+WWARMSTART_ADDR:
     lda #'F'
     jsr WRITE_CHAR
     lda #'W'
@@ -27,7 +30,7 @@ def_word "bye", "bye", 0
     jsr WRITE_BYTE
     lda #<F_warm
     jsr WRITE_BYTE
-    jmp MON_START               ; jump to WOZMON
+    rts
 ;
 ; ( -- ) ae abort
 def_word "abort", "abort_", 0
@@ -52,6 +55,61 @@ def_word ":$", "docode", 0
 def_word ";$", "donext", 0        ;  'next' (thus the ';')
     jmp next
 ;---------------------------------------------------------------------
+;         set and clear flags bits and delimiter
+;
+def_word "fb!", "fbitset", 0
+    jsr spull_0
+    ldx TEMP1
+    jsr FLAGSET          ; kills X, but uses NO TEMP vars
+    jmp next
+;
+def_word "f@", "flagget", 0
+    lda FLAGS
+    sta TEMP1
+    stz TEMP1+1
+    jmp this
+;
+def_word "?f", "whatsf", 0
+    stz TEMP2
+    stz TEMP2+1
+    jsr spull_0
+    lda TEMP1
+    and #$07
+    tax
+    inx
+    lda #0
+    sec
+WHATSFLP:
+    rol
+    dex
+    bne WHATSFLP
+    and FLAGS
+    beq WHATSCLR
+WHATSSET:
+    dec TEMP2
+    dec TEMP2+1
+WHATSCLR:
+    jsr spush_1
+    jmp next
+;    
+;   
+def_word "del@", "delimget", 0
+    lda #DELIM
+    sta TEMP1
+    stz TEMP1+1
+    jmp this
+;
+def_word "del!", "delimst", 0
+    jsr spull_0
+    lda TEMP1
+    sta DELIM
+    jmp next
+;
+def_word "f!", "flagsset", 0
+    jsr spull_0
+    lda TEMP1
+    sta FLAGS
+    jmp next
 ;
 ; ( w a -- ) ; [a] = w    (w is word, a is an address)
 def_word "!", "store", 0
@@ -287,8 +345,7 @@ EMPCONT:
     sta TEMP1
     sta TEMP1+1
 EMPEND:
-    jsr spush_0
-    jmp next
+    jmp this
 
 ; ( -- ) is return stack empty?
 def_word "?R", "rtp", 0
@@ -378,8 +435,7 @@ def_word "neg", "neg", 0
     bne NEGENDS
     inc TEMP1+1
 NEGENDS:
-    jsr spush_0
-    jmp next
+    jmp this
 ;
 ;
 ;    printing stuff off the stack
@@ -502,8 +558,7 @@ def_word "over", "over", 0
 def_word "nip", "nip", 0
     jsr spull_0
     jsr spull_1
-    jsr spush_0
-    jmp next
+    jmp this
 ;
 ; (a b -- b a b)
 def_word "tuck", "tuck", 0
@@ -511,8 +566,7 @@ def_word "tuck", "tuck", 0
     jsr spull_1
     jsr spush_0
     jsr spush_1
-    jsr spush_0
-    jmp next
+    jmp this
 ;
 ;----------------------NUMERALS----------------------------------------   
 ;
@@ -838,9 +892,8 @@ def_word ">r", "s_to_r", 0
 ;                             ': r> rp @ @ rp @ 2 + rp ! rp @ @ swap rp @ ! ;'
 def_word "r>", "r_to_s", 0
     ldy #TEMP1
-    jsr rpull
-    jsr spush_0     ; and push on DS stack
-    jmp next
+    jsr rpull   
+    jmp this                ; and push on DS stack 
 ;
 ; ( -- state ) pushes addr of status word on stack
 ;    changed name to x@ cuz confusion with other DS words
@@ -906,6 +959,9 @@ def_word "spc", "spc", 0
 ; (? -- ?)      -  LIT -
 ;                - ': lit rp @ @ dup 2 + rp @ ! @ ;'
 ;                     OR  - [IP] PUSH DS, IP += 2, next
+;
+;    This is how you make room inside a word to store data the
+; word will want later.
 ;
 ;                    yep, it's this easy...
 def_word "lit", "literal", 0
@@ -1157,10 +1213,10 @@ NAMELOOP:              ; name
 ; for now, you must match ALL chars in the name of the word; no partial
 ; matches.  Addr of word will end up on stack.
 ;
-; so this will be used like 'w@ words' which will return CFA of 'words'
+; so this will be used like 'w& words' which will return CFA of 'words'
 ;  equivalent of Forth-79 word 'tick' (single quote)
 ;
-def_word "w@", "wfind", 0
+def_word "w&", "wfind", 0
 WLOOKUP:
     jsr token            ; get following token
     lda NXTTOK

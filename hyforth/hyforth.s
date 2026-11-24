@@ -136,9 +136,11 @@ werrend:
 ;   the code when a tokenized command is invoked.  Inherent limitation
 ;   with one-byte tokens (for errors or libraries) is max of 255 entries.
 ;
-.macro LIBENTRY libname
+.macro LIBENTRY libname, bank
     .byte <libname
     .byte >libname
+    .byte bank
+    .byte 0
     libcount .set libcount + 1
 .endmacro
 ;
@@ -270,8 +272,15 @@ INROM = $A000
 ZPSTART:
                  ;   16 bytes for PAD and clipboard
                  ;
-PADPTR:     .res 2             ; pointer in stack               $A0
-.res 14                        ; reserved fer later
+PADPTR:     .res 2             ; pointer to top of PAD linked list     $A0
+DELIM:      .byte 0            ; default string delimiter       $A2
+FLAGS:      .byte 0            ; all purpose flags byte         $A3
+TEMPA:      .word 0            ; TEMP var A                     $A4
+TEMPB:      .word 0            ; TEMP var B                     $A6
+TEMPC:      .word 0            ; TEMP var C                     $A8
+TEMPD:      .word 0            ; TEMP var D                     $AA
+TEMPE:      .word 0            ; TEMP var E                     $AC
+TEMPF:      .word 0            ; TEMP var F                     $AE
 ;
 ;                 Utilities, some BIOS crossover
 ;
@@ -433,7 +442,9 @@ F_cold:                         ; cold start - clears EVERYTHING
     sta NEXTHEAP + 1
     stz NEXTHEAP
     stz ERRFLAG                ; clear ERROR flag
-
+    stz DELIM                  ; clear string/search delimiter
+    stz FLAGS                  ; HF flags register
+    
     ldy #>(MEMSTK+MEMEND)       ; initialize memory manager area
     sty MEMPTR + 1
     ldy #<(MEMSTK+MEMEND)
@@ -572,7 +583,7 @@ RESEQUAL:
     asl                 ; clean 7-bit ascii
     bne RESLOOP
     iny                 ; get next char
-    bne RESEQUAL
+    bne RESEQUAL        ;  essentially 'bra' unless y is incremented past $FF
 
 RESDONE:
     tya                ; increment W by y, W will point at CFA?
@@ -967,7 +978,7 @@ decwx:
 decwx_end:
     dec 0, x
     rts
-;
+
 ;
 ;
 ENGINEEND:
@@ -981,13 +992,11 @@ ENGINEEND:
 ;
 upper_ram:
    .include "upper.s"
-UPPER_END:
 ;------------------------------------------------------------------------
 ;
 ;   hyf_edit.s -- the HyFedit screen editor stuff
 ;
    .include "hyf_edit.s"
-HFE_EDIT_END:
 ;
 ;
 ROMCODEEND:                         ; end of all code in OS ROM
@@ -1012,6 +1021,9 @@ COPYSTART := $A100              ; marks beginning of copy in ROM space
 RAMSTART:
     jmp forth_main             ; MAIN program start
     jmp reset
+;-----------------------------------------------------------------------
+;  'volatile data'...ie non-ZP, non-ROM data and code. The 'underheap'
+;-----------------------------------------------------------------------       
 ;
 ;        32 bytes reserved for HyFedit (see hyf_edit.s)
 ;
@@ -1044,16 +1056,15 @@ STARTAUTO:
 ;
 LASTLIB = 7
 lib_jumptable:
-    LIBENTRY (LT_FCORE + COPYSTART - RAMSTART)
-    LIBENTRY (LT_FEXTRA + COPYSTART - RAMSTART)
-    LIBENTRY (LT_ANSI + COPYSTART - RAMSTART)
-    LIBENTRY (LT_RAMTEST + COPYSTART - RAMSTART)
-    LIBENTRY (LT_BLOAD + COPYSTART - RAMSTART)
-    LIBENTRY (LT_EDITTEST + COPYSTART - RAMSTART)
-    LIBENTRY (LT_SYSVARS + COPYSTART - RAMSTART)
-    .byte 0, 0, 0, 0   ; extra padding, dynamically add more libraries?
-    .byte 0, 0, 0, 0, 0, 0   
-    .byte 0, 0, 0, 0, 0, 0, 0, 0    ; keep it to 16 entries if possible
+    LIBENTRY (LT_FCORE + COPYSTART - RAMSTART), 0
+    LIBENTRY (LT_FEXTRA + COPYSTART - RAMSTART), 0 
+    LIBENTRY (LT_ANSI + COPYSTART - RAMSTART), 0 
+    LIBENTRY (LT_RAMTEST + COPYSTART - RAMSTART), 0
+    LIBENTRY (LT_BLOAD + COPYSTART - RAMSTART), 0
+    LIBENTRY (LT_EDITTEST + COPYSTART - RAMSTART), 0
+    LIBENTRY (LT_SYSVARS + COPYSTART - RAMSTART), 0
+    LIBENTRY (LT_FASM + COPYSTART - RAMSTART), 0
+    .res 32           ; keep 64 bytes reserved for libraries; keeping bank and extra byte now
 lib_jumps_end:
 ;
 ;--------------------------------------------------------------------
@@ -1075,6 +1086,112 @@ err_jumptable:
     .byte 0, 0, 0, 0, 0, 0   
     .byte 0, 0                     ; keep to 16 entries
 err_jumps_end:
+;    
+;-----------------------------------------------------------------------
+;
+;   'RAMCODE' - subroutines that need to be in RAM, or at least part
+;  of them.
+;
+;-----------------------------------------------------------------------    
+;
+;    FLAGSET  - 65C02 only; uses RMBx/SMBx
+;     can just use RMBx / SMBx FLAGS if you know which bit...
+;    but if you need to decide at runtime you need this.
+;
+RSBOP:
+    .byte 0
+    .byte FLAGS
+    rts
+FLAGSET:               ; bit # to chg is in X, neg bit means set
+    txa
+    and #$07           ; clear all bits but functional ones
+    asl
+    asl
+    asl
+    asl
+    ora #$07
+    cpx #$80
+    bmi FGFINISH       ; will be RMBx
+    ora #$80           ; will be SMBx
+FGFINISH:
+    sta RSBOP
+    jsr WRITE_BYTE
+    jmp RSBOP    
+;
+;--------------------------------- CLEAR ------------------------------
+;
+;  zero out $C8 - $FF, meet and greet
+;  zero out INBUF
+;  and clear SCRBUF
+;
+CLEAR:
+    lda #$FF
+    sta DFLAG                       ; debug OFF by default
+zpclear:
+    ldx #ZPSTART                    ; whoops, this is all the ZP that is used
+    lda #0
+zerolp:
+    sta  $00,x
+    inx
+    bne zerolp
+    ldx  #0
+inbufzlp:                           ; and then clear out INBUF
+    sta  INBUF,x
+    inx
+    bne  inbufzlp
+    ldx  #0
+stackslp:                           ; and then clear out DS / RT
+    sta  DS,x
+    inx
+    bne  stackslp
+        ; 
+    jsr CLR_SCREENBUF               ; it does this
+        ;  meet and greet
+    ldy  #0
+hywelclp:
+    lda  HYWELCOME,y
+    beq  CLREXIT
+    jsr WRITE_CHAR
+    iny
+    bra  hywelclp
+CLREXIT:
+    jsr print_libtable
+    rts
+
+CLR_SCREENBUF:
+;               clear screen buffer; default is 16 rows of 63 + 1 columns
+;           assembly format is two columns with 16 rows of 31 + 1 columns each
+;
+    lda HFEROWS
+    sta TEMP5                       ; count rows from HFEROWS
+    lda #<SCRBUF
+    sta TEMP0
+    lda #>SCRBUF
+    sta TEMP0 + 1    
+clrscrbuf0:
+    lda #$20
+    ldx HFECOLS                       ; count down from HFECOLS
+    dex
+    ldy #0
+clrscrbuf1:
+    sta (TEMP0),y
+    iny
+    dex
+    bne clrscrbuf1               ; and last col in row is zero, so...
+    lda #0                       ; all rows zero term'd but
+    sta (TEMP0),y                ; don't know if really need
+    lda TEMP0                    ; to clear rows this way or not, yet.
+    clc
+    adc HFECOLS
+    bcc clrscrbuf2
+    inc TEMP0+1
+clrscrbuf2:
+    sta TEMP0
+    dec TEMP5
+    bne clrscrbuf0
+    rts
+;
+;
 ;
 ;---------------------------------------------------------------------
 ;        core and primitives - original AGSB hardcoded dictionary
@@ -1087,7 +1204,7 @@ err_jumps_end:
 ;  @ ! lit [ ] , : :$ ; ;$ I .R .S xR xS ?R ?S
 ;  dup swap rot over drop 0 to 9 $0 to $F %0 %1 < > <= >= = <>
 ;  0= bool FALSE TRUE not neg and or nand xor 
-;  + - key emit ord . .be .C spc cr c! c@ words w@
+;  + - key emit ord . .be .C spc cr c! c@ words w&
 ;  in> >in rp sp x@ pp mp r> r> back here last
 ;  bye exec reset abort debug
 ;
@@ -1119,6 +1236,7 @@ err_jumps_end:
 ;
 ;  The 'primitive' primitives
 ;
+core:
 .include "core.s"
 ;
 ;
@@ -1131,6 +1249,7 @@ primitives:
 ;
 ;               ADDITIONS, HyFedit, ANSI, rand, memory extras
 ;
+additions:
 .ifdef HYWORDS
    .include "hywords.s"
 .endif
@@ -1172,6 +1291,15 @@ ends:                            ; end marker of hardcoded primitives
 ;                            BINARY LIBRARIES
 ;
 .include "bload.s"
+;
+;
+;-----------------------paged ROM banks ---------------------------------
+;
+;   Bank 1 is the current new experimental bank
+;
+;   Bank 2 has Hydra BASIC on it
+;
+.include "prom1.s"
 ;
 ;  end of hyforth.s
 ;

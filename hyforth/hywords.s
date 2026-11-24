@@ -64,9 +64,8 @@ def_word "pick", "xpick", 0
     sta TEMP1
     iny
     lda (TEMP8),y
-    sta TEMP1+1
-    jsr spush_0
-    jmp next
+    jmp keeps
+    
 PICKPTRERR:
     lda #ERR_SPTR
     sta ERRFLAG
@@ -199,6 +198,11 @@ LIBSWEND:
     iny
     lda (TEMP0),y
     jsr WRITE_BYTE                   ; lo byte of lib address
+    iny
+    lda #'-'
+    jsr WRITE_BYTE
+    lda (TEMP0),y
+    jsr WRITE_BYTE                   ; print bank #
     WCRLF_np
     inx
     beq LIBSEND
@@ -208,6 +212,7 @@ LIBSEND:
     
 GETLIBENTRY:               ; get entry pointed to by x
     txa
+    asl a
     asl a
     clc
     adc #<lib_jumptable
@@ -470,9 +475,7 @@ RAND32IN:
     lda RSEED
     sta TEMP1
     lda RSEED+1
-    sta TEMP1+1
-    jsr spush_0
-    jmp next
+    jmp keeps
 ;
 ;------------------------------MEMORY OPERATIONS----------------------------
 ;
@@ -507,9 +510,7 @@ def_word "free", "free", 0
     sta TEMP1
     lda MEMLAST+1
     sbc NEXTHEAP+1
-    sta TEMP1+1
-    jsr spush_0
-    jmp next
+    jmp keeps
 ;
 ; (daddr n -- ) start disassembly from daddr, do it
 ; $F800 is entry point for DISASM (low/high addr), C=1 for multiple opcodes, X for # of codes
@@ -581,6 +582,12 @@ SCSKIP:
 SCDUMMY:
     ldx #0
     rts
+    
+def_word "basic", "basic", 0
+    jsr WWARMSTART_ADDR    
+    lda #BASBANK               ; switch ROM bank to one with basic in it
+    sta $01
+    jmp $A000                  ;   start BASIC
 ;
 ; -------------- various functions to copy data between memory and stack
 ;
@@ -766,27 +773,260 @@ YMGOOD:
     jmp PUSHTRUE
 .endif
 ;
+;
+def_word "insz", "insz", 0   ; compare two strings, find smaller in larger
+    jsr spull_2    ; TEMP3 has length of small string
+    jsr spull_1    ; TEMP2 has addr of string to find
+    jsr spull_0    ; TEMP1 has addr of string to search, zero termed
+    jsr INSTR      ; returns offset in TEMP2
+    jsr spush_1
+    jmp next
+    
+INSTR:               ; TEMP1 has addr of string to search, zero termed
+                     ; TEMP2 has addr of string to find
+                     ; TEMP3 has length of search string
+    ldy #0
+    ldx #0
+INSTRLP:
+    jsr DUMPREG
+    
+    lda (TEMP1),y
+    beq INSTRNONE
+    sec
+    sbc (TEMP2),y
+    inx
+    iny
+    and #$FF            ; just need a test
+    bne INSTRINC
+    cpx TEMP3
+    beq INSTRFOUND
+    bra INSTRLP
+INSTRINC:
+    dey
+    dex
+    bne INSTRINC
+    iny
+    dec TEMP2
+    lda TEMP2
+    cmp #$FF
+    beq INSTRINC2
+    bra INSTRLP
+INSTRINC2:
+    dec TEMP2+1
+    bra INSTRLP    
+INSTRFOUND:
+    tya
+    sec
+    sbc TEMP3
+    sta TEMP2
+    bra INSTROK    ; skip
+INSTRNONE:
+    lda #$FF     ; dint find it.
+    sta TEMP2    ; can't use 0 cuz could be legit offset
+INSTROK:
+    stz TEMP2+1
+    rts
+;
+;       search for a byte in memory. Do not search more than $FF bytes
+;    return OFFSET.  If no luck, return next page to search.
+;
+;    NOTE:  I need alternate ways to terminate this search, built in.
+; 
+def_word "bin&", "binamp", 0
+    jsr spull_0   ; address to start
+    jsr spull_1   ; byte to search for.  ignore MSB
+    jsr BINAMP
+    jsr spush_0
+    jmp next
+ 
+def_word "bind&", "binampd", 0   ; search to delimeter at DELIM
+    jsr spull_0   ; address to start
+    jsr spull_1   ; byte to search for.  ignore MSB
+    jsr BINAMPD
+    jsr spush_0
+    jmp next
+
+BINAMP:
+    ldy #0
+BINAMPLP:
+    lda (TEMP1),y
+    cmp TEMP2
+    beq BINAMP_FOUND
+    iny
+    beq BINAMP_NONE
+    bra BINAMPLP
+BINAMP_FOUND:
+    stz TEMP1+1
+    sty TEMP1          ; this is the offset, NOT the found address
+    rts
+BINAMP_NONE:
+    inc TEMP1+1        ; and this is one page ahead, if NOT found
+BINAMP_END:
+    rts
+
+BINAMPD:               ; search until found or delimeter
+    ldy #0
+BINAMPDLP:
+    lda (TEMP1),y
+    cmp TEMP2
+    beq BINAMP_FOUND
+    cmp DELIM
+    beq BINAMPD_NONE
+    iny
+    beq BINAMP_NONE    ; return next page if no results so far
+    bra BINAMPDLP
+BINAMPD_NONE:
+    lda #$FF           ; not found before delimeter
+    sta TEMP1+1
+    iny                ; offset + 1 of delimeter
+    sty TEMP1     
+    rts
+    
+    
 ;----------------------------------------------------------------------------
 ;                     HFA - HyForth mini-assembler stuff
+;
+;  opcode family table
+def_word "fa_ops@", "faopsget", 0
+    lda #<FA_ops
+    sta TEMP1
+    lda #>FA_ops
+    jmp keeps                   ; 'keeps' includes sta TEMP1+1 / jsr spush_0 / jmp next
+;
+;  opcode address mode table
+def_word "fa_adm@", "faadmget", 0
+    lda #<FA_addr
+    sta TEMP1
+    lda #>FA_addr
+    jmp keeps
+;
+;  capture and convert address mode string to #
+def_word "fa_amcap", "fa_amcap", 0
+
 ;  mnemonic string addr
-def_word "fa_ms@", "fa_ms", 0
+def_word "fa_mnsz@", "famnszget", 0
     lda #<MNEMONIC_STR
     sta TEMP1
     lda #>MNEMONIC_STR
-    sta TEMP1+1
-    jsr spush_0
-    jmp next
+    jmp keeps
 ;
 ;  mnemonic offset table addr
 ;
-def_word "fa_mo@", "fa_mo", 0
+def_word "fa_mno@", "famnoget", 0
     lda #<MN_OFFSETS
     sta TEMP1
     lda #>MN_OFFSETS
-    sta TEMP1+1
-    jsr spush_0
+    jmp keeps
+;
+;
+def_word "fa_m2s&", "fam2samp", 0    ; returns offset in mn string
+       ;
+       ; note: calling token kills x, y, a, TEMP1, TEMP2, TEMP4, TEMP5, TEMP6
+       ;  (at least) Best not to use any TEMPs until after call, if possible
+       ;
+    jsr token            ; get following token  
+    lda NXTTOK
+    sta TEMP2         ;store addr of token
+    lda NXTTOK+1
+    sta TEMP2+1    
+    ldy #0
+    lda (TEMP2),y
+    sta TEMP3         ; save length
+    inc TEMP2
+    bne ASCANL0
+    inc TEMP2+1
+ASCANL0:
+    jsr spull_0     ; TEMP1 has address of DISASM mnemonic string
+    jsr INSTR
+    jsr spush_1       ; push TEMP2 on DS, found
     jmp next
 ;
+;         return hex address mode from string
+;
+def_word "fa_asz&", "faaszamp", 0
+    ldy #TEMP4
+    jsr  spull
+    jsr FA_ASZ2AM
+    bcc FA_ASZ_SZERR
+    ldy #TEMP4
+    jsr  spush
+FA_ASZ_SZERR:
+    jmp next
+
+
+FA_ASZ2AM:           ; address string to address mode  - TEMP4 has address, will return mode
+    ldy #0
+    lda (TEMP4),y
+    tax
+    iny
+    lda (TEMP4),y
+    beq  FA_ASZ1
+ ;
+    ldy #0                  ; has two chars
+    sta TEMP4+1             ; stash A here
+FA_ASZ2LP:
+    txa
+    cmp FA_amtable2,y
+    beq FA_ASZ2_NXT
+    iny
+    iny
+    iny
+FA_ASZ2_ychk:
+    cpy #FA_xamtablen2
+    beq FA_ASZERR
+    bra FA_ASZ2LP
+FA_ASZ2_NXT:
+    iny
+    lda TEMP4+1            ; get A back
+    cmp FA_amtable2, y
+    beq FA_ASZ2_found
+    iny
+    iny
+    bra FA_ASZ2_ychk
+FA_ASZ2_found:
+    iny
+    lda FA_amtable2,y
+    sta TEMP4
+    bra FA_ASZDONE
+;  
+FA_ASZ1:                   ; is it a digit so RMB/SMB/BBR/BBS?
+    txa
+    sec
+    sbc #$30
+    bmi  FA_ASZERR        ; not anything we can use
+    cmp #8
+    bpl  FA_ASZNOTDIG     ; not a digit 0-7
+    inc                   ; shift to upper nybble, add one
+    asl
+    asl
+    asl
+    asl
+    sta TEMP4
+    bra FA_ASZDONE        ; mode will be $10-$80 depending on 0-7 digit
+FA_ASZNOTDIG:
+    ldy #0
+FA_ASZ1LP:
+    txa
+    cmp   FA_amtable1,y
+    beq    FA_ASZ1_found
+    iny
+    iny
+    cpy #FA_xamtablen1
+    beq  FA_ASZERR
+    bra  FA_ASZ1LP
+FA_ASZ1_found:
+    iny
+    lda   FA_amtable1,y
+    sta TEMP4
+FA_ASZDONE:
+    stz TEMP4+1
+    sec             ; found something
+    rts
+    
+FA_ASZERR:          ; oops
+    clc
+    rts
+    
 ;----------------------------------------------------------------------------
 ;                     HyFedit - editor stuff
 def_word "fedisp", "fedisp", 0

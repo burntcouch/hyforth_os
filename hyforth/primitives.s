@@ -18,16 +18,14 @@ def_word "malloc", "malloc", 0
     jsr spull_1       ; type ( word ($00), char ($01), words ($02), bytes ($03), sz ($04) ..)
     jsr spull_0       ; # bytes
     jsr MALLOC        ; will return address in TEMP1
-    jsr spush_0       ; push ptr address to new record on stack
-    jmp next
+    jmp this       ; push ptr address to new record on stack
 
 ;
 ; ( maddr -- len )
 def_word "mlen", "mlen", 0
     jsr spull_1
     jsr MEMLEN   ; returns length in TEMP1, maddr in TEMP3
-    jsr spush_0
-    jmp next
+    jmp this
 ;
 ;
 ;         HF version of 'variable'
@@ -98,9 +96,7 @@ VCFINISH:
     sta LASTHEAP                ; bring back BACKHEAP to LASTHEAP
     lda BACKHEAP + 1
     sta LASTHEAP + 1
-
-    jsr spush_0
-    jmp next
+    jmp this
 ;
 ;    VCCODE - 'dovar' - copied into a var word ( 'DOES>' )
 ;
@@ -349,9 +345,7 @@ def_word "pad@", "padfetch"
     lda PADPTR
     sta TEMP1
     lda PADPTR+1
-    sta TEMP1+1
-    jsr spush_0
-    jmp next
+    jmp keeps
 ;
 ;              clear pad area
 def_word "xpad", "padclr", 0
@@ -493,8 +487,7 @@ MININ16:
     jmp MINDONE
 MINSWAP:
     jsr spush_1
-    jsr spush_0
-    jmp next
+    jmp this
 MINDONE:
     jsr spush_0
     jsr spush_1
