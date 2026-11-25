@@ -16,9 +16,9 @@
 ;---------------------------------------------------------------------
 ;
 ; ( -- ) ae exit forth
-def_word "bye", "bye", 0
+def_word "bye", "bye", 0        ; use the 'woz' word (JSR), '^' to get back, if you just need Wozmon for a sec.
     jsr WWARMSTART_ADDR
-    jmp MON_START               ; jump to WOZMON
+    jmp MON_START               ; jump to WOZMON, return with warm start
 WWARMSTART_ADDR:
     lda #'F'
     jsr WRITE_CHAR

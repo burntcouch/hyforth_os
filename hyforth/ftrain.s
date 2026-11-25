@@ -327,6 +327,7 @@ FA_amtable1 = FA_xamt1 + COPYSTART - RAMSTART
 FA_amtable2 = FA_xamt2 + COPYSTART - RAMSTART
 FA_ops = FA_xops + COPYSTART - RAMSTART
 FA_addr = FA_xaddr + COPYSTART - RAMSTART
+FA_anofam = FA_xopnofam + COPYSTART - RAMSTART
 
 FA_xamtablen1 = 10
 FA_xamtablen2 = 24
@@ -348,6 +349,7 @@ FA_xamt2:
 ;--------------------- 49
 ;                               OPCODE FAMILY
 ;
+FA_FAMCNT = 8
 FA_xops:
 FA_sng1:                                         ; all single byte instructions
  .byte $00, $08, $18, $28, $38, $40, $48
@@ -381,6 +383,7 @@ FA_mmaa:
  .byte $01, $FF, $08, $00, $10, $11, $04, $14, $FF, $18, $0C, $1C, $FF, $FF
 FA_mmba:
  .byte $06, $04, $FF, $FF, $FF, $FF, $00, $10, $FF, $FF, $08, $18, $FF, $FF
+FA_xopnofam:
 FA_STZ:
  .byte $64, $FF, $FF, $FF, $FF, $FF, $00, $10, $FF, $FF, $38, $3A, $FF, $FF
 FA_LDX:
