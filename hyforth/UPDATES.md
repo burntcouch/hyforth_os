@@ -2,6 +2,7 @@
 ## HyForth Updates
 
 ### Updates, 11/27/26
+
 <br/>Very busy week and a half; designed and coded the first pass of the assembler.
 <br/>
 <br/>This is a very Forthy project; I wanted to make as close to an interactive 6502 assembler as it was possible to get...and I think I've succeeded so far.
@@ -13,15 +14,17 @@ These include 'insz', essentially BASIC's INSTR; there are also page-by-page ('b
 <tr><td>{org}</td><td>a Forth VARIABLE storing the origin address for the assembled program</td></tr>
 <tr><td>{curr}</td><td>a VARIABLE to keep trackof the current address inside the program as it is built</td></tr>
 <tr><td>!{curr}</td><td>store a byte at {curr} and advance the pointer</td></tr>
+<tr><td>{_new</td><td>initialize {org} and {curr} for a new coding session</td></tr>
 <tr><td>{_list</td><td>list a program - binary dump starting at {org}</td></tr>
 <tr><td>{_dis</td><td>a disassembly (defaults to 10 lines) starting at {org} </td></tr>
 <tr><td>{_run</td><td>JSR to start of program (and make sure you have an RTS!} and run it </td></tr>
 <tr><td>{_ip&</td><td>assemble the top entry in the PAD </td></tr>
-<tr><td>{_ld+/td><td>load assembled line at {curr} </td></tr>
+<tr><td>{_ld+</td><td>load assembled line at {curr} </td></tr>
 </table>
 </li>
 <li>EhyBasic now resides in bank 2 of the paged ROM image; you can access it by using the 'basic' word in Forth when it boots, or in Wozmon you enter '1:2' to change to bank 2, then start BASIC with 'A000R'.  Forth can be restarted by returning to Wozmon with 'EXIT' and then back to bank 0 '1:0', then 'E000R'. </li>
 </ul>
+
 #### Sample assembly session
 
 ```
