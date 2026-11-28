@@ -1,6 +1,140 @@
 # Updates:  HyForth for 6502
 ## HyForth Updates
+
+### Updates, 11/27/26
+<br/>Very busy week and a half; designed and coded the first pass of the assembler.
+<br/>
+<br/>This is a very Forthy project; I wanted to make as close to an interactive 6502 assembler as it was possible to get...and I think I've succeeded so far.
+<ul>
+<li>PAD and editor:  the IDE at the moment is the command line in combination with the temporary string space or 'PAD'.  During the last month I added better features to the command line itself, so that a user has basic copy/cut/paste (ctrl c/x/v), some multi-line entry capabilities (still ramiifying there), and some new string functions to make it easier to manipulate stringy things.<br/>
+These include 'insz', essentially BASIC's INSTR; there are also page-by-page ('bin&') and delimited ('bind&') binary search words.  I expanded 'ord' to capture multiple typed characters and dump them on the stack (very handy for quickly building strings to use for in-line code), as well as some other ASCII <-> hex functions.<br/></li>
+<li>Assembler:  a growing list of words for managing a machine code session are now included:<br/>
+<table border=1>
+<tr><td>{org}</td><td>a Forth VARIABLE storing the origin address for the assembled program</td></tr>
+<tr><td>{curr}</td><td>a VARIABLE to keep trackof the current address inside the program as it is built</td></tr>
+<tr><td>!{curr}</td><td>store a byte at {curr} and advance the pointer</td></tr>
+<tr><td>{_list</td><td>list a program - binary dump starting at {org}</td></tr>
+<tr><td>{_dis</td><td>a disassembly (defaults to 10 lines) starting at {org} </td></tr>
+<tr><td>{_run</td><td>JSR to start of program (and make sure you have an RTS!} and run it </td></tr>
+<tr><td>{_ip&</td><td>assemble the top entry in the PAD </td></tr>
+<tr><td>{_ld+/td><td>load assembled line at {curr} </td></tr>
+</table>
+</li>
+<li>EhyBasic now resides in bank 2 of the paged ROM image; you can access it by using the 'basic' word in Forth when it boots, or in Wozmon you enter '1:2' to change to bank 2, then start BASIC with 'A000R'.  Forth can be restarted by returning to Wozmon with 'EXIT' and then back to bank 0 '1:0', then 'E000R'. </li>
+</ul>
+#### Sample assembly session
+
+```
+
+HYDRA-16 v1.8Da.13
+0:FA23 1:FA23 2:FA23 3:E320 4:FA23 5:FA23 6:FA23 7:FAD6 8:FACF 9:FA23 A:FA23 B:FA23 C:FA23 D:FA23 E:FA23 F:FA23 
+
+A100+79BA fin
+
+HyForth 0.9422 11-22-2026
+FCORE-C BBBB2D71
+FEXTRA-C BE712D63
+ANSI-C C0F52D71
+RAMTEST-C C2852D3A
+BLOAD-B C89C2D06
+EDITTEST-C C32C2D54
+SYSVARS-C C3CD2D63
+FASM-C C5012D63
+ 1 lib autoload
  
+Loading Forth core library...
+Loading system variables...
+Loading extras library...
+Free Memory: 21317
+
+HF>8 lib autoload
+
+Loading Fasm...
+HF>q^LDAn 48^
+
+HF>xS {_ip&
+
+HF>.S
+
+S0578 03  00A9 0048 0004
+
+HF>{_new
+
+HF>.S
+
+S0578 03  00A9 0048 0004
+
+HF>{_ld+
+
+HF>q^JSR F803^
+
+HF>xS {_ip& {_ld+
+
+HF>{_list
+9000:A9 48 20 03 F8 00 00 00 00 00 00 00 00 00 00 00  .H .............
+9010:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+9020:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+9030:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+
+HF>q^LDAn 69^
+
+HF>xS {_ip& {_ld+
+
+HF>q^JSR F803^
+
+HF>xS {_ip& {_ld+
+
+HF>q^LDAn 21^ {_ip& {_ld+
+
+HF>{_list
+9000:A9 48 20 03 F8 A9 69 20 03 F8 A9 21 00 00 00 00  .H ...i ...!....
+9010:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+9020:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+HF>$900C {curr} !
+
+HF>pdump
+ 084C-RTS
+ 0841-LDAn 21
+ 0835-JSR F803
+ 082A-LDAn 69
+ 081E-JSR F803
+ 0813-LDAn 48
+ 0800-Loading Fasm...
+
+HF>pp-
+
+HF>pp-
+
+HF>pdump
+ 0835-JSR F803
+ 082A-LDAn 69
+ 081E-JSR F803
+ 0813-LDAn 48
+ 0800-Loading Fasm...
+
+HF>{_ip& {_ld+
+
+HF>q^RTS^ {_ip& {_ld+
+
+HF>{org} @ 10 disasm
+9000: A9 48    | LDA  #$48
+9002: 20 03 F8 | JSR  $F803
+9005: A9 69    | LDA  #$69
+9007: 20 03 F8 | JSR  $F803
+900A: A9 21    | LDA  #$21
+900C: 20 03 F8 | JSR  $F803
+900F: 60       | RTS
+9010: 00       | BRK
+
+HF>{_run
+Hi!
+HF>
+
+
+```
+
 ### Updates, 11/18/26
 <ul>
 <li> A week of work on the parser has finally beat 'ctrl-c/v/x/s' into submission.  All of these functions now work as a typical user would expect.  Keep in mind that extra spaces are not an issue with a Forth parser (they are the only character that is 'ignored'), so be care if you are copy-pasting into one of the text capture constructs `(q^...^ or Q^...^)` since you will get extra spaces when pasting in side the delimenters.</li>
