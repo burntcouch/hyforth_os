@@ -801,7 +801,7 @@ INSTR:               ; TEMP1 has addr of string to search, zero termed
     ldy #0
     ldx #0
 INSTRLP:
-    jsr DUMPREG
+ ;   jsr DUMPREG
     
     lda (TEMP1),y
     beq INSTRNONE
@@ -894,259 +894,9 @@ BINAMPD_NONE:
     iny                ; offset + 1 of delimeter
     sty TEMP1     
     rts
-    
-    
-;----------------------------------------------------------------------------
-;                     HFA - HyForth mini-assembler stuff
 ;
-;  opcode family table
-def_word "fa_ops@", "faopsget", 0
-    lda #<FA_ops
-    sta TEMP1
-    lda #>FA_ops
-    jmp keeps                   ; 'keeps' includes sta TEMP1+1 / jsr spush_0 / jmp next
+;    hfa.s has HyForth assembler words now
 ;
-;  opcode address mode table
-def_word "fa_adm@", "faadmget", 0
-    lda #<FA_addr
-    sta TEMP1
-    lda #>FA_addr
-    jmp keeps
-;
-;  capture and convert address mode string to #
-def_word "fa_amcap", "fa_amcap", 0
-
-;  mnemonic string addr
-def_word "fa_mnsz@", "famnszget", 0
-    lda #<MNEMONIC_STR
-    sta TEMP1
-    lda #>MNEMONIC_STR
-    jmp keeps
-;
-;  mnemonic offset table addr
-;
-def_word "fa_mno@", "famnoget", 0
-    lda #<MN_OFFSETS
-    sta TEMP1
-    lda #>MN_OFFSETS
-    jmp keeps
-;
-; ( mnsa -- off )
-def_word "fa_m2st&", "fam2sampt", 0    ; returns offset in mn string (command line)
-       ;
-       ; note: calling token kills x, y, a, TEMP1, TEMP2, TEMP4, TEMP5, TEMP6
-       ;  (at least) Best not to use any TEMPs until after call, if possible
-       ;
-    jsr token            ; get following token  
-    lda NXTTOK
-    sta TEMP2         ;store addr of token
-    lda NXTTOK+1
-    sta TEMP2+1    
-    ldy #0
-    lda (TEMP2),y
-    sta TEMP3         ; save length
-    inc TEMP2
-    bne ASCANL0
-    inc TEMP2+1
-    jmp ASCANL0
-;
-; ( mnsa sn -- off )
-def_word "fa_m2s&", "fam2samp", 0    ; returns offset in mn vs memory 
-    lda #3
-    sta TEMP3       ; length
-    jsr spull_1     ; TEMP2 has addr of search string
-ASCANL0:
-    jsr spull_0     ; TEMP1 has address of DISASM mnemonic string
-    jsr INSTR
-    jsr spush_1       ; push TEMP2 on DS, found
-    jmp next
-;
-;         return hex address mode from string
-; ( amasz -- am )
-def_word "fa_asz&", "faaszamp", 0
-    ldy #TEMP4
-    jsr  spull
-    jsr FA_ASZ2AM
-    bcc FA_ASZ_SZERR
-    ldy #TEMP4
-    jsr  spush
-FA_ASZ_SZERR:
-    jmp next
-
-FA_ASZ2AM:           ; address string to address mode  - TEMP4 has address, will return mode
-    ldy #0
-    lda (TEMP4),y
-    tax
-    iny
-    lda (TEMP4),y
- ;   beq  FA_ASZ1       ; zero term, done
-    cmp #$30
-    bmi  FA_ASZ1       ; ..or anything less than ASCII 0
- ;
-    ldy #0                  ; has two chars
-    sta TEMP4+1             ; stash A here
-FA_ASZ2LP:
-    txa
-    cmp FA_amtable2,y
-    beq FA_ASZ2_NXT
-    iny
-    iny
-    iny
-FA_ASZ2_ychk:
-    cpy #FA_xamtablen2
-    beq FA_ASZERR
-    bra FA_ASZ2LP
-FA_ASZ2_NXT:
-    iny
-    lda TEMP4+1            ; get A back
-    cmp FA_amtable2, y
-    beq FA_ASZ2_found
-    iny
-    iny
-    bra FA_ASZ2_ychk
-FA_ASZ2_found:
-    iny
-    lda FA_amtable2,y
-    sta TEMP4
-    bra FA_ASZDONE
-;  
-FA_ASZ1:                   ; is it a digit so RMB/SMB/BBR/BBS?
-    txa
-    sec
-    sbc #$30
-    bmi  FA_ASZERR        ; not anything we can use
-    cmp #8
-    bpl  FA_ASZNOTDIG     ; not a digit 0-7
-    inc                   ; shift to upper nybble, add one
-    asl
-    asl
-    asl
-    asl
-    sta TEMP4
-    bra FA_ASZDONE        ; mode will be $10-$80 depending on 0-7 digit.  REMEMBER to fix when adding to base op!
-FA_ASZNOTDIG:
-    ldy #0
-FA_ASZ1LP:
-    txa
-    cmp   FA_amtable1,y
-    beq    FA_ASZ1_found
-    iny
-    iny
-    cpy #FA_xamtablen1
-    beq  FA_ASZERR
-    bra  FA_ASZ1LP
-FA_ASZ1_found:
-    iny
-    lda   FA_amtable1,y
-    sta TEMP4
-FA_ASZDONE:
-    stz TEMP4+1
-    sec             ; found something
-    rts
-    
-FA_ASZERR:          ; oops
-    clc
-    rts
-;
-;    scan for family using base op code
-;    return family code, len of inst, opcode
-; ( bop am -- f len op ) 
-;
-def_word "fa_bop&", "fabaseopscan"
-    jsr spull_2    ; address mode in TEMP3
-    stz TEMP3+1
-
-    
-    jsr spull_1    ; base op in TEMP2 for now
-    stz TEMP2+1
-    lda TEMP3
-    bmi FA_BSEQOP   ; if baseop is RMB/SMB/BBR/BBS then...
-    
-    lda #<FA_ops
-    sta TEMP1
-    lda #>FA_ops
-    sta TEMP1+1
-    sta TEMP5      ; backup addr MSB
-    lda DELIM
-    sta TEMP3+1    ; backup DELIM
-    lda #3
-    sta DELIM
-    stz TEMP4     ; will store family #
-    stz TEMP4+1   ; will store family, then final op
-    ldx FA_FAMCNT
-    ldy #0           ; count offset through family list
-    lda (TEMP1),y    ; store base family op
-    sta TEMP4+1
-FA_BOPLP0:
-    jsr BINAMPD    ; base op will be in TEMP2, opaddr in TEMP1, result in TEMP1
-    stx TEMP4
-    inx             ; count family #
-    bne FA_BNOFAM
-    lda TEMP1+1
-    bmi FA_NOTFAM
-    ldy #0
-    lda FA_ops,y
-    lda TEMP1
-
-    bra FA_BPNXT0
-FA_NOTFAM:
-    lda TEMP5
-    sta TEMP1+1
-    tya
-    clc
-    adc  TEMP1
-    tay
-    sta TEMP1
-    bcc  FA_BSK0
-    lda TEMP1+1
-    inc
-    sta TEMP1+1
-    sta TEMP5
-FA_BSK0:
-    lda FA_ops,y      ; get next base op
-    sta TEMP4+1       ; save fer later
-    bra FA_BOPLP0
-
-FA_BNOFAM:
-    ldx    #0
-    lda FA_addr,x
-    cmp 
-    
-FA_FAMFOUND:          ; now look up address # and op
-                                    ; ******* WIP WIP WIP WIP
-FA_BNXT0:
-
-    bra FA_BNXT1
-FA_BSEQOP:            ; for RMB/SMB/BBR/BBS
-    lda #$F0
-    sta TEMP4         ; family # is $F0
-    clc
-    adc TEMP2
-    sta TEMP1
-    stz TEMP1+1       ; op code
-    lda #2
-    sta TEMP2         ; length for all is 2
-            ; and fall through
-FA_BNXT1:
-    stz TEMP1+1
-    stz TEMP2+1
-                  ; get # bytes of inst in TEMP2
-    
-    lda TEMP4
-    sta TEMP1
-    jsr spush_0     ; push family#
-    
-    jsr spush_1     ; push length of inst
-    
-    lda TEMP4+1
-    sta TEMP1
-    jsr spush_0     ; push opcode
-
-    
-    lda TEMP3+1
-    sta DELIM      ; restore previous DELIM
-    rts
-    
 ;----------------------------------------------------------------------------
 ;                     HyFedit - editor stuff
 def_word "fedisp", "fedisp", 0
@@ -1245,8 +995,10 @@ def_word "feadd", "feadd", 0
     bcc  FEADDNEXT               ; failed bounds check
     lda HFE_CV
     sta TEMP2
+    
     jsr FELIN                   ; row in TEMP2 -> address, destroys Y  
     jsr FECPY                    ; src addr in TEMP1 returns # of chars copied in Y
+    
     sty TEMP1                    ; reuse TEMP1 for chars copied
     stz TEMP1+1
     jsr spush_0                  ; push # of chars

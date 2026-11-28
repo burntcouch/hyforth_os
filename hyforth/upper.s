@@ -808,7 +808,8 @@ DOCTRLS:
     lda (PADPTR),y
     sta TEMP1+1
     ldx #TEMP1
-    lda #3
+;    lda #3
+    lda #4                  ; skip leading space
     jsr addwx
     lda HFE_CV              ; paste at current row
     sta TEMP2

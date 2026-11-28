@@ -85,7 +85,13 @@ f_extra:
 .byte 0
 .byte ": || lit [ 256 , ] * swap drop + ;"
 .byte 0
+.byte ": ny|| swap lit [ 16 , ] * swap drop + ;"
+.byte 0
+.byte ": wny|| ny|| rot rot ny|| || ;"
+.byte 0
 .byte ": sz@ 1 + 2 * mem@ + @ 3 + ;"           ; obtain address for a string on mem stack
+.byte 0
+.byte ": feget 0 swap felin pad! ; "
 .byte 0
 .byte "cr q^Free Memory: ^ pad@ @ .psz free hx2d pad@ @ .psz xS xpad"
 .byte 0, 0
@@ -184,9 +190,11 @@ sys_word "MEMLAST"
 ;    examples of how to inject labeled memory addresses (which aren't available in macros) 
 ;
 .byte "$"
-.byte ((.lobyte(TEMP1) / 16) <= 9 ) * ((.lobyte(TEMP1) / 16) | $30) + ((.lobyte(TEMP1) / 16) > 9 ) * ((.lobyte(TEMP1) / 16) + $37)
-.byte ((.lobyte(TEMP1) & $0F) <= 9 ) * ((.lobyte(TEMP1) & $0F) | $30) + ((.lobyte(TEMP1) & $0F) > 9 ) * ((.lobyte(TEMP1) & $0F) + $37)
-.byte " cons s_T1"
+.byte ((.hibyte(next) / 16) <= 9 ) * ((.hibyte(next) / 16) | $30) + ((.hibyte(next) / 16) > 9 ) * ((.hibyte(next) / 16) + $37)
+.byte ((.hibyte(next) & $0F) <= 9 ) * ((.hibyte(next) & $0F) | $30) + ((.hibyte(next) & $0F) > 9 ) * ((.hibyte(next) & $0F) + $37)
+.byte ((.lobyte(next) / 16) <= 9 ) * ((.lobyte(next) / 16) | $30) + ((.lobyte(next) / 16) > 9 ) * ((.lobyte(next) / 16) + $37)
+.byte ((.lobyte(next) & $0F) <= 9 ) * ((.lobyte(next) & $0F) | $30) + ((.lobyte(next) & $0F) > 9 ) * ((.lobyte(next) & $0F) + $37)
+.byte " cons s_next"
 .byte 0
 .byte "$"
 .byte ((.lobyte(TEMP2) / 16) <= 9 ) * ((.lobyte(TEMP2) / 16) | $30) + ((.lobyte(TEMP2) / 16) > 9 ) * ((.lobyte(TEMP2) / 16) + $37)
@@ -217,8 +225,44 @@ LT_FASM:
 .byte <(fasm + COPYSTART - RAMSTART)
 fasm:
 .byte "cr q^Loading Fasm...^ .psz xR"
+.byte 0
+.byte "var {org} drop"                      ; origin addr of program
+.byte 0
+.byte "var {curr} drop"                     ; current code append pointer
+.byte 0
+.byte "var {fat1} drop"                     ; temp variable 1 for fasm
+.byte 0
+.byte "var {fat2} drop"                     ; temp variable 2 for fasm
+.byte 0
+.byte ": +{curr} {curr} @ + {curr} ! ;"                  ; advance {curr} by n
+.byte 0
+.byte ": !{curr} {curr} @ c! 1 +{curr} ;"               ; save byte at {curr} and advance 1
+.byte 0
+.byte ": !w{curr} {curr} @ ! 2 +{curr} ;"               ; save word at {curr} and advance 2
+.byte 0
+.byte ": {_new lit [ $9000 , ] dup {org} ! {curr} ! ;"   ; clear {org} and {curr}
+.byte 0
+.byte ": {_run {org} @ xjsr ;"                           ; run a loaded program (it had better end with RTS)
+.byte 0
+.byte ": {_list {org} @ 1 dump ;"                        ; list loaded program
+.byte 0
+.byte ": {_dis {org} @ lit [ 10 , ] disasm ;"                        ; disasm on loaded program
+.byte 0
+.byte ": {_ip0a {_mnsz@ pad@ @ 3 + 3 insz ;"             ; pass 0a - lookup offset from mnemoic string
+.byte 0
+.byte ": {_ip0b {_mno@ bin& ;"                            ; pass 0b - lookup base op code from offset
+.byte 0
+.byte ": {_ip0c pad@ @ 6 + {_asz& {_bop& dup {fat1} ! ;"   ; pass 0c - lookup addr mode from mode string
+.byte 0
+.byte ": {_ip0d pad@ @ 3 + {_opa& ;"                      ; pass 0d - lookup final op code from mode and base op
+.byte 0
+.byte ": {_ip& xS {_ip0a {_ip0b {_ip0c dup 2 = if {_ip0d swap drop swap else dup 3 = if {_ip0d rot drop rot else drop endif endif ;"
+.byte 0                                                   ; process parm list, collapse and rearrange to load
+.byte ": {_ld+ {fat1} @ 0 do !{curr} loop ;"             ; load to memory (assumes parms and op code in order on stack) 
+.byte 0
 .byte 0,0
 FA_OPLOOKUP:                                     ; about 263 bytes as of 11/20/26
+;
 ; ADDRESS MODES
 ;  0 - A            A  -(1)
 ;  1 - #            n  -(2)
@@ -349,14 +393,14 @@ FA_xamt2:
 ;--------------------- 49
 ;                               OPCODE FAMILY
 ;
-FA_FAMCNT = 8
+FA_FAMCNT = 6
 FA_xops:
 FA_sng1:                                         ; all single byte instructions
  .byte $00, $08, $18, $28, $38, $40, $48
  .byte $58, $5A, $60, $68, $78, $7A, $88, $8A, $98, $9A
  .byte $A8, $AA, $B8, $BA, $C8, $CA, $CB, $D8, $DA, $DB, $E8, $EA, $F8, $FA, 3
 FA_sng3:  .byte $20, 3                           ; JSR  3 bytes
-FA_mb:  .byte $07, $87, 3                        ; RMB, SMB  2 bytes
+;FA_mb:  .byte $07, $87, 3                        ; RMB, SMB  2 bytes
 FA_br:  
  .byte $0F, $10, $30, $50, $70                   ; all branch instructions
  .byte $80, $8F, $90, $B0, $D0, $F0, 3           ; 2 bytes
@@ -364,7 +408,7 @@ FA_br:
 ;   below have multiple address modes
 ;
 ;-------------------- 18
-FA_tba:
+FA_tba:                                          ; TBR, TBS
  .byte $04, $14, 3
 FA_mma:                                          ; ORA, AND, EOR, ADC, STA, LDA, CMP, SBC
  .byte $01, $21, $41, $61, $81, $A1, $C1, $E1, 3
@@ -376,6 +420,7 @@ FA_opend:
 ;                              ADDRESS MODES
 ;
 ;       op   A    n    ix   iy   iz   z   zx   zy    ay   a   ax   i    ia
+FA_AMRLEN = 14
 FA_xaddr:
 FA_tbaa:
  .byte $04, $FF, $FF, $FF, $FF, $FF, $00, $FF, $FF, $FF, $08, $FF, $FF, $FF
@@ -406,6 +451,7 @@ FA_BIT:
  .byte $24, $FF, $65, $FF, $FF, $FF, $00, $10, $FF, $FF, $08, $18, $FF, $FF
 FA_JMP:
  .byte $4C, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $00, $FF, $20, $30
+ .byte 0     ; backstop at end
 fasm_end:
 ;
 ; end of ftrain.s
