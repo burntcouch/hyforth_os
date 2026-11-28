@@ -16,9 +16,9 @@
 ;---------------------------------------------------------------------
 ;
 ; ( -- ) ae exit forth
-def_word "bye", "bye", 0
+def_word "bye", "bye", 0        ; use the 'woz' word (JSR), '^' to get back, if you just need Wozmon for a sec.
     jsr WWARMSTART_ADDR
-    jmp MON_START               ; jump to WOZMON
+    jmp MON_START               ; jump to WOZMON, return with warm start
 WWARMSTART_ADDR:
     lda #'F'
     jsr WRITE_CHAR
@@ -41,10 +41,34 @@ def_word "reset", "reset_", 0
     jmp reset
 ;
 ; ( a -- ) execute a jump to a reference at top of data stack
+;
+;   e.g.  if you have address of a CFA, and ': doit exec ;$ ;'
+;   then 'doit' will execute the word and return safely
+; 
+;
 def_word "exec", "exec", 0
     jsr spull_0
     jmp (TEMP1)        ; assumes an address on top of DS
 
+;
+; ( a -- ) execute a jump to arbitrary code (which better return!)
+def_word "xjsr", "xjsr", 0
+    jmp JSRSKIP
+DOJSR:
+    .byte $20, 0, 0
+    jmp JSREND
+JSRSKIP:
+    jsr spull_0
+    ldx #1
+    lda TEMP1
+    sta DOJSR,x
+    inx
+    lda TEMP1+1
+    sta DOJSR,x
+    jmp DOJSR
+JSREND:
+    jmp next
+    
 ;---------------------------------------------------------------------
 ; ( -- ) execute a jump to a reference at IP
 def_word ":$", "docode", 0
@@ -472,10 +496,30 @@ COM_TOKLOOP:
     bne COM_TOKLOOP
     iny
     lda (NXTTOK),y
-    cmp #')'                   ; does it start with a parens?
+    cmp #')'                   ; does it end with a parens?
     bne COM_TOKLOOP
     jmp next
 ;
+;
+def_word "x2bin", "x2bin", 0
+    jsr spull_0
+    lda TEMP1
+    sec
+    sbc #$30
+    bcc X2BIN_ERR
+    cmp #10
+    bmi  X2BIN_DONE
+    sec
+    sbc #7
+    cmp #$10
+    bmi  X2BIN_DONE
+X2BIN_ERR:
+    lda #$FF
+X2BIN_DONE:
+    sta TEMP1
+    stz TEMP1+1
+    jmp this
+
 ;
 ; ( -- u) push following character in input buffer to stack
 def_word "ord", "ord", 0
@@ -499,9 +543,11 @@ ORDLOOP:                     ; loop is necc because can pick up ANSI codes!
     lda #$20
     sta (NXTTOK), y
     iny
+    phy
     phx
     jsr spush_0
     plx
+    ply
     dex
     bne ORDLOOP
 ORDNONE:

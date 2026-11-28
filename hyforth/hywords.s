@@ -583,11 +583,24 @@ SCDUMMY:
     ldx #0
     rts
     
-def_word "basic", "basic", 0
-    jsr WWARMSTART_ADDR    
+def_word "basic", "basic", 0   ; assumes that BASIC image is loaded in a ROM bank and available
+    jsr WWARMSTART_ADDR        ;   after the bank switch.  This is a 'cold' start, with no warm return to Forth.
     lda #BASBANK               ; switch ROM bank to one with basic in it
-    sta $01
-    jmp $A000                  ;   start BASIC
+    sta ROM_BANK_REG           ; at ZP $01, we hope
+    jmp BASSTART               ; start BASIC
+    
+def_word "woz", "woz", 0       ; JSR to Wozmon rather than exit to it
+    lda #'^'
+    jsr WRITE_CHAR
+    lda #$20
+    jsr WRITE_CHAR
+    lda #'H'
+    jsr WRITE_CHAR
+    lda #'F'
+    jsr WRITE_CHAR
+    WCRLF
+    jsr MON_START
+    jmp next
 ;
 ; -------------- various functions to copy data between memory and stack
 ;
@@ -788,7 +801,7 @@ INSTR:               ; TEMP1 has addr of string to search, zero termed
     ldy #0
     ldx #0
 INSTRLP:
-    jsr DUMPREG
+ ;   jsr DUMPREG
     
     lda (TEMP1),y
     beq INSTRNONE
@@ -881,152 +894,9 @@ BINAMPD_NONE:
     iny                ; offset + 1 of delimeter
     sty TEMP1     
     rts
-    
-    
-;----------------------------------------------------------------------------
-;                     HFA - HyForth mini-assembler stuff
 ;
-;  opcode family table
-def_word "fa_ops@", "faopsget", 0
-    lda #<FA_ops
-    sta TEMP1
-    lda #>FA_ops
-    jmp keeps                   ; 'keeps' includes sta TEMP1+1 / jsr spush_0 / jmp next
+;    hfa.s has HyForth assembler words now
 ;
-;  opcode address mode table
-def_word "fa_adm@", "faadmget", 0
-    lda #<FA_addr
-    sta TEMP1
-    lda #>FA_addr
-    jmp keeps
-;
-;  capture and convert address mode string to #
-def_word "fa_amcap", "fa_amcap", 0
-
-;  mnemonic string addr
-def_word "fa_mnsz@", "famnszget", 0
-    lda #<MNEMONIC_STR
-    sta TEMP1
-    lda #>MNEMONIC_STR
-    jmp keeps
-;
-;  mnemonic offset table addr
-;
-def_word "fa_mno@", "famnoget", 0
-    lda #<MN_OFFSETS
-    sta TEMP1
-    lda #>MN_OFFSETS
-    jmp keeps
-;
-;
-def_word "fa_m2s&", "fam2samp", 0    ; returns offset in mn string
-       ;
-       ; note: calling token kills x, y, a, TEMP1, TEMP2, TEMP4, TEMP5, TEMP6
-       ;  (at least) Best not to use any TEMPs until after call, if possible
-       ;
-    jsr token            ; get following token  
-    lda NXTTOK
-    sta TEMP2         ;store addr of token
-    lda NXTTOK+1
-    sta TEMP2+1    
-    ldy #0
-    lda (TEMP2),y
-    sta TEMP3         ; save length
-    inc TEMP2
-    bne ASCANL0
-    inc TEMP2+1
-ASCANL0:
-    jsr spull_0     ; TEMP1 has address of DISASM mnemonic string
-    jsr INSTR
-    jsr spush_1       ; push TEMP2 on DS, found
-    jmp next
-;
-;         return hex address mode from string
-;
-def_word "fa_asz&", "faaszamp", 0
-    ldy #TEMP4
-    jsr  spull
-    jsr FA_ASZ2AM
-    bcc FA_ASZ_SZERR
-    ldy #TEMP4
-    jsr  spush
-FA_ASZ_SZERR:
-    jmp next
-
-
-FA_ASZ2AM:           ; address string to address mode  - TEMP4 has address, will return mode
-    ldy #0
-    lda (TEMP4),y
-    tax
-    iny
-    lda (TEMP4),y
-    beq  FA_ASZ1
- ;
-    ldy #0                  ; has two chars
-    sta TEMP4+1             ; stash A here
-FA_ASZ2LP:
-    txa
-    cmp FA_amtable2,y
-    beq FA_ASZ2_NXT
-    iny
-    iny
-    iny
-FA_ASZ2_ychk:
-    cpy #FA_xamtablen2
-    beq FA_ASZERR
-    bra FA_ASZ2LP
-FA_ASZ2_NXT:
-    iny
-    lda TEMP4+1            ; get A back
-    cmp FA_amtable2, y
-    beq FA_ASZ2_found
-    iny
-    iny
-    bra FA_ASZ2_ychk
-FA_ASZ2_found:
-    iny
-    lda FA_amtable2,y
-    sta TEMP4
-    bra FA_ASZDONE
-;  
-FA_ASZ1:                   ; is it a digit so RMB/SMB/BBR/BBS?
-    txa
-    sec
-    sbc #$30
-    bmi  FA_ASZERR        ; not anything we can use
-    cmp #8
-    bpl  FA_ASZNOTDIG     ; not a digit 0-7
-    inc                   ; shift to upper nybble, add one
-    asl
-    asl
-    asl
-    asl
-    sta TEMP4
-    bra FA_ASZDONE        ; mode will be $10-$80 depending on 0-7 digit
-FA_ASZNOTDIG:
-    ldy #0
-FA_ASZ1LP:
-    txa
-    cmp   FA_amtable1,y
-    beq    FA_ASZ1_found
-    iny
-    iny
-    cpy #FA_xamtablen1
-    beq  FA_ASZERR
-    bra  FA_ASZ1LP
-FA_ASZ1_found:
-    iny
-    lda   FA_amtable1,y
-    sta TEMP4
-FA_ASZDONE:
-    stz TEMP4+1
-    sec             ; found something
-    rts
-    
-FA_ASZERR:          ; oops
-    clc
-    rts
-    
 ;----------------------------------------------------------------------------
 ;                     HyFedit - editor stuff
 def_word "fedisp", "fedisp", 0
@@ -1125,8 +995,10 @@ def_word "feadd", "feadd", 0
     bcc  FEADDNEXT               ; failed bounds check
     lda HFE_CV
     sta TEMP2
+    
     jsr FELIN                   ; row in TEMP2 -> address, destroys Y  
     jsr FECPY                    ; src addr in TEMP1 returns # of chars copied in Y
+    
     sty TEMP1                    ; reuse TEMP1 for chars copied
     stz TEMP1+1
     jsr spush_0                  ; push # of chars

@@ -85,22 +85,11 @@ MON_START:
 @check_rtow:
                 cmp             #'R'
                 beq             @run_prog
-                bra  @nothing
-;                bcc             @not_tuvw
-;                cmp             #'X'        ; R, S, T, U, V, or W
-;                bcs             @not_tuvw
-;                cmp             #'S'               ; no 'SPAWN' for now
-;                bne             @not_spawn
-;                jmp             SPAWN_TASK        ; see bios.s - do nothing
-;             
-;@not_spawn:                            ; TUVW falls through to here
-;                clc
-;                adc             #($F0 - 'T'); T=FFF0, U=FFF1, V=FFF2, W=FFF3
-;                sta             ZP_WM_HVP       ;
-;                lda             #$FF            ;
-;                sta             ZP_WM_HVP + 1   ;
-;                iny                             ; skip the mnemonic
-;               bra             @not_hex_or_escape
+                cmp     #'^'
+                beq     @go_rts
+                bra     @nothing
+@go_rts:
+                jmp     WOZRTS
 
 @bra_is_start:
                 bra             @is_start       ; can't branch from top to botthom w/o this
@@ -205,6 +194,8 @@ MON_START:
                 and             #7              ; For MOD 8 = 0
                 beq             @print_next_addr
                 bra             @print_data
+WOZRTS:
+                rts                  ; return to BASIC or Forth
 ;
 ;          end of wozmon.s
 ;

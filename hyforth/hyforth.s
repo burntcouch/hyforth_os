@@ -166,11 +166,11 @@ DEBUG := 1        ; enable inclusion of debug code
 
 HYWORDS := 1      ; add in additional hardcoded words / logic
 
+HFA := 1          ; HyForth assembler
+
 ANSIOK := 1         ; add ANSI screen stuff
 
 YSOUND := 1        ; add sound support
-
-;TXT2STACK := 1     ; use old TXTGET instead of new
 
 ;---------------------------------------------------------------------
 ;              for PGS hyforth stuff
@@ -990,7 +990,6 @@ ENGINEEND:
 ;    upper.s -- error messaging, CLEAR on start, debug, utilities
 ;------------------------------------------------------------------------
 ;
-upper_ram:
    .include "upper.s"
 ;------------------------------------------------------------------------
 ;
@@ -1252,6 +1251,12 @@ primitives:
 additions:
 .ifdef HYWORDS
    .include "hywords.s"
+.endif
+;
+;   HyForth Assembler hard-coded functions
+;
+.ifdef HFA
+   .include "hfa.s"
 .endif
 ;---------------------------------------------------------------------
 ; Thread Code Engine
